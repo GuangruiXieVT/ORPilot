@@ -1,0 +1,48 @@
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# pytest
+.pytest_cache/
+
+# Environment variables (real keys)
+.env
+
+# Claude Code local settings
+.claude/
+
+# Runtime output artifacts
+output/
+data/
+
+# Solver-generated files (PuLP/Pyomo may write these to working dir)
+*.lp
+*.mps
+*.sol
+*.glpk
+*.cplex
+
+# Coverage reports
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo

@@ -1,0 +1,39 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "aifor"
+version = "0.1.0"
+description = "AIFOR — AI Operations Research Agent — LLM-powered OR modeling and solving"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+dependencies = [
+    "langgraph>=0.2",
+    "langchain-core>=0.3",
+    "openai>=1.0",
+    "anthropic>=0.30",
+    "pydantic>=2.0",
+    "typer>=0.9",
+    "rich>=13.0",
+    "python-dotenv>=1.0",
+]
+
+[project.optional-dependencies]
+pulp = ["pulp>=2.7"]
+pyomo = ["pyomo>=6.0"]
+ortools = ["ortools>=9.0"]
+all-solvers = ["pulp>=2.7", "pyomo>=6.0", "ortools>=9.0"]
+dev = [
+    "pytest>=7.0",
+    "pytest-asyncio>=0.21",
+    "pulp>=2.7",
+    "pyomo>=6.0",
+]
+
+[project.scripts]
+aifor = "aifor.cli:app"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
