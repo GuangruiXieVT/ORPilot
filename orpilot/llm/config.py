@@ -29,8 +29,8 @@ def get_llm(config: LLMConfig | None = None) -> BaseLLM:
     """Create an LLM instance from configuration."""
     if config is None:
         config = LLMConfig(
-            provider=os.getenv("AIFOR_LLM_PROVIDER", "openai"),
-            model=os.getenv("AIFOR_MODEL"),
+            provider=os.getenv("ORPILOT_LLM_PROVIDER", "openai"),
+            model=os.getenv("ORPILOT_MODEL"),
         )
 
     provider = config.provider.lower()

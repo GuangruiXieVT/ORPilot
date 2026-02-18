@@ -1,8 +1,8 @@
-"""AIFOR — AI Operations Research Agent Library.
+"""ORPilot — AI Operations Research Agent Library.
 
 Usage::
 
-    from aifor import Agent
+    from orpilot import Agent
 
     agent = Agent(llm_provider="openai", solver="pulp")
     result = agent.run()  # interactive
@@ -14,15 +14,15 @@ from __future__ import annotations
 
 from typing import Any
 
-from aifor.llm.config import LLMConfig, get_llm
-from aifor.models.problem import ProblemDefinition
-from aifor.models.data import UserData, DataParameter
-from aifor.models.solution import SolutionResult
-from aifor.workflow.graph import build_graph
+from orpilot.llm.config import LLMConfig, get_llm
+from orpilot.models.problem import ProblemDefinition
+from orpilot.models.data import UserData, DataParameter
+from orpilot.models.solution import SolutionResult
+from orpilot.workflow.graph import build_graph
 
 
 class Agent:
-    """High-level Python API for the AIFOR agent."""
+    """High-level Python API for the ORPilot agent."""
 
     def __init__(
         self,
@@ -56,7 +56,7 @@ class Agent:
         data_dir: str | None = None,
         output_dir: str | None = None,
     ) -> SolutionResult | None:
-        """Run the AIFOR agent workflow.
+        """Run the ORPilot agent workflow.
 
         Args:
             problem: Problem description string or ProblemDefinition.
@@ -71,7 +71,7 @@ class Agent:
             SolutionResult if the workflow completes, None if aborted.
         """
         from pathlib import Path
-        from aifor.workflow.state import WorkflowState
+        from orpilot.workflow.state import WorkflowState
 
         resolved_dir = data_dir or self._data_dir
         Path(resolved_dir).mkdir(parents=True, exist_ok=True)

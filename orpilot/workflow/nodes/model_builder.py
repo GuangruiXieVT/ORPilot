@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from aifor.codegen.generator import CodeGenerator
-from aifor.llm.base import BaseLLM
-from aifor.workflow.state import WorkflowState
+from orpilot.codegen.generator import CodeGenerator
+from orpilot.llm.base import BaseLLM
+from orpilot.workflow.state import WorkflowState
 
 
 def model_builder_node(state: WorkflowState, llm: BaseLLM) -> WorkflowState:

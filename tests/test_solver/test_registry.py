@@ -2,8 +2,8 @@
 
 import pytest
 
-from aifor.solver.registry import get_solver, list_solvers
-from aifor.solver.base import BaseSolver
+from orpilot.solver.registry import get_solver, list_solvers
+from orpilot.solver.base import BaseSolver
 
 
 def test_list_solvers():

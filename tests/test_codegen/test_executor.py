@@ -1,6 +1,6 @@
 """Tests for the code executor."""
 
-from aifor.codegen.executor import CodeExecutor
+from orpilot.codegen.executor import CodeExecutor
 
 
 def test_executor_simple():

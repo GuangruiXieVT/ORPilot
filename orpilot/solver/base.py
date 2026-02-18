@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 
-from aifor.models.solution import SolutionResult
+from orpilot.models.solution import SolutionResult
 
 
 class BaseSolver(ABC):

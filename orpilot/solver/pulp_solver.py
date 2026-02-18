@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import time
 
-from aifor.codegen.executor import CodeExecutor
-from aifor.models.solution import SolutionResult, SolveStatus, VariableGroup
+from orpilot.codegen.executor import CodeExecutor
+from orpilot.models.solution import SolutionResult, SolveStatus, VariableGroup
 
 from .base import BaseSolver
 

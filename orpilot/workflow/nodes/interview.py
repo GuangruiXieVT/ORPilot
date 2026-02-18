@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from aifor.llm.base import BaseLLM
-from aifor.models.problem import ProblemDefinition
-from aifor.prompts import interview as interview_prompts
-from aifor.workflow.state import WorkflowState
+from orpilot.llm.base import BaseLLM
+from orpilot.models.problem import ProblemDefinition
+from orpilot.prompts import interview as interview_prompts
+from orpilot.workflow.state import WorkflowState
 
 
 def interview_node(state: WorkflowState, llm: BaseLLM) -> WorkflowState:

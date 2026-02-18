@@ -11,14 +11,14 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.markdown import Markdown
 
-from aifor.llm.config import LLMConfig, get_llm
-from aifor.workflow.graph import build_graph
-from aifor.workflow.state import WorkflowState
-from aifor.models.problem import ProblemDefinition
-from aifor.models.data import UserData
+from orpilot.llm.config import LLMConfig, get_llm
+from orpilot.workflow.graph import build_graph
+from orpilot.workflow.state import WorkflowState
+from orpilot.models.problem import ProblemDefinition
+from orpilot.models.data import UserData
 
 app = typer.Typer(
-    name="aifor",
+    name="orpilot",
     help="AI Operations Research Agent — LLM-powered OR modeling and solving",
 )
 console = Console()
@@ -210,7 +210,7 @@ def run(
     api_key: str = typer.Option(None, "--api-key", envvar="OPENAI_API_KEY"),
     base_url: str = typer.Option(None, "--base-url", envvar="OPENAI_BASE_URL", help="Custom API base URL (e.g. https://api.deepseek.com)"),
 ) -> None:
-    """Start an interactive AIFOR session."""
+    """Start an interactive ORPilot session."""
     from dotenv import load_dotenv
     load_dotenv()
 
@@ -264,10 +264,10 @@ def run(
         console.print(Panel("Loaded data from file", title="Data"))
 
     console.print(Panel(
-        "Welcome to AIFOR — AI Operations Research Agent\n"
+        "Welcome to ORPilot — AI Operations Research Agent\n"
         "I'll help you model and solve optimization problems.\n"
         "Type 'quit' to exit at any time.",
-        title="AIFOR",
+        title="ORPilot",
         border_style="blue",
     ))
 
@@ -345,10 +345,10 @@ def config() -> None:
     from dotenv import load_dotenv
     load_dotenv()
 
-    console.print(Panel("AIFOR Configuration", border_style="blue"))
-    console.print(f"LLM Provider: {os.getenv('AIFOR_LLM_PROVIDER', 'openai')}")
-    console.print(f"Model: {os.getenv('AIFOR_MODEL', '(default)')}")
-    console.print(f"Default Solver: {os.getenv('AIFOR_DEFAULT_SOLVER', 'pulp')}")
+    console.print(Panel("ORPilot Configuration", border_style="blue"))
+    console.print(f"LLM Provider: {os.getenv('ORPILOT_LLM_PROVIDER', 'openai')}")
+    console.print(f"Model: {os.getenv('ORPILOT_MODEL', '(default)')}")
+    console.print(f"Default Solver: {os.getenv('ORPILOT_DEFAULT_SOLVER', 'pulp')}")
     console.print(f"OpenAI Key: {'set' if os.getenv('OPENAI_API_KEY') else 'not set'}")
     console.print(f"Anthropic Key: {'set' if os.getenv('ANTHROPIC_API_KEY') else 'not set'}")
 

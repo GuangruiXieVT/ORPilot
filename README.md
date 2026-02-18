@@ -1,4 +1,4 @@
-# AIFOR — AI Operations Research Agent
+# ORPilot — AI Operations Research Agent
 
 LLM-powered Operations Research modeling and solving.
 
@@ -11,7 +11,7 @@ pip install -e ".[all-solvers]"
 ## Quick Start
 
 ```python
-from aifor import Agent
+from orpilot import Agent
 
 agent = Agent(llm_provider="openai", solver="pulp")
 result = agent.run()
@@ -20,6 +20,6 @@ result = agent.run()
 ## CLI
 
 ```bash
-aifor run --provider openai --solver pulp
-aifor config
+orpilot run --provider openai --solver pulp
+orpilot config
 ```

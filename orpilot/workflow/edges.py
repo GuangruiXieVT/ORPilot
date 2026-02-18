@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from aifor.models.solution import SolveStatus
-from aifor.workflow.state import WorkflowState
+from orpilot.models.solution import SolveStatus
+from orpilot.workflow.state import WorkflowState
 
 
 def after_interview(state: WorkflowState) -> str:

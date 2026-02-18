@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import json
 
-from aifor.llm.base import BaseLLM
-from aifor.prompts import report as report_prompts
-from aifor.workflow.state import WorkflowState
+from orpilot.llm.base import BaseLLM
+from orpilot.prompts import report as report_prompts
+from orpilot.workflow.state import WorkflowState
 
 
 def reporter_node(state: WorkflowState, llm: BaseLLM) -> WorkflowState:

@@ -2,8 +2,8 @@
 
 from pydantic import BaseModel
 
-from aifor.llm.base import BaseLLM
-from aifor.llm.config import LLMConfig
+from orpilot.llm.base import BaseLLM
+from orpilot.llm.config import LLMConfig
 
 
 class DummyResponse(BaseModel):

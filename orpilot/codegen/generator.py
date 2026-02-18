@@ -5,10 +5,10 @@ from __future__ import annotations
 import json
 import re
 
-from aifor.llm.base import BaseLLM
-from aifor.models.problem import ProblemDefinition
-from aifor.models.data import UserData
-from aifor.prompts import codegen as codegen_prompts
+from orpilot.llm.base import BaseLLM
+from orpilot.models.problem import ProblemDefinition
+from orpilot.models.data import UserData
+from orpilot.prompts import codegen as codegen_prompts
 
 
 class CodeGenerator:

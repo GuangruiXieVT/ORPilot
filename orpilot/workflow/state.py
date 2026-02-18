@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from typing import Any, TypedDict
 
-from aifor.models.problem import ProblemDefinition
-from aifor.models.data import UserData
-from aifor.models.solution import SolutionResult
+from orpilot.models.problem import ProblemDefinition
+from orpilot.models.data import UserData
+from orpilot.models.solution import SolutionResult
 
 
 class WorkflowState(TypedDict, total=False):

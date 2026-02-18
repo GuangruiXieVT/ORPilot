@@ -3,9 +3,9 @@
 import os
 import tempfile
 
-from aifor.models.problem import ProblemDefinition, ProblemType, ObjectiveType, Constraint
-from aifor.models.data import UserData, DataParameter, CsvFileSpec, CsvColumnSpec
-from aifor.models.solution import SolutionResult, SolveStatus
+from orpilot.models.problem import ProblemDefinition, ProblemType, ObjectiveType, Constraint
+from orpilot.models.data import UserData, DataParameter, CsvFileSpec, CsvColumnSpec
+from orpilot.models.solution import SolutionResult, SolveStatus
 
 
 def test_problem_definition():

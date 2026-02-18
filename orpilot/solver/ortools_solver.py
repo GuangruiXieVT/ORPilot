@@ -1,26 +1,27 @@
-"""Pyomo solver implementation."""
+"""Google OR-Tools solver implementation."""
 
 from __future__ import annotations
 
 import time
 
-from aifor.codegen.executor import CodeExecutor
-from aifor.models.solution import SolutionResult, SolveStatus, VariableGroup
+from orpilot.codegen.executor import CodeExecutor
+from orpilot.models.solution import SolutionResult, SolveStatus, VariableGroup
 
 from .base import BaseSolver
 
 
-class PyomoSolver(BaseSolver):
-    name = "pyomo"
-    framework = "pyomo"
+class ORToolsSolver(BaseSolver):
+    name = "ortools"
+    framework = "ortools"
 
     def __init__(self, timeout: int = 120):
         self._executor = CodeExecutor(
             timeout=timeout,
             allowed_modules=[
-                "pyomo",
-                "pyomo.environ",
-                "pyomo.core",
+                "ortools",
+                "ortools.linear_solver",
+                "ortools.sat",
+                "ortools.constraint_solver",
                 "math",
                 "itertools",
                 "collections",

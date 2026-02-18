@@ -3,9 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "aifor"
+name = "orpilot"
 version = "0.1.0"
-description = "AIFOR — AI Operations Research Agent — LLM-powered OR modeling and solving"
+description = "ORPilot — AI Operations Research Agent — LLM-powered OR modeling and solving"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
@@ -33,7 +33,7 @@ dev = [
 ]
 
 [project.scripts]
-aifor = "aifor.cli:app"
+orpilot = "orpilot.cli:app"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

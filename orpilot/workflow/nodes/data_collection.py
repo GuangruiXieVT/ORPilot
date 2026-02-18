@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from aifor.llm.base import BaseLLM
-from aifor.models.data import CsvFileSpec, UserData
-from aifor.prompts import data_guide
-from aifor.workflow.state import WorkflowState
+from orpilot.llm.base import BaseLLM
+from orpilot.models.data import CsvFileSpec, UserData
+from orpilot.prompts import data_guide
+from orpilot.workflow.state import WorkflowState
 
 
 def data_collection_node(state: WorkflowState, llm: BaseLLM) -> WorkflowState:

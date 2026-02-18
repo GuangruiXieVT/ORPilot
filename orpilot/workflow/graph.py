@@ -1,4 +1,4 @@
-"""Main LangGraph graph definition for the AIFOR workflow."""
+"""Main LangGraph graph definition for the ORPilot workflow."""
 
 from __future__ import annotations
 
@@ -6,22 +6,22 @@ from typing import Any
 
 from langgraph.graph import StateGraph, END
 
-from aifor.llm.base import BaseLLM
-from aifor.llm.config import LLMConfig, get_llm
-from aifor.workflow.state import WorkflowState
-from aifor.workflow.nodes.interview import interview_node
-from aifor.workflow.nodes.data_collection import data_collection_node
-from aifor.workflow.nodes.model_builder import model_builder_node
-from aifor.workflow.nodes.solver_runner import solver_runner_node
-from aifor.workflow.nodes.reporter import reporter_node
-from aifor.workflow import edges
+from orpilot.llm.base import BaseLLM
+from orpilot.llm.config import LLMConfig, get_llm
+from orpilot.workflow.state import WorkflowState
+from orpilot.workflow.nodes.interview import interview_node
+from orpilot.workflow.nodes.data_collection import data_collection_node
+from orpilot.workflow.nodes.model_builder import model_builder_node
+from orpilot.workflow.nodes.solver_runner import solver_runner_node
+from orpilot.workflow.nodes.reporter import reporter_node
+from orpilot.workflow import edges
 
 
 def build_graph(
     llm: BaseLLM | None = None,
     llm_config: LLMConfig | None = None,
 ) -> StateGraph:
-    """Build the AIFOR workflow graph.
+    """Build the ORPilot workflow graph.
 
     Args:
         llm: Pre-configured LLM instance. If None, created from llm_config.

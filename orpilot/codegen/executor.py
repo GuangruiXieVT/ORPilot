@@ -59,9 +59,9 @@ class CodeExecutor:
             result = None
             output_lines = []
             for line in stdout_lines:
-                if line.startswith("__AIFOR_RESULT__:"):
+                if line.startswith("__ORPILOT_RESULT__:"):
                     try:
-                        result = json.loads(line[len("__AIFOR_RESULT__:"):])
+                        result = json.loads(line[len("__ORPILOT_RESULT__:"):])
                     except json.JSONDecodeError:
                         pass
                 else:
@@ -109,8 +109,8 @@ class CodeExecutor:
                 data = json.loads({data_json!r})
                 try:
                     result = solve(data)
-                    print("__AIFOR_RESULT__:" + json.dumps(result))
+                    print("__ORPILOT_RESULT__:" + json.dumps(result))
                 except Exception as e:
-                    print("__AIFOR_RESULT__:" + json.dumps({{"status": "error", "error": str(e)}}))
+                    print("__ORPILOT_RESULT__:" + json.dumps({{"status": "error", "error": str(e)}}))
                     sys.exit(0)
         """)

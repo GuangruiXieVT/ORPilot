@@ -1,9 +1,9 @@
 """Tests for workflow edge routing logic."""
 
-from aifor.models.problem import ProblemDefinition
-from aifor.models.data import UserData
-from aifor.models.solution import SolutionResult, SolveStatus
-from aifor.workflow.edges import after_interview, after_data_collection, after_solver_runner
+from orpilot.models.problem import ProblemDefinition
+from orpilot.models.data import UserData
+from orpilot.models.solution import SolutionResult, SolveStatus
+from orpilot.workflow.edges import after_interview, after_data_collection, after_solver_runner
 
 
 def test_after_interview_complete():
