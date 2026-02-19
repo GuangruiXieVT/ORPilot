@@ -25,11 +25,18 @@ class CodeExecutor:
             - stdout: captured stdout
             - error: error message string, or None
         """
-        wrapper = self._build_wrapper(code, data)
+        wrapper = self._build_wrapper(code)
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            script_path = Path(tmpdir) / "solver_script.py"
+            tmpdir_path = Path(tmpdir)
+            script_path = tmpdir_path / "solver_script.py"
             script_path.write_text(wrapper)
+
+            # Write data to a separate file so it is never embedded in the script.
+            # The subprocess loads it from disk, keeping memory usage proportional
+            # to the data size rather than doubling it as a string literal.
+            data_path = tmpdir_path / "data.json"
+            data_path.write_text(json.dumps(data), encoding="utf-8")
 
             try:
                 proc = subprocess.run(
@@ -94,9 +101,8 @@ class CodeExecutor:
                 return ""
         return ""
 
-    def _build_wrapper(self, code: str, data: dict) -> str:
+    def _build_wrapper(self, code: str) -> str:
         """Build the wrapper script that imports and calls solve()."""
-        data_json = json.dumps(data)
         return textwrap.dedent(f"""\
             import json
             import sys
@@ -106,7 +112,8 @@ class CodeExecutor:
             # --- End solver code ---
 
             if __name__ == "__main__":
-                data = json.loads({data_json!r})
+                with open("data.json", encoding="utf-8") as _f:
+                    data = json.load(_f)
                 try:
                     result = solve(data)
                     print("__ORPILOT_RESULT__:" + json.dumps(result))

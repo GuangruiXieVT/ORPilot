@@ -13,7 +13,11 @@ Ask clear, focused questions to understand:
 Keep questions concise. After gathering enough information, summarize the problem \
 and confirm with the user before proceeding.
 
-When you believe you have a complete understanding, end your message with:
+Before finishing the interview, you MUST ask the user one final question:
+"Is there anything else you'd like to add, or anything I may have missed?"
+Do NOT include [INTERVIEW_COMPLETE] in that message — wait for the user's reply first.
+Only after the user has responded to that final question (and you have incorporated \
+any additions) should you end your next message with:
 [INTERVIEW_COMPLETE]
 """
 

@@ -7,7 +7,7 @@ the optimization problem described below using the {solver_framework} library.
 Problem Definition:
 {problem_json}
 
-Data:
+Data schema and sample (the full dataset is passed to solve(data) at runtime — do NOT hardcode values from the sample):
 {data_json}
 
 Requirements:

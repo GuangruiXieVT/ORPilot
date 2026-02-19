@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import json
 import re
+from pathlib import Path
 
 from orpilot.llm.base import BaseLLM
 from orpilot.models.problem import ProblemDefinition
 from orpilot.models.data import UserData
 from orpilot.prompts import codegen as codegen_prompts
+
+_SAMPLE_ROWS = 5  # number of example rows sent to the LLM per table
 
 
 class CodeGenerator:
@@ -27,7 +30,7 @@ class CodeGenerator:
         prompt = codegen_prompts.SYSTEM_PROMPT.format(
             solver_framework=solver_framework,
             problem_json=problem.model_dump_json(indent=2),
-            data_json=json.dumps(data.as_dict(), indent=2),
+            data_json=json.dumps(_make_data_context(data), indent=2),
         )
 
         messages = [
@@ -68,3 +71,29 @@ class CodeGenerator:
             return matches[0].strip()
         # If no code blocks, assume the whole response is code
         return response.strip()
+
+
+def _make_data_context(data: UserData, max_sample_rows: int = _SAMPLE_ROWS) -> dict:
+    """Build a compact schema + sample dict for the LLM code-generation prompt.
+
+    The full dataset is never embedded in the prompt — only column schemas and
+    up to *max_sample_rows* example rows per table are included so the LLM can
+    understand the structure without consuming the entire context window.
+    """
+    context: dict = {}
+
+    if data.parameters:
+        context["parameters"] = {p.name: p.value for p in data.parameters}
+
+    spec_by_stem = {Path(s.filename).stem: s for s in data.csv_specs}
+    for table_name, rows in data.raw_tables.items():
+        spec = spec_by_stem.get(table_name)
+        entry: dict = {"total_rows": len(rows), "sample_rows": rows[:max_sample_rows]}
+        if spec:
+            entry["columns"] = [
+                {"name": c.name, "dtype": c.dtype, "description": c.description}
+                for c in spec.columns
+            ]
+        context[table_name] = entry
+
+    return context

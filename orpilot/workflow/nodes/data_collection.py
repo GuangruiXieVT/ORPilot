@@ -118,6 +118,20 @@ def _phase_load(
             "current_node": "data_collection",
             "needs_user_input": True,
         }
+    except ValueError as exc:
+        messages.append({
+            "role": "assistant",
+            "content": (
+                f"{exc}\n\n"
+                "Please fix the issue(s) in your CSV file(s) and type **ready** when done."
+            ),
+        })
+        return {
+            **state,
+            "messages": messages,
+            "current_node": "data_collection",
+            "needs_user_input": True,
+        }
 
     table_names = ", ".join(user_data.raw_tables.keys())
     messages.append({

@@ -62,8 +62,8 @@ class UserData(BaseModel):
     ) -> UserData:
         """Load CSV files from *directory* according to *specs*.
 
-        Raises ``FileNotFoundError`` with a clear message listing every
-        missing file.
+        Raises ``FileNotFoundError`` listing every missing file.
+        Raises ``ValueError`` listing every missing column or bad cell value.
         """
         dir_path = Path(directory)
 
@@ -78,23 +78,46 @@ class UserData(BaseModel):
                 f"Missing CSV file(s) in {directory}: {', '.join(missing)}"
             )
 
+        validation_errors: list[str] = []
         raw_tables: dict[str, list[dict[str, Any]]] = {}
         for spec in specs:
             filepath = dir_path / spec.filename
+            col_dtypes = {c.name: c.dtype for c in spec.columns}
             with open(filepath, newline="", encoding="utf-8") as fh:
                 reader = csv.DictReader(fh)
+                actual_columns = set(reader.fieldnames or [])
+
+                # Check that every declared column is present in the CSV header
+                expected_columns = {c.name for c in spec.columns}
+                missing_cols = expected_columns - actual_columns
+                if missing_cols:
+                    validation_errors.append(
+                        f"{spec.filename}: missing column(s): {', '.join(sorted(missing_cols))}"
+                    )
+
                 rows: list[dict[str, Any]] = []
-                for row in reader:
-                    # Cast values based on column dtype specs
+                for row_num, row in enumerate(reader, start=2):  # row 1 is the header
                     typed_row: dict[str, Any] = {}
-                    col_dtypes = {c.name: c.dtype for c in spec.columns}
                     for key, value in row.items():
                         dtype = col_dtypes.get(key, "str")
-                        typed_row[key] = _cast_value(value, dtype)
+                        try:
+                            typed_row[key] = _cast_value(value, dtype)
+                        except ValueError as exc:
+                            validation_errors.append(
+                                f"{spec.filename} row {row_num}, column '{key}': {exc}"
+                            )
+                            typed_row[key] = value  # keep original so other errors can still be found
                     rows.append(typed_row)
+
                 # Use filename stem as table name
                 table_name = Path(spec.filename).stem
                 raw_tables[table_name] = rows
+
+        if validation_errors:
+            raise ValueError(
+                "CSV data validation failed:\n"
+                + "\n".join(f"  - {e}" for e in validation_errors)
+            )
 
         return cls(
             raw_tables=raw_tables,
@@ -104,18 +127,21 @@ class UserData(BaseModel):
 
 
 def _cast_value(value: str, dtype: str) -> Any:
-    """Best-effort cast of a string *value* to *dtype*."""
+    """Cast a string *value* to *dtype*.
+
+    Raises ``ValueError`` with a descriptive message if the cast fails.
+    """
     dtype = dtype.lower().strip()
     if dtype in ("int", "integer"):
         try:
             return int(value)
         except (ValueError, TypeError):
-            return value
+            raise ValueError(f"expected int, got '{value}'")
     if dtype in ("float", "double", "number"):
         try:
             return float(value)
         except (ValueError, TypeError):
-            return value
+            raise ValueError(f"expected float, got '{value}'")
     if dtype in ("bool", "boolean"):
         return value.lower() in ("true", "1", "yes")
     return value
