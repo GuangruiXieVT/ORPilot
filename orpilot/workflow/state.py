@@ -21,6 +21,9 @@ class WorkflowState(TypedDict, total=False):
     # User-provided data
     user_data: UserData | None
 
+    # JSON IR produced by ir_builder
+    ir_model: dict | None
+
     # Generated solver code
     generated_code: str
 

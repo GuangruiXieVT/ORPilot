@@ -28,11 +28,20 @@ console = Console()
 # ---------------------------------------------------------------------------
 
 _NODE_LABELS: dict[str, tuple[str, str]] = {
-    "interview": ("blue", "Interviewing user to define the problem..."),
-    "data_collection": ("blue", "Collecting data from the user..."),
-    "model_builder": ("yellow", "Generating optimization model code via LLM..."),
-    "solver_runner": ("yellow", "Executing solver — this may take a moment..."),
+    "interview": ("blue", "Conducting interview..."),
+    "data_collection": ("blue", "Collecting data..."),
+    "ir_builder": ("yellow", "Starting model building (translating problem to IR)..."),
+    "ir_compiler": ("yellow", "Compiling IR to solver code..."),
+    "solver_runner": ("yellow", "Starting model solving..."),
     "reporter": ("green", "Generating solution report..."),
+}
+
+_NODE_COMPLETE_LABELS: dict[str, tuple[str, str]] = {
+    "interview": ("green", "Interview finished — problem defined."),
+    "data_collection": ("green", "Data collection finished — all CSV files loaded."),
+    "ir_builder": ("green", "IR model built."),
+    "ir_compiler": ("green", "Model building finished — solver code ready."),
+    "solver_runner": ("green", "Model solving finished."),
 }
 
 
@@ -62,6 +71,13 @@ def _save_artifacts(
         model_path = out / "model.py"
         model_path.write_text(code, encoding="utf-8")
         con.print(f"[dim]  -> Saved generated code to {model_path}[/dim]")
+
+    # Save IR model whenever it is available
+    ir_model = state.get("ir_model")
+    if ir_model:
+        ir_path = out / "ir.json"
+        ir_path.write_text(json.dumps(ir_model, indent=2), encoding="utf-8")
+        con.print(f"[dim]  -> Saved IR to {ir_path}[/dim]")
 
     # Save LP file from solution if available
     solution = state.get("solution")
@@ -147,8 +163,8 @@ def _save_solution(state: dict, output_dir: str, con: Console) -> None:
 
     out = Path(output_dir)
 
-    # Save objective value
-    obj_path = out / "objective_value.txt"
+    # Save optimization summary
+    summary_path = out / "optimization_summary.txt"
     lines = [
         f"Status: {solution.status.value}",
     ]
@@ -156,15 +172,15 @@ def _save_solution(state: dict, output_dir: str, con: Console) -> None:
         lines.append(f"Objective Value: {solution.objective_value}")
     if solution.solve_time_seconds is not None:
         lines.append(f"Solve Time: {solution.solve_time_seconds:.4f}s")
-    obj_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    con.print(f"[dim]  -> Saved objective value to {obj_path}[/dim]")
+    summary_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    con.print(f"[dim]  -> Saved optimization summary to {summary_path}[/dim]")
 
     # Save one CSV per variable group
     if solution.variable_groups:
         for group in solution.variable_groups:
             if not group.variables:
                 continue
-            filename = f"{group.group_name}.csv"
+            filename = f"solution_{group.group_name}.csv"
             csv_path = out / filename
             headers, rows = _parse_variable_dimensions(
                 group.variables,
@@ -176,10 +192,10 @@ def _save_solution(state: dict, output_dir: str, con: Console) -> None:
                 writer.writerow(headers)
                 for row in rows:
                     writer.writerow(row)
-            con.print(f"[dim]  -> Saved {group.group_name} decisions to {csv_path}[/dim]")
+            con.print(f"[dim]  -> Saved {group.group_name} solution values to {csv_path}[/dim]")
     elif solution.variables:
         # Fallback: no groups returned, dump all variables into a single CSV
-        csv_path = out / "decisions.csv"
+        csv_path = out / "solution_decisions.csv"
         headers, rows = _parse_variable_dimensions(
             solution.variables,
             group_name="",
@@ -189,7 +205,7 @@ def _save_solution(state: dict, output_dir: str, con: Console) -> None:
             writer.writerow(headers)
             for row in rows:
                 writer.writerow(row)
-        con.print(f"[dim]  -> Saved decision variables to {csv_path}[/dim]")
+        con.print(f"[dim]  -> Saved decision variable solution values to {csv_path}[/dim]")
 
 
 # ---------------------------------------------------------------------------
@@ -232,6 +248,7 @@ def run(
         "messages": [],
         "problem": None,
         "user_data": None,
+        "ir_model": None,
         "generated_code": "",
         "solution": None,
         "report": "",
@@ -260,7 +277,7 @@ def run(
         data = UserData.model_validate_json(data_file.read_text())
         state["user_data"] = data
         if state.get("problem"):
-            state["current_node"] = "model_builder"
+            state["current_node"] = "ir_builder"
         console.print(Panel("Loaded data from file", title="Data"))
 
     console.print(Panel(
@@ -274,12 +291,65 @@ def run(
     _last_saved_code = ""
 
     while True:
-        # Log what we're about to do
-        _log_entering_node(state.get("current_node", ""))
+        # Stream the graph one node at a time so we can log each step.
+        for chunk in graph.stream(state, stream_mode="updates"):
+            for node_name, node_update in chunk.items():
+                if node_name.startswith("__"):
+                    continue
 
-        # Run the graph from current state
-        result = graph.invoke(state)
-        state = result
+                prev_state = state
+                state = {**state, **node_update}
+
+                # wait_for_input is an infrastructure node — skip logging.
+                if node_name == "wait_for_input":
+                    continue
+
+                # The interview node doubles as a router once the problem is
+                # defined.  Suppress its "entering" log in that case.
+                interview_passthrough = (
+                    node_name == "interview"
+                    and prev_state.get("problem") is not None
+                )
+                if not interview_passthrough:
+                    _log_entering_node(node_name)
+
+                # ── Milestone completion logging ──────────────────────────
+                if node_name == "interview":
+                    if (prev_state.get("problem") is None
+                            and state.get("problem") is not None):
+                        style, msg = _NODE_COMPLETE_LABELS["interview"]
+                        console.print(f"[{style}]✓ {msg}[/{style}]")
+
+                elif node_name == "data_collection":
+                    if (prev_state.get("user_data") is None
+                            and state.get("user_data") is not None):
+                        style, msg = _NODE_COMPLETE_LABELS["data_collection"]
+                        console.print(f"[{style}]✓ {msg}[/{style}]")
+
+                elif node_name == "ir_builder":
+                    if state.get("ir_model"):
+                        style, msg = _NODE_COMPLETE_LABELS["ir_builder"]
+                        console.print(f"[{style}]✓ {msg}[/{style}]")
+
+                elif node_name == "ir_compiler":
+                    if state.get("generated_code"):
+                        style, msg = _NODE_COMPLETE_LABELS["ir_compiler"]
+                        console.print(f"[{style}]✓ {msg}[/{style}]")
+
+                elif node_name == "solver_runner":
+                    solution = state.get("solution")
+                    if solution:
+                        if solution.error_message:
+                            retry = state.get("retry_count", 0)
+                            max_r = state.get("max_retries", 3)
+                            console.print(
+                                f"[red]✗ Solver error (attempt {retry}/{max_r}): "
+                                f"{solution.error_message[:200]}[/red]"
+                            )
+                            console.print("[yellow]   Retrying with error feedback...[/yellow]")
+                        else:
+                            style, msg = _NODE_COMPLETE_LABELS["solver_runner"]
+                            console.print(f"[{style}]✓ {msg}[/{style}]")
 
         # Save debug artifacts when output_dir is set
         if output_dir_str:
@@ -324,18 +394,6 @@ def run(
 
             state["messages"].append({"role": "user", "content": user_input})
             state["needs_user_input"] = False
-        else:
-            # Non-interactive progression — show detailed status
-            node = state.get("current_node", "")
-            solution = state.get("solution")
-            if node == "solver_runner" and solution and solution.error_message:
-                retry = state.get("retry_count", 0)
-                max_r = state.get("max_retries", 3)
-                console.print(
-                    f"[red]   Solve error (attempt {retry}/{max_r}): "
-                    f"{solution.error_message[:200]}[/red]"
-                )
-                console.print("[yellow]   Retrying with error feedback...[/yellow]")
 
 
 @app.command()

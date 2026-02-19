@@ -84,6 +84,7 @@ class Agent:
             "messages": [],
             "problem": None,
             "user_data": None,
+            "ir_model": None,
             "generated_code": "",
             "solution": None,
             "report": "",
@@ -111,7 +112,7 @@ class Agent:
         if isinstance(data, UserData):
             state["user_data"] = data
             if state.get("problem"):
-                state["current_node"] = "model_builder"
+                state["current_node"] = "ir_builder"
         elif isinstance(data, dict):
             params = [
                 DataParameter(name=k, value=v)
@@ -119,7 +120,7 @@ class Agent:
             ]
             state["user_data"] = UserData(parameters=params)
             if state.get("problem"):
-                state["current_node"] = "model_builder"
+                state["current_node"] = "ir_builder"
 
         while True:
             result = self._graph.invoke(state)

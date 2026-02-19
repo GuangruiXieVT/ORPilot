@@ -40,3 +40,7 @@ class ProblemDefinition(BaseModel):
         description="Natural language descriptions of decision variables",
     )
     additional_notes: str = Field("", description="Any extra context from the user")
+    csv_file_paths: dict[str, str] = Field(
+        default_factory=dict,
+        description="Mapping of table name to absolute CSV file path (e.g. {'costs': '/data/costs.csv'})",
+    )

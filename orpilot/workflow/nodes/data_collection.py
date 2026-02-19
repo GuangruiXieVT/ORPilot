@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from orpilot.llm.base import BaseLLM
@@ -38,7 +39,6 @@ def _phase_spec(state: WorkflowState, llm: BaseLLM) -> WorkflowState:
 
     system_prompt = data_guide.SYSTEM_PROMPT.format(
         problem_json=problem_json,
-        data_dir=data_dir,
     )
     llm_messages = [{"role": "system", "content": system_prompt}]
     llm_messages.extend(messages)
@@ -104,6 +104,13 @@ def _phase_load(
 
     try:
         user_data = UserData.load_from_csv_dir(data_dir, specs)
+        problem = state.get("problem")
+        if problem:
+            csv_paths = {
+                Path(spec.filename).stem: str((Path(data_dir) / spec.filename).resolve())
+                for spec in specs
+            }
+            problem = problem.model_copy(update={"csv_file_paths": csv_paths})
     except FileNotFoundError as exc:
         messages.append({
             "role": "assistant",
@@ -139,10 +146,13 @@ def _phase_load(
         "content": f"All CSV files loaded successfully (tables: {table_names}). Proceeding to build the model.",
     })
 
-    return {
+    result = {
         **state,
         "messages": messages,
         "user_data": user_data,
         "current_node": "data_collection",
         "needs_user_input": False,
     }
+    if problem:
+        result["problem"] = problem
+    return result

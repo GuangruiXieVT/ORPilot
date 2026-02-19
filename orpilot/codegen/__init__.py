@@ -1,4 +1,4 @@
-from .generator import CodeGenerator
+from .ir_compiler import IRCompiler
 from .executor import CodeExecutor
 
-__all__ = ["CodeGenerator", "CodeExecutor"]
+__all__ = ["IRCompiler", "CodeExecutor"]
