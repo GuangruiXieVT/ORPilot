@@ -66,6 +66,13 @@ class IRCompiler:
             # Use the explicit "column" from the IR if present; fall back to param_name.
             value_col = meta.get("column") or param_name
 
+            # Scalar parameter (no domain): read directly from the first CSV row.
+            if not domain:
+                lines.append(
+                    f"    {param_name} = float(data[{table_stem!r}][0][{value_col!r}])"
+                )
+                continue
+
             lines.append(f"    {param_name} = {{}}")
             lines.append(f"    for _row in data[{table_stem!r}]:")
 

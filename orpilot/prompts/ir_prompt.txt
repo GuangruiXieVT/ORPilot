@@ -62,10 +62,12 @@ PARAMETERS
 
 - Each element in domain must match a declared SetName in sets.
 - Domain can contain only one set or multiple sets.
+- Domain must be [] for scalar parameters (single global values not indexed by any set).
 - Source must be the path of the related .csv file the user provided (from csv_file_paths). Fill it whenever possible.
 - Column must be the exact column name in the source CSV that holds this parameter's numeric values. Read it from csv_schemas if provided.
 - Use null for column only if the column name cannot be determined.
 - Name each parameter to exactly match its column value (e.g. if the CSV column is "unit_cost", the parameter name must be "unit_cost").
+- For scalar parameters (domain=[]), the CSV must be WIDE FORMAT: one column per scalar parameter, a single data row. The "column" field must be the column name that holds this specific parameter's value. NEVER point two different scalar parameters at the same column — they must each have their own dedicated column.
 
 
 ========================================================
