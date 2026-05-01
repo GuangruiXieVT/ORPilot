@@ -1,21 +1,86 @@
 # ORPilot configuration file
-# CLI options take precedence over values here.
-# This file is auto-discovered when running `orpilot run` from the ORPilot directory.
+# CLI flags take precedence over values set here.
+# This file is auto-discovered when orpilot.toml exists in the current directory.
 
-provider        = "openai"
-model           = "gpt-5-mini"
+# ---------------------------------------------------------------------------
+# LLM provider
+# ---------------------------------------------------------------------------
 
-solver          = "pulp"
-time_limit      = 300            # seconds
-show_solver_log = false
-verbose         = false
-max_retries     = 3
+# LLM provider to use. Options: "openai", "anthropic", "google"
+provider = "openai"
 
-data_dir        = "data"
-output_dir      = "output"
+# Model name passed to the provider.
+# Examples: "deepseek-reasoner", "gpt-4o", "o3", "claude-opus-4-7", "gemini-2.5-pro"
+model = "deepseek-reasoner"
 
-api_key       = ""  # prefer OPENAI_API_KEY env var instead
-#base_url      = "https://api.deepseek.com"  # custom API endpoint, e.g. https://api.deepseek.com
+# LLM sampling temperature. Lower = more deterministic, higher = more creative.
+# Typical range: 0.0–1.0. Some reasoning models (e.g. deepseek-reasoner) require 1.
+temperature = 1
 
-generate_ir = false   # set to true to generate IR after each successful solve
-temperature = 1     # LLM sampling temperature: 0.0 = deterministic, 1.0 = default creative
+# Maximum tokens the LLM may generate per response.
+# Raise this for very large models or complex problems. Default: 8192.
+# max_tokens = 32768
+
+# ---------------------------------------------------------------------------
+# API connection
+# ---------------------------------------------------------------------------
+
+# API key for the chosen provider.
+# Can also be set via OPENAI_API_KEY / ANTHROPIC_API_KEY / GOOGLE_API_KEY env vars.
+api_key = "your_api_key"
+
+# Custom API base URL. Use for OpenAI-compatible third-party providers (e.g. DeepSeek).
+# Leave unset when using the official OpenAI or Anthropic endpoints.
+base_url = "https://api.deepseek.com"
+
+# ---------------------------------------------------------------------------
+# Solver
+# ---------------------------------------------------------------------------
+
+# Solver backend for the generated model.py.
+# Options: "gurobi", "cplex", "pulp" (CBC, default), "pyomo", "ortools" 
+solver = "pulp"
+
+# Hard time limit for the solver in seconds.
+# The solver returns the best feasible solution found within this budget.
+time_limit = 300
+
+# Stream the raw solver log to stdout while solving.
+show_solver_log = true
+
+# ---------------------------------------------------------------------------
+# Workflow
+# ---------------------------------------------------------------------------
+
+# Code generation mode.
+# "direct" — interview → data collection → LLM writes model.py directly (faster).
+# "ir"     — interview → data collection → IR builder → IR compiler → model.py
+#            (more reproducible; IR can be recompiled with a different solver).
+# It is recommended to set mode = "direct", as currently having IR generation before 
+# generating model.py is not quite stable.
+# Default: "direct"
+mode = "direct"
+
+# Maximum number of LLM retry attempts per workflow node when validation fails.
+max_retries = 3
+
+# Print detailed per-node progress and intermediate outputs.
+verbose = true
+
+# Save a copy of all loaded CSV data as data.json alongside the solution files.
+save_data = true
+
+# After a successful solve, also generate and save ir.json (the IR representation).
+# Useful for auditing the model structure or recompiling later with compile-ir.
+generate_ir = true
+
+# ---------------------------------------------------------------------------
+# Paths
+# ---------------------------------------------------------------------------
+
+# Directory where CSV input files are read from (relative to this config file).
+data_dir = "data"
+
+# Directory where generated model.py, solution CSVs, and report are written
+# (relative to this config file).
+output_dir = "output"

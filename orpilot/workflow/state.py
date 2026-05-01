@@ -12,8 +12,12 @@ from orpilot.models.solution import SolutionResult
 class WorkflowState(TypedDict, total=False):
     """State shared across all workflow nodes."""
 
-    # Conversation history (list of {"role": ..., "content": ...})
+    # Full verbatim conversation history — displayed on resume, saved to session.json
     messages: list[dict[str, str]]
+    # Compressed context sent to the LLM — replaced with a summary at each phase
+    # boundary (after interview, after data collection) to keep token usage bounded.
+    # Falls back to `messages` when not set.
+    messages_ctx: list[dict[str, str]]
 
     # Problem definition extracted from interview
     problem: ProblemDefinition | None
@@ -62,3 +66,9 @@ class WorkflowState(TypedDict, total=False):
 
     # When True: generate IR on-demand after a successful solve (for solver portability)
     generate_ir: bool
+
+    # When True: save data.json to output_dir for portability (run model on another machine)
+    save_data: bool
+
+    # Observability: per-node token counts and latency (accumulated by graph.py instrumentation)
+    metrics: dict

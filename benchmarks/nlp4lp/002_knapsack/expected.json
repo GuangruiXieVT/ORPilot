@@ -1,7 +1,0 @@
-{
-  "objective": 35.0,
-  "status": "optimal",
-  "tolerance": 0.001,
-  "source": "examples/knapsack",
-  "tags": ["knapsack", "integer_programming", "nlp4lp"]
-}

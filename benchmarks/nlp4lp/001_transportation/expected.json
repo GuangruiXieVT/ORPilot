@@ -1,7 +1,0 @@
-{
-  "objective": 280.0,
-  "status": "optimal",
-  "tolerance": 0.001,
-  "source": "examples/transportation",
-  "tags": ["transportation", "linear_programming", "nlp4lp"]
-}

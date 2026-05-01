@@ -28,6 +28,8 @@ class IRParameter(BaseModel):
     source: str | None
     column: str | None = None  # CSV column that holds this parameter's values
     index_columns: list[str] | None = None  # per-index CSV key columns; overrides set_column lookup
+    missing_default: str = "zero"  # "zero" → 0.0, "inf" → float('inf') for missing index combinations
+    optional: bool = False  # when True, the source CSV may be absent; missing file loads as empty list
 
 
 class IRVariable(BaseModel):

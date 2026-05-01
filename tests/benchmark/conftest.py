@@ -7,11 +7,6 @@ from pathlib import Path
 
 import pytest
 
-from orpilot.benchmark.case import BenchmarkCase
-from orpilot.benchmark.loader import load_all_cases
-
-BENCHMARKS_ROOT = Path(__file__).parent.parent.parent / "benchmarks"
-
 
 def pytest_addoption(parser):
     parser.addoption(
@@ -37,10 +32,21 @@ def pytest_addoption(parser):
         help="Maximum number of dataset cases to run (default: all).",
     )
     parser.addoption(
+        "--start",
+        type=int,
+        default=0,
+        help="Row index to start from (0-based). E.g. --start 22 skips the first 22 cases.",
+    )
+    parser.addoption(
         "--temperature",
         type=float,
         default=None,
         help="LLM sampling temperature (0.0 = deterministic). Falls back to temperature in orpilot.toml.",
+    )
+    parser.addoption(
+        "--solver",
+        default=None,
+        help="OR solver backend: pulp, pyomo, ortools, gurobi, cplex. Falls back to solver in orpilot.toml, then 'pulp'.",
     )
 
 
@@ -48,6 +54,8 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "benchmark: benchmark tests (no LLM required)")
     config.addinivalue_line("markers", "llm: benchmark tests that require a live LLM API key")
     config.addinivalue_line("markers", "industryOR: tests against CardinalOperations/IndustryOR dataset")
+    config.addinivalue_line("markers", "NL4OPT: tests against CardinalOperations/NL4OPT dataset")
+    config.addinivalue_line("markers", "NLP4LP: tests against udell-lab/NLP4LP dataset")
 
 
 @pytest.fixture(scope="session")
@@ -78,6 +86,12 @@ def limit(request) -> int | None:
 
 
 @pytest.fixture(scope="session")
+def start(request) -> int:
+    """Return the --start value (0-based row offset, default 0)."""
+    return request.config.getoption("--start") or 0
+
+
+@pytest.fixture(scope="session")
 def temperature(request) -> float:
     """Return the LLM sampling temperature.
 
@@ -92,6 +106,23 @@ def temperature(request) -> float:
     return float(cfg.get("temperature", 0.0))
 
 
+
+
+@pytest.fixture(scope="session")
+def solver(request) -> str:
+    """Return the OR solver backend to use.
+
+    Precedence: --solver CLI flag > solver in orpilot.toml > 'pulp'.
+    """
+    from orpilot.config import load_project_config
+
+    cli_val = request.config.getoption("--solver")
+    if cli_val is not None:
+        return cli_val
+    cfg = load_project_config()
+    return cfg.get("solver", "pulp")
+
+
 @pytest.fixture(scope="session")
 def save_dir(request) -> Path | None:
     """Return the --save-dir path (created on first use), or None if not set."""
@@ -101,17 +132,6 @@ def save_dir(request) -> Path | None:
     p = Path(raw)
     p.mkdir(parents=True, exist_ok=True)
     return p
-
-
-@pytest.fixture(scope="session")
-def all_cases() -> list[BenchmarkCase]:
-    return load_all_cases(BENCHMARKS_ROOT)
-
-
-@pytest.fixture(scope="session")
-def compiler_cases(all_cases) -> list[BenchmarkCase]:
-    """Cases that have both ir.json and data/ (Mode C)."""
-    return [c for c in all_cases if c.ir_model is not None and c.tables is not None]
 
 
 @pytest.fixture(scope="session")

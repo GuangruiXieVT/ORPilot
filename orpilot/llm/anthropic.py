@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-import json
-
 from pydantic import BaseModel
 
-from .base import BaseLLM
+from .base import BaseLLM, ChatResponse, ToolCall, ToolDefinition
 
 
 class AnthropicLLM(BaseLLM):
@@ -32,11 +30,18 @@ class AnthropicLLM(BaseLLM):
         self._max_retries = max_retries
         self._temperature = temperature
         self._timeout_exceptions = self._resolve_timeout_exc()
+        self._rate_limit_exceptions = self._resolve_rate_limit_exc()
+        super().__init__()
 
     @staticmethod
     def _resolve_timeout_exc() -> tuple:
         import anthropic
         return (anthropic.APITimeoutError, anthropic.APIConnectionError)
+
+    @staticmethod
+    def _resolve_rate_limit_exc() -> tuple:
+        import anthropic
+        return (anthropic.RateLimitError,)
 
     def chat(self, messages: list[dict]) -> str:
         messages = self._sanitize_messages(messages)
@@ -48,6 +53,11 @@ class AnthropicLLM(BaseLLM):
             else:
                 chat_messages.append(m)
 
+        # Anthropic requires at least one user message; add a placeholder when
+        # the caller only passed a system prompt (e.g. first interview turn).
+        if not chat_messages:
+            chat_messages = [{"role": "user", "content": "Please begin."}]
+
         kwargs: dict = {
             "model": self._model,
             "max_tokens": self._max_tokens,
@@ -58,38 +68,112 @@ class AnthropicLLM(BaseLLM):
             kwargs["system"] = system
 
         def _call():
-            return self._client.messages.create(**kwargs).content[0].text
+            response = self._client.messages.create(**kwargs)
+            self._add_usage(response.usage.input_tokens, response.usage.output_tokens)
+            return response.content[0].text
 
-        return self._retry(_call, self._max_retries, self._timeout_exceptions)
+        return self._retry(_call, self._max_retries, self._timeout_exceptions, self._rate_limit_exceptions)
 
     def structured_output(
         self, messages: list[dict], schema: type[BaseModel]
     ) -> BaseModel:
-        schema_json = schema.model_json_schema()
-        suffix = (
-            f"\n\nRespond ONLY with valid JSON matching this schema:\n"
-            f"{json.dumps(schema_json, indent=2)}"
-        )
-
+        messages = self._sanitize_messages(messages)
         system = None
         chat_messages = []
         for m in messages:
             if m["role"] == "system":
-                system = (m["content"] or "") + suffix
+                system = m["content"]
             else:
                 chat_messages.append(m)
-        if system is None:
-            system = suffix.strip()
+        if not chat_messages:
+            chat_messages = [{"role": "user", "content": "Please proceed."}]
+
+        tool_name = schema.__name__
+        tool = {
+            "name": tool_name,
+            "description": f"Return the structured {tool_name} result.",
+            "input_schema": schema.model_json_schema(),
+        }
 
         def _call():
-            response = self._client.messages.create(
-                model=self._model,
-                max_tokens=self._max_tokens,
-                temperature=self._temperature,
-                system=system,
-                messages=chat_messages,
-            )
-            raw = response.content[0].text
-            return schema.model_validate_json(self._strip_json_fences(raw))
+            kwargs: dict = {
+                "model": self._model,
+                "max_tokens": self._max_tokens,
+                "temperature": self._temperature,
+                "tools": [tool],
+                "tool_choice": {"type": "tool", "name": tool_name},
+                "messages": chat_messages,
+            }
+            if system:
+                kwargs["system"] = system
+            response = self._client.messages.create(**kwargs)
+            self._add_usage(response.usage.input_tokens, response.usage.output_tokens)
+            for block in response.content:
+                if block.type == "tool_use":
+                    return schema.model_validate(block.input)
+            raise ValueError("No tool_use block in response")
 
-        return self._retry(_call, self._max_retries, self._timeout_exceptions)
+        return self._retry(_call, self._max_retries, self._timeout_exceptions, self._rate_limit_exceptions)
+
+    def chat_with_tools(
+        self,
+        messages: list[dict],
+        tools: list[ToolDefinition],
+    ) -> ChatResponse:
+        messages = self._sanitize_messages(messages)
+        system = None
+        chat_messages = []
+        for m in messages:
+            if m["role"] == "system":
+                system = m["content"]
+            else:
+                chat_messages.append(m)
+        if not chat_messages:
+            chat_messages = [{"role": "user", "content": "Please proceed."}]
+
+        anthropic_tools = [
+            {"name": t.name, "description": t.description, "input_schema": t.parameters}
+            for t in tools
+        ]
+
+        def _call():
+            kwargs: dict = {
+                "model": self._model,
+                "max_tokens": self._max_tokens,
+                "temperature": self._temperature,
+                "tools": anthropic_tools,
+                "tool_choice": {"type": "auto"},
+                "messages": chat_messages,
+            }
+            if system:
+                kwargs["system"] = system
+            response = self._client.messages.create(**kwargs)
+            self._add_usage(response.usage.input_tokens, response.usage.output_tokens)
+
+            text = None
+            tool_calls = []
+            for block in response.content:
+                if block.type == "text":
+                    text = (text or "") + block.text
+                elif block.type == "tool_use":
+                    tool_calls.append(
+                        ToolCall(id=block.id, name=block.name, arguments=block.input)
+                    )
+            return ChatResponse(text=text, tool_calls=tool_calls, _payload=response.content)
+
+        return self._retry(_call, self._max_retries, self._timeout_exceptions, self._rate_limit_exceptions)
+
+    def extend_messages(
+        self,
+        messages: list[dict],
+        response: ChatResponse,
+        results: dict[str, str],
+    ) -> list[dict]:
+        new_messages = list(messages)
+        new_messages.append({"role": "assistant", "content": response._payload})
+        tool_results = [
+            {"type": "tool_result", "tool_use_id": tc.id, "content": results.get(tc.id, "")}
+            for tc in response.tool_calls
+        ]
+        new_messages.append({"role": "user", "content": tool_results})
+        return new_messages

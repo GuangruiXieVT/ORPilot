@@ -12,10 +12,14 @@ def _register_defaults() -> None:
     from .pulp_solver import PuLPSolver
     from .pyomo_solver import PyomoSolver
     from .ortools_solver import ORToolsSolver
+    from .gurobi_solver import GurobiSolver
+    from .cplex_solver import CplexSolver
 
     _SOLVER_REGISTRY["pulp"] = PuLPSolver
     _SOLVER_REGISTRY["pyomo"] = PyomoSolver
     _SOLVER_REGISTRY["ortools"] = ORToolsSolver
+    _SOLVER_REGISTRY["gurobi"] = GurobiSolver
+    _SOLVER_REGISTRY["cplex"] = CplexSolver
 
 
 def get_solver(name: str = "pulp", **kwargs) -> BaseSolver:

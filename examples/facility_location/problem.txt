@@ -1,0 +1,19 @@
+I need to decide which warehouses to open and how to assign customers to them to minimize total cost.
+
+Warehouse options (fixed opening cost, capacity):
+- W1: costs $1000 to open, can serve up to 200 units
+- W2: costs $1500 to open, can serve up to 150 units
+- W3: costs $800 to open, can serve up to 150 units
+
+Customer demands:
+- C1: 50 units
+- C2: 80 units
+- C3: 60 units
+- C4: 70 units
+
+Shipping cost per unit from each warehouse to each customer:
+- W1 to C1: $2, W1 to C2: $3, W1 to C3: $5, W1 to C4: $4
+- W2 to C1: $4, W2 to C2: $1, W2 to C3: $3, W2 to C4: $2
+- W3 to C1: $5, W3 to C2: $4, W3 to C3: $1, W3 to C4: $2
+
+Each customer must be fully served by exactly one open warehouse. Which warehouses should I open and how should I assign customers to minimize total fixed plus shipping cost?

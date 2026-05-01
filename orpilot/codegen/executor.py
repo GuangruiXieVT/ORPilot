@@ -34,6 +34,7 @@ class CodeExecutor:
             - stdout: captured stdout
             - error: error message string, or None
         """
+        code = self._strip_code_fences(code)
         wrapper = self._build_wrapper(code, time_limit=time_limit, show_solver_log=show_solver_log)
 
         # Give the subprocess a hard ceiling beyond the solver limit so it can
@@ -77,6 +78,7 @@ class CodeExecutor:
                     "result": None,
                     "stdout": proc.stdout,
                     "error": proc.stderr or f"Process exited with code {proc.returncode}",
+                    "lp_content": self._read_lp_file(tmpdir),
                 }
 
             # Parse the JSON result from stdout
@@ -113,6 +115,16 @@ class CodeExecutor:
             }
 
     @staticmethod
+    def _strip_code_fences(code: str) -> str:
+        """Remove markdown code fences if the LLM wrapped its output in them."""
+        lines = code.strip().splitlines()
+        if lines and lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        return "\n".join(lines)
+
+    @staticmethod
     def _read_lp_file(tmpdir: str) -> str:
         """Read model.lp from the temp directory if it exists."""
         lp_path = Path(tmpdir) / "model.lp"
@@ -139,12 +151,13 @@ class CodeExecutor:
             # --- End solver code ---
 
             if __name__ == "__main__":
+                import traceback as _tb
                 with open("data.json", encoding="utf-8") as _f:
                     data = json.load(_f)
                 try:
                     result = {call}
                     print("__ORPILOT_RESULT__:" + json.dumps(result))
                 except Exception as e:
-                    print("__ORPILOT_RESULT__:" + json.dumps({{"status": "error", "error": str(e)}}))
+                    print("__ORPILOT_RESULT__:" + json.dumps({{"status": "error", "error": _tb.format_exc()}}))
                     sys.exit(0)
         """)

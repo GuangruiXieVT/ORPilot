@@ -1,0 +1,16 @@
+I need to ship goods from two warehouses to three customers at minimum cost.
+
+Warehouse supply:
+- W1 can supply up to 50 units
+- W2 can supply up to 60 units
+
+Customer demand:
+- C1 requires exactly 30 units
+- C2 requires exactly 40 units
+- C3 requires exactly 30 units
+
+Shipping cost per unit:
+- W1 to C1: $2, W1 to C2: $3, W1 to C3: $1
+- W2 to C1: $5, W2 to C2: $4, W2 to C3: $8
+
+How many units should I ship from each warehouse to each customer to minimize total cost?

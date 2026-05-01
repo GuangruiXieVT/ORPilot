@@ -39,7 +39,12 @@ def solver_runner_node(state: WorkflowState) -> WorkflowState:
                 "Add any missing upper-bound constraints."
             )
         else:
-            error_msg = solution.error_message or solution.solver_output
+            error_msg = solution.error_message or solution.solver_output or ""
+            # Truncate to avoid 413 when solver repeats an error thousands of times.
+            # Keep first 2000 chars (captures the repeating error type) and last 500 chars
+            # (captures final status), so the LLM gets the gist without the flood.
+            if len(error_msg) > 3000:
+                error_msg = error_msg[:2000] + "\n...[truncated]...\n" + error_msg[-500:]
         updates["error_context"] = (
             f"Solve failed with status={solution.status.value}. "
             f"Error: {error_msg}"

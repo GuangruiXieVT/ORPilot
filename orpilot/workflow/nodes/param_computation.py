@@ -5,26 +5,56 @@ from __future__ import annotations
 import csv
 import itertools
 import math
-import re
 import traceback
 from pathlib import Path
 from typing import Any
 
-from orpilot.llm.base import BaseLLM
+from orpilot.llm.base import BaseLLM, ToolDefinition
 from orpilot.models.data import CsvColumnSpec, CsvFileSpec, UserData, _cast_value
 from orpilot.paths import DATA_DIR
 from orpilot.prompts import param_computation as prompts
 from orpilot.workflow.state import WorkflowState
 
+_MAX_ITERATIONS = 8
+
+_TOOLS = [
+    ToolDefinition(
+        name="no_computation_needed",
+        description=(
+            "Call this when all parameters can be read directly from the raw tables "
+            "and no transformation or derivation is required."
+        ),
+        parameters={"type": "object", "properties": {}, "required": []},
+    ),
+    ToolDefinition(
+        name="execute_script",
+        description=(
+            "Execute a Python computation script. The script runs with `data` (dict of "
+            "table rows), `data_dir` (output path), and `csv`, `math`, `itertools`, `Path` "
+            "pre-imported. It must set `output_files` at the end. "
+            "The result tells you whether it succeeded or failed (with traceback). "
+            "Fix and re-call if it failed."
+        ),
+        parameters={
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "description": "Python script to execute. Must set output_files at the end.",
+                }
+            },
+            "required": ["code"],
+        },
+    ),
+]
+
 
 def param_computation_node(state: WorkflowState, llm: BaseLLM) -> WorkflowState:
-    """Compute derived parameters from raw user data when needed.
+    """Compute derived parameters via an agentic tool loop.
 
-    Sits between data_collection and ir_builder.  The LLM inspects the raw
-    table schemas and the problem description to decide whether any
-    transformation is required (e.g. pairwise distances from coordinates).
-    If so, it generates a Python script that writes the computed CSV(s) to
-    data_dir, which are then merged into user_data so ir_builder sees them.
+    The LLM calls no_computation_needed() or execute_script(code). On script
+    failure the traceback is returned as the tool result so the LLM can fix and
+    re-execute in the same agentic turn.
     """
     user_data: UserData | None = state.get("user_data")
     problem = state.get("problem")
@@ -36,67 +66,97 @@ def param_computation_node(state: WorkflowState, llm: BaseLLM) -> WorkflowState:
     table_schemas = _describe_tables(user_data)
     problem_json = problem.model_dump_json(indent=2) if problem else "{}"
 
-    user_message = prompts.USER_PROMPT_TEMPLATE.format(
-        problem_json=problem_json,
-        table_schemas=table_schemas,
-    )
-
     messages: list[dict] = [
         {"role": "system", "content": prompts.SYSTEM_PROMPT},
-        {"role": "user", "content": user_message},
+        {
+            "role": "user",
+            "content": prompts.USER_PROMPT_TEMPLATE.format(
+                problem_json=problem_json,
+                table_schemas=table_schemas,
+            ),
+        },
     ]
-    output_files: list[dict] = []
-    for attempt in range(3):
-        response = llm.chat(messages)
 
-        if "[NO_COMPUTATION_NEEDED]" in response:
+    accumulated_files: list[dict] = []
+
+    for _ in range(_MAX_ITERATIONS):
+        response = llm.chat_with_tools(messages, _TOOLS)
+
+        if not response.is_tool_use:
+            # LLM returned text without calling a tool — nudge it
+            messages.append({"role": "assistant", "content": response.text or ""})
+            messages.append({
+                "role": "user",
+                "content": (
+                    "Please call no_computation_needed() if no transformation is required, "
+                    "or execute_script(code) with the computation script."
+                ),
+            })
+            continue
+
+        results: dict[str, str] = {}
+        done_no_computation = False
+        script_succeeded = False
+
+        for tc in response.tool_calls:
+            if tc.name == "no_computation_needed":
+                results[tc.id] = "OK, skipping computation."
+                done_no_computation = True
+            elif tc.name == "execute_script":
+                code = tc.arguments.get("code", "")
+                files, error = _run_computation(code, user_data.as_dict(), data_dir)
+                if error:
+                    results[tc.id] = f"Script failed:\n{error}"
+                elif files:
+                    accumulated_files.extend(files)
+                    results[tc.id] = (
+                        f"Success: generated {[f['filename'] for f in files]}. "
+                        "You are done — do not call execute_script again unless additional "
+                        "derived parameters are needed."
+                    )
+                    script_succeeded = True
+                else:
+                    results[tc.id] = (
+                        "Script ran without error but output_files was empty. "
+                        "Make sure the script sets output_files at the end."
+                    )
+            else:
+                results[tc.id] = f"Unknown tool '{tc.name}'."
+
+        if done_no_computation:
             return {**state, "current_node": "param_computation"}
 
-        code = _strip_fences(response)
-        output_files, error = _run_computation(code, user_data.as_dict(), data_dir)
+        messages = llm.extend_messages(messages, response, results)
 
-        if not error and output_files:
+        if script_succeeded:
             break
 
-        # Script failed — ask the LLM to fix it
-        messages.append({"role": "assistant", "content": response})
-        messages.append({
-            "role": "user",
-            "content": (
-                f"The script failed with this error:\n\n{error}\n\n"
-                "Fix the Python script and output only the corrected code."
-            ),
-        })
-    else:
-        # All retries exhausted — surface the failure so ir_builder can report it
-        return {
-            **state,
-            "error_context": (
-                "Parameter computation failed after 3 attempts and no derived CSVs "
-                "were produced. The IR may have parameters with no data source. "
-                f"Last error:\n{error}"
-            ),
+    if accumulated_files:
+        updated_user_data = _merge_computed_files(user_data, accumulated_files, data_dir)
+        updates: dict[str, Any] = {
+            "user_data": updated_user_data,
             "current_node": "param_computation",
+            "csv_specs": [spec.model_dump() for spec in updated_user_data.csv_specs],
         }
+        if problem:
+            new_paths = {
+                Path(f["filename"]).stem: str((Path(data_dir) / f["filename"]).resolve())
+                for f in accumulated_files
+                if (Path(data_dir) / f["filename"]).is_file()
+            }
+            merged_paths = {**(problem.csv_file_paths or {}), **new_paths}
+            updates["problem"] = problem.model_copy(update={"csv_file_paths": merged_paths})
+        return {**state, **updates}
 
-    updated_user_data = _merge_computed_files(user_data, output_files, data_dir)
-
-    updates: dict[str, Any] = {
-        "user_data": updated_user_data,
+    # All iterations exhausted without success
+    return {
+        **state,
+        "error_context": (
+            "Parameter computation failed after multiple attempts and no derived CSVs "
+            "were produced. The IR may have parameters with no data source."
+        ),
         "current_node": "param_computation",
     }
-
-    # Add computed file paths to problem.csv_file_paths so ir_builder can reference them
-    if problem:
-        new_paths = {
-            Path(f["filename"]).stem: str((Path(data_dir) / f["filename"]).resolve())
-            for f in output_files
-            if (Path(data_dir) / f["filename"]).is_file()
-        }
-        merged_paths = {**(problem.csv_file_paths or {}), **new_paths}
-        updates["problem"] = problem.model_copy(update={"csv_file_paths": merged_paths})
-
-    return {**state, **updates}
 
 
 # ---------------------------------------------------------------------------
@@ -104,10 +164,7 @@ def param_computation_node(state: WorkflowState, llm: BaseLLM) -> WorkflowState:
 # ---------------------------------------------------------------------------
 
 def _describe_tables(user_data: UserData) -> str:
-    """Return a human-readable summary of available raw tables and their columns."""
     lines: list[str] = []
-
-    # Prefer the richer spec information when available
     if user_data.csv_specs:
         for spec in user_data.csv_specs:
             stem = Path(spec.filename).stem
@@ -118,27 +175,16 @@ def _describe_tables(user_data: UserData) -> str:
             if rows:
                 cols = ", ".join(rows[0].keys())
                 lines.append(f"- {name}: [{cols}]")
-
     return "\n".join(lines) if lines else "(none)"
-
-
-def _strip_fences(text: str) -> str:
-    match = re.search(r"```(?:python)?\s*\n?(.*?)```", text, re.DOTALL)
-    return match.group(1).strip() if match else text.strip()
 
 
 def _run_computation(
     code: str, data: dict[str, Any], data_dir: str
 ) -> tuple[list[dict], str | None]:
-    """Execute LLM-generated computation code in a restricted namespace.
-
-    Returns (output_files, error_message).  error_message is None on success.
-    """
     namespace: dict[str, Any] = {
         "data": data,
         "data_dir": data_dir,
         "output_files": [],
-        # Pre-import safe standard-library modules
         "csv": csv,
         "math": math,
         "itertools": itertools,
@@ -156,7 +202,6 @@ def _merge_computed_files(
     output_files: list[dict],
     data_dir: str,
 ) -> UserData:
-    """Load newly written CSVs and add them to user_data."""
     new_raw_tables = dict(user_data.raw_tables)
     new_csv_specs = list(user_data.csv_specs)
 
@@ -164,7 +209,6 @@ def _merge_computed_files(
         filename = file_info.get("filename", "")
         if not filename:
             continue
-
         stem = Path(filename).stem
         filepath = Path(data_dir) / filename
         if not filepath.is_file():

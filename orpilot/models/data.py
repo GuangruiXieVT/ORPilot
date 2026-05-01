@@ -31,6 +31,10 @@ class CsvFileSpec(BaseModel):
     filename: str
     description: str = ""
     columns: list[CsvColumnSpec] = Field(default_factory=list)
+    optional: bool = Field(
+        default=False,
+        description="If True, the file may be absent; missing it is not an error.",
+    )
 
 
 class UserData(BaseModel):
@@ -67,11 +71,11 @@ class UserData(BaseModel):
         """
         dir_path = Path(directory)
 
-        # Validate all expected files exist
+        # Validate all required files exist (optional files may be absent)
         missing = [
             spec.filename
             for spec in specs
-            if not (dir_path / spec.filename).is_file()
+            if not spec.optional and not (dir_path / spec.filename).is_file()
         ]
         if missing:
             raise FileNotFoundError(
@@ -82,6 +86,8 @@ class UserData(BaseModel):
         raw_tables: dict[str, list[dict[str, Any]]] = {}
         for spec in specs:
             filepath = dir_path / spec.filename
+            if spec.optional and not filepath.is_file():
+                continue
             col_dtypes = {c.name: c.dtype for c in spec.columns}
             with open(filepath, newline="", encoding="utf-8") as fh:
                 reader = csv.DictReader(fh)
@@ -118,6 +124,28 @@ class UserData(BaseModel):
                 "CSV data validation failed:\n"
                 + "\n".join(f"  - {e}" for e in validation_errors)
             )
+
+        # Normalize set-member values to str across all parameter tables.
+        # sets.csv always stores element IDs as str (element column dtype is str).
+        # Parameter tables may have index columns typed as int (e.g. period_id: int),
+        # which after dtype casting produces int keys. Lookups then silently miss
+        # because the loop variable 't' from sets.csv is always str '1', not int 1.
+        # Converting any non-str value whose str() form matches a set element ID
+        # ensures all set-member references are consistently str throughout data.
+        all_elements: set[str] = {
+            str(r["element"])
+            for r in raw_tables.get("sets", [])
+            if r.get("element") is not None
+        }
+        if all_elements:
+            for tname, rows in raw_tables.items():
+                if tname == "sets":
+                    continue
+                for row in rows:
+                    for key in list(row):
+                        val = row[key]
+                        if not isinstance(val, str) and str(val) in all_elements:
+                            row[key] = str(val)
 
         return cls(
             raw_tables=raw_tables,

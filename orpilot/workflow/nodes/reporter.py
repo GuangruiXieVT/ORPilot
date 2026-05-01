@@ -50,15 +50,32 @@ def reporter_node(state: WorkflowState, llm: BaseLLM) -> WorkflowState:
     problem = state.get("problem")
     solution = state.get("solution")
 
-    variables_text = json.dumps(solution.variables, indent=2) if solution else "{}"
+    # Limit variables_text to a representative sample to avoid 413 on large models.
+    # The csv_files_text already provides structured non-zero samples per group.
+    _MAX_VARS = 50
+    if solution and solution.variables:
+        nonzero = {k: v for k, v in solution.variables.items()
+                   if v is not None and round(float(v), 8) != 0}
+        sample = dict(list(nonzero.items())[:_MAX_VARS])
+        variables_text = json.dumps(sample, indent=2)
+        if len(nonzero) > _MAX_VARS:
+            variables_text += f"\n... ({len(nonzero) - _MAX_VARS} more non-zero variables omitted)"
+    else:
+        variables_text = "{}"
+
     csv_files_text = _build_csv_files_text(solution)
+
+    # Truncate solver_output to avoid large logs inflating the prompt.
+    solver_output = (solution.solver_output or "") if solution else ""
+    if len(solver_output) > 3000:
+        solver_output = solver_output[:2000] + "\n...[truncated]...\n" + solver_output[-500:]
 
     prompt = report_prompts.SYSTEM_PROMPT.format(
         problem_description=problem.description if problem else "Unknown",
         status=solution.status.value if solution else "unknown",
         objective_value=solution.objective_value if solution else "N/A",
         variables_text=variables_text,
-        solver_output=solution.solver_output if solution else "",
+        solver_output=solver_output,
         csv_files_text=csv_files_text,
     )
 

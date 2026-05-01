@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import datetime
 import json
 import os
 from pathlib import Path
@@ -82,6 +83,79 @@ def _log_entering_node(node: str) -> None:
 # ---------------------------------------------------------------------------
 
 
+_POST_DATA_COLLECTION_NODES = {
+    "param_computation",
+    "direct_code_gen",
+    "ir_builder_on_demand",
+    "solver_runner",
+    "reporter",
+}
+
+
+def _save_session(state: dict, session_path: Path) -> None:
+    """Persist resumable conversation state to *session_path*."""
+    problem = state.get("problem")
+    payload = {
+        "version": 1,
+        "current_node": state.get("current_node", "interview"),
+        "messages": state.get("messages", []),
+        "messages_ctx": state.get("messages_ctx"),
+        "problem": problem.model_dump() if problem is not None else None,
+        "csv_specs": state.get("csv_specs", []),
+        "data_dir": state.get("data_dir", ""),
+    }
+    session_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+
+def _load_session(session_path: Path, con: Console) -> dict:
+    """Load a previously saved session from *session_path*.
+
+    Returns a dict of WorkflowState overrides to apply on top of the freshly
+    initialised state.  Also attempts to reload ``user_data`` from CSVs when
+    the session was past the data-collection stage.
+    """
+    from orpilot.models.data import CsvFileSpec, UserData
+
+    payload = json.loads(session_path.read_text(encoding="utf-8"))
+    overrides: dict = {}
+
+    overrides["messages"] = payload.get("messages", [])
+    # Restore compressed context; fall back to full messages for old session files
+    overrides["messages_ctx"] = payload.get("messages_ctx") or payload.get("messages", [])
+    overrides["current_node"] = payload.get("current_node", "interview")
+    overrides["csv_specs"] = payload.get("csv_specs", [])
+
+    if payload.get("data_dir"):
+        overrides["data_dir"] = payload["data_dir"]
+
+    if payload.get("problem"):
+        from orpilot.models.problem import ProblemDefinition
+        overrides["problem"] = ProblemDefinition.model_validate(payload["problem"])
+
+    # If the last message is from the assistant, the user hasn't replied yet —
+    # mark needs_user_input so the CLI prompts before running the graph.
+    messages = overrides.get("messages", [])
+    if messages and messages[-1]["role"] == "assistant":
+        overrides["needs_user_input"] = True
+
+    # If CSV specs + files are available, reload user_data so we don't have to
+    # re-confirm files — applies whether we're AT data_collection or past it.
+    current_node = overrides["current_node"]
+    csv_spec_dicts: list = overrides.get("csv_specs", [])
+    data_dir: str = overrides.get("data_dir", "")
+    if csv_spec_dicts and data_dir:
+        specs = [CsvFileSpec.model_validate(d) for d in csv_spec_dicts]
+        try:
+            overrides["user_data"] = UserData.load_from_csv_dir(data_dir, specs)
+            con.print("[dim]  -> Reloaded CSV data from disk.[/dim]")
+        except (FileNotFoundError, ValueError) as exc:
+            con.print(f"[yellow]  Warning: could not reload user data: {exc}[/yellow]")
+            con.print("[yellow]  Resuming at data_collection to re-confirm files.[/yellow]")
+            overrides["current_node"] = "data_collection"
+
+    return overrides
+
+
 def _save_artifacts(
     state: dict,
     output_dir: str,
@@ -111,6 +185,18 @@ def _save_artifacts(
         lp_path = out / "model.lp"
         lp_path.write_text(solution.lp_content, encoding="utf-8")
         con.print(f"[dim]  -> Saved LP file to {lp_path}[/dim]")
+
+    # Save data.json after param_computation has run (so computed derived tables are included).
+    # Only save once param_computation is done, identified by the workflow having passed that node.
+    # Overwrite on each call so the final data.json always reflects the fully computed user_data.
+    if state.get("save_data"):
+        user_data = state.get("user_data")
+        current_node = state.get("current_node", "")
+        past_param_computation = current_node not in ("interview", "data_collection")
+        if user_data and past_param_computation:
+            data_path = out / "data.json"
+            data_path.write_text(json.dumps(user_data.as_dict()), encoding="utf-8")
+            con.print(f"[dim]  -> Saved data.json to {data_path}[/dim]")
 
     return code if code else last_saved_code
 
@@ -226,18 +312,67 @@ def _save_solution(state: dict, output_dir: str, con: Console) -> None:
                     writer.writerow(row)
             con.print(f"[dim]  -> Saved {group.group_name} solution values to {csv_path}[/dim]")
     elif solution.variables:
-        # Fallback: no groups returned, dump all variables into a single CSV
-        csv_path = out / "solution_decisions.csv"
-        headers, rows = _parse_variable_dimensions(
-            solution.variables,
-            group_name="",
-        )
-        with open(csv_path, "w", newline="", encoding="utf-8") as fh:
-            writer = csv.writer(fh)
-            writer.writerow(headers)
-            for row in rows:
-                writer.writerow(row)
-        con.print(f"[dim]  -> Saved decision variable solution values to {csv_path}[/dim]")
+        # Fallback: no groups returned — auto-group by variable name prefix.
+        # Keys use \x1f delimiter: "prefix\x1fdim1\x1fdim2\x1f..." (IR compiler output)
+        # or legacy underscore-separated names. Group by prefix before first \x1f,
+        # falling back to the first underscore-separated token.
+        _SEP = "\x1f"
+        groups: dict[str, dict[str, object]] = {}
+        for var_name, value in solution.variables.items():
+            if _SEP in var_name:
+                prefix = var_name.split(_SEP, 1)[0]
+            else:
+                prefix = var_name.split("_", 1)[0]
+            groups.setdefault(prefix, {})[var_name] = value
+
+        for prefix, group_vars in groups.items():
+            filename = f"solution_{prefix}.csv" if prefix else "solution_decisions.csv"
+            csv_path = out / filename
+            headers, rows = _parse_variable_dimensions(
+                group_vars,
+                group_name=prefix,
+            )
+            with open(csv_path, "w", newline="", encoding="utf-8") as fh:
+                writer = csv.writer(fh)
+                writer.writerow(headers)
+                for row in rows:
+                    writer.writerow(row)
+            con.print(f"[dim]  -> Saved {prefix or 'decision'} solution values to {csv_path}[/dim]")
+
+
+def _write_metrics(state: dict, output_dir: str, solver: str, con: Console) -> None:
+    """Write metrics.json to output_dir with per-node token counts and latency."""
+    metrics_state = state.get("metrics") or {}
+    nodes: dict = metrics_state.get("nodes") or {}
+
+    total_input = sum(n.get("input_tokens", 0) for n in nodes.values())
+    total_output = sum(n.get("output_tokens", 0) for n in nodes.values())
+    total_latency = round(sum(n.get("latency_s", 0.0) for n in nodes.values()), 2)
+    total_retries = sum(max(n.get("retries", 0), 0) for n in nodes.values())
+
+    solution = state.get("solution")
+    solution_status = solution.status.value if solution else "unknown"
+    objective_value = solution.objective_value if solution else None
+
+    from orpilot.prompts._loader import all_versions
+    payload = {
+        "run_id": datetime.datetime.now().isoformat(timespec="seconds"),
+        "solver": solver,
+        "nodes": nodes,
+        "totals": {
+            "input_tokens": total_input,
+            "output_tokens": total_output,
+            "latency_s": total_latency,
+            "retries": total_retries,
+        },
+        "solution_status": solution_status,
+        "objective_value": objective_value,
+        "prompt_versions": all_versions(),
+    }
+
+    metrics_path = Path(output_dir) / "metrics.json"
+    metrics_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    con.print(f"[dim]  -> Saved metrics to {metrics_path}[/dim]")
 
 
 # ---------------------------------------------------------------------------
@@ -248,9 +383,9 @@ def _save_solution(state: dict, output_dir: str, con: Console) -> None:
 @app.command()
 def run(
     config_file: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to a TOML or JSON config file. CLI options take precedence. Auto-discovered if orpilot.toml exists in the current directory."),
-    provider: Optional[str] = typer.Option(None, "--provider", "-p", help="LLM provider (openai, anthropic)"),
+    provider: Optional[str] = typer.Option(None, "--provider", "-p", help="LLM provider (openai, anthropic, google)"),
     model: Optional[str] = typer.Option(None, "--model", "-m", help="Model name override"),
-    solver: Optional[str] = typer.Option(None, "--solver", "-s", help="OR solver (pulp, pyomo, ortools)"),
+    solver: Optional[str] = typer.Option(None, "--solver", "-s", help="OR solver backend: pulp, pyomo, ortools, gurobi, cplex"),
     problem_file: Optional[Path] = typer.Option(None, "--problem", help="Load problem definition from JSON file"),
     data_file: Optional[Path] = typer.Option(None, "--data", help="Load data from JSON file"),
     data_dir: Optional[Path] = typer.Option(None, "--data-dir", "-d", help="Directory for CSV data files"),
@@ -260,9 +395,12 @@ def run(
     show_solver_log: Optional[bool] = typer.Option(None, "--solver-log/--no-solver-log", help="Stream the solver log to stdout."),
     verbose: Optional[bool] = typer.Option(None, "--verbose/--no-verbose", help="Show full solver and compiler error details"),
     generate_ir: Optional[bool] = typer.Option(None, "--generate-ir/--no-generate-ir", help="After a successful solve, generate an IR blueprint for solver portability"),
-    api_key: Optional[str] = typer.Option(None, "--api-key", envvar="OPENAI_API_KEY"),
+    api_key: Optional[str] = typer.Option(None, "--api-key", envvar="OPENAI_API_KEY", help="API key. For Gemini, set GOOGLE_API_KEY in env instead."),
     base_url: Optional[str] = typer.Option(None, "--base-url", envvar="OPENAI_BASE_URL", help="Custom API base URL (e.g. https://api.deepseek.com)"),
     temperature: Optional[float] = typer.Option(None, "--temperature", help="LLM sampling temperature (0.0 = deterministic)"),
+    session_file: Optional[Path] = typer.Option(None, "--session", help="Path to session file for save/resume. Defaults to session.json inside --output-dir if set."),
+    no_resume: bool = typer.Option(False, "--no-resume", help="Do not load an existing session file; always start fresh."),
+    save_data: Optional[bool] = typer.Option(None, "--save-data/--no-save-data", help="Save data.json to output-dir for portability (run model.py on another machine)."),
 ) -> None:
     """Start an interactive ORPilot session."""
     # --- Load config file ---
@@ -287,9 +425,11 @@ def run(
     verbose         = verbose         if verbose         is not None else cfg.get("verbose",         False)
     show_solver_log = show_solver_log if show_solver_log is not None else cfg.get("show_solver_log", False)
     generate_ir     = generate_ir     if generate_ir     is not None else cfg.get("generate_ir",     False)
+    save_data       = save_data       if save_data       is not None else cfg.get("save_data",       False)
     temperature     = temperature     if temperature     is not None else cfg.get("temperature",     0.0)
     base_url        = base_url        or cfg.get("base_url")
     api_key         = api_key         or cfg.get("api_key")
+    max_tokens      = int(cfg.get("max_tokens", 8192))
 
     # Resolve path options: relative paths from a config file are relative to
     # the config file's directory; CLI-supplied paths are relative to CWD.
@@ -303,7 +443,7 @@ def run(
     elif output_dir is not None:
         output_dir = output_dir.resolve()
 
-    llm_config = LLMConfig(provider=provider, model=model, api_key=api_key, base_url=base_url, temperature=temperature)
+    llm_config = LLMConfig(provider=provider, model=model, api_key=api_key, base_url=base_url, temperature=temperature, max_tokens=max_tokens)
     llm = get_llm(llm_config)
     graph = build_graph(llm=llm)
 
@@ -315,6 +455,15 @@ def run(
     if output_dir:
         output_dir.mkdir(parents=True, exist_ok=True)
         output_dir_str = str(output_dir)
+
+    # Resolve session file path: explicit --session > output_dir/session.json > ./session.json
+    resolved_session: Path | None = None
+    if session_file is not None:
+        resolved_session = session_file.resolve()
+    elif output_dir is not None:
+        resolved_session = output_dir / "session.json"
+    else:
+        resolved_session = Path.cwd() / "session.json"
 
     # Initialize state
     state: WorkflowState = {
@@ -339,6 +488,7 @@ def run(
         "solver_time_limit": time_limit,
         "show_solver_log": show_solver_log,
         "generate_ir": generate_ir,
+        "save_data": save_data,
     }
 
     # Load problem from file if provided
@@ -356,6 +506,36 @@ def run(
             state["current_node"] = "direct_code_gen"
         console.print(Panel("Loaded data from file", title="Data"))
 
+    # Resume from session file if it exists (and --no-resume was not given).
+    # Session overrides take lower priority than explicit --problem/--data flags.
+    if (
+        resolved_session is not None
+        and not no_resume
+        and resolved_session.exists()
+        and state.get("problem") is None  # don't clobber explicit --problem
+    ):
+        console.print(f"[dim]Resuming session from {resolved_session}[/dim]")
+        session_overrides = _load_session(resolved_session, console)
+        state = {**state, **session_overrides}
+        node_label = state.get("current_node", "interview")
+        console.print(f"[green]>> Resumed at node: {node_label}[/green]")
+
+        # Replay conversation history so the user sees what was discussed
+        prior_messages = state.get("messages", [])
+        if prior_messages:
+            console.print()
+            console.rule("[dim]Previous conversation[/dim]")
+            for msg in prior_messages:
+                role = msg.get("role", "")
+                content = msg.get("content", "")
+                if role == "assistant":
+                    console.print(Markdown(content))
+                else:
+                    console.print(f"[bold blue]You:[/bold blue] {content}")
+                console.print()
+            console.rule("[dim]Resuming here[/dim]")
+            console.print()
+
     console.print(Panel(
         "Welcome to ORPilot — AI Operations Research Agent\n"
         "I'll help you model and solve optimization problems.\n"
@@ -367,6 +547,32 @@ def run(
     _last_saved_code = ""
 
     while True:
+        # If we're waiting for user input (e.g. on resume), collect it before
+        # running the graph — otherwise we'd feed an assistant-ending conversation
+        # back to the LLM immediately.
+        if state.get("needs_user_input"):
+            messages = state.get("messages", [])
+            if messages and messages[-1]["role"] == "assistant":
+                console.print()
+                console.print(Markdown(messages[-1]["content"]))
+                console.print()
+
+            user_input = console.input("[bold blue]You:[/bold blue] ")
+            if user_input.strip().lower() in ("quit", "exit", "q"):
+                console.print("Goodbye!")
+                raise typer.Exit()
+
+            user_msg = {"role": "user", "content": user_input}
+            state["messages"].append(user_msg)
+            if state.get("messages_ctx") is None:
+                state["messages_ctx"] = list(state["messages"])
+            else:
+                state["messages_ctx"].append(user_msg)
+            state["needs_user_input"] = False
+
+            if resolved_session is not None:
+                _save_session(state, resolved_session)
+
         # Stream the graph one node at a time so we can log each step.
         for chunk in graph.stream(state, stream_mode="updates"):
             for node_name, node_update in chunk.items():
@@ -439,16 +645,36 @@ def run(
                         else:
                             style, msg = _NODE_COMPLETE_LABELS["solver_runner"]
                             console.print(f"[{style}]✓ {msg}[/{style}]")
+                            # Save solution CSVs immediately — don't wait for reporter,
+                            # which may fail independently (e.g. 413 on large solutions).
+                            if output_dir_str and solution.status.value in ("optimal", "feasible"):
+                                _save_solution(state, output_dir_str, console)
+
+                # Save debug artifacts after each node so OOM during solve doesn't lose model.py
+                if output_dir_str:
+                    _last_saved_code = _save_artifacts(state, output_dir_str, _last_saved_code, console)
+
+                # Persist session after every node — ensures problem/csv_specs are not
+                # lost if the process is interrupted between nodes (e.g. after the
+                # interview extracts the problem but before data_collection completes).
+                if resolved_session is not None:
+                    _save_session(state, resolved_session)
 
         # Save debug artifacts when output_dir is set
         if output_dir_str:
             _last_saved_code = _save_artifacts(state, output_dir_str, _last_saved_code, console)
 
+        # Final persist after the full graph iteration
+        if resolved_session is not None:
+            _save_session(state, resolved_session)
+
         # Check if we have a final report
         if state.get("report"):
-            # Save solution outputs
+
+            # Keep session file so the conversation history is preserved for reference
+
             if output_dir_str:
-                _save_solution(state, output_dir_str, console)
+                _write_metrics(state, output_dir_str, solver, console)
 
             console.print()
             console.print(Panel(
@@ -481,8 +707,17 @@ def run(
                 console.print("Goodbye!")
                 raise typer.Exit()
 
-            state["messages"].append({"role": "user", "content": user_input})
+            user_msg = {"role": "user", "content": user_input}
+            state["messages"].append(user_msg)
+            if state.get("messages_ctx") is None:
+                state["messages_ctx"] = list(state["messages"])
+            else:
+                state["messages_ctx"].append(user_msg)
             state["needs_user_input"] = False
+
+            # Persist after user input so the new message is captured
+            if resolved_session is not None:
+                _save_session(state, resolved_session)
 
 
 @app.command()
@@ -501,24 +736,38 @@ def config() -> None:
 
 
 @app.command()
-def benchmark(
-    path: Path = typer.Argument(..., help="Path to a benchmark case directory"),
+def solve(
+    problem_file: Path = typer.Argument(..., help="Path to a plain-text file containing the problem description and/or embedded data."),
     config_file: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to a TOML or JSON config file. Auto-discovered if orpilot.toml exists in the current directory."),
-    solver: Optional[str] = typer.Option(None, "--solver", "-s", help="OR solver (pulp, pyomo, ortools)"),
-    mode: Optional[str] = typer.Option(None, "--mode", help="auto|compiler|ir|full|direct"),
-    provider: Optional[str] = typer.Option(None, "--provider", "-p", help="LLM provider (openai, anthropic)"),
+    provider: Optional[str] = typer.Option(None, "--provider", "-p", help="LLM provider (openai, anthropic, google)"),
     model: Optional[str] = typer.Option(None, "--model", "-m", help="Model name override"),
-    api_key: Optional[str] = typer.Option(None, "--api-key", envvar="OPENAI_API_KEY"),
+    solver: Optional[str] = typer.Option(None, "--solver", "-s", help="OR solver backend: pulp, pyomo, ortools, gurobi, cplex"),
+    mode: Optional[str] = typer.Option(None, "--mode", help="direct (TextIngestor + code gen) or ir (TextIngestor + IR builder). Default: direct"),
+    output_dir: Optional[Path] = typer.Option(None, "--output-dir", "-o", help="Directory to save generated code, LP file, and solution"),
+    max_retries: Optional[int] = typer.Option(None, "--max-retries", help="Max solver code retries"),
+    time_limit: Optional[int] = typer.Option(None, "--time-limit", "-t", help="Max solver run time in seconds"),
+    verbose: Optional[bool] = typer.Option(None, "--verbose/--no-verbose", help="Show full error details"),
+    generate_ir: Optional[bool] = typer.Option(None, "--generate-ir/--no-generate-ir", help="After a successful solve, generate an IR blueprint"),
+    api_key: Optional[str] = typer.Option(None, "--api-key", envvar="OPENAI_API_KEY", help="API key. For Gemini, set GOOGLE_API_KEY in env instead."),
     base_url: Optional[str] = typer.Option(None, "--base-url", envvar="OPENAI_BASE_URL", help="Custom API base URL"),
-    timeout: Optional[int] = typer.Option(None, "--timeout", help="Timeout in seconds per case"),
-    save_ir: bool = typer.Option(False, "--save-ir", help="Save generated ir.json to case dir"),
-    verbose: Optional[bool] = typer.Option(None, "--verbose/--no-verbose", help="Show generated code on failure"),
-    generate_ir: Optional[bool] = typer.Option(None, "--generate-ir/--no-generate-ir", help="After a successful solve, generate an IR blueprint for solver portability"),
     temperature: Optional[float] = typer.Option(None, "--temperature", help="LLM sampling temperature (0.0 = deterministic)"),
 ) -> None:
-    """Run a benchmark case and report pass/fail against the expected optimum."""
-    from orpilot.benchmark.loader import load_benchmark_case
+    """Solve an OR problem described in a plain-text file.
+
+    The file is passed through the TextIngestor (which extracts the problem
+    structure and any embedded data tables via LLM), then the resulting model
+    is solved via direct code generation or the IR builder pipeline.
+
+    Example:
+
+        orpilot solve problem.txt --solver pulp --output-dir output/
+    """
+    from orpilot.benchmark.case import BenchmarkCase
     from orpilot.benchmark.runner import BenchmarkRunner
+
+    if not problem_file.exists():
+        console.print(f"[red]File not found: {problem_file}[/red]")
+        raise typer.Exit(1)
 
     # --- Load config file ---
     cfg: dict = {}
@@ -532,130 +781,140 @@ def benchmark(
         cfg = load_config_file(resolved_config)
         console.print(f"[dim]Loaded config from {resolved_config}[/dim]")
 
-    provider     = provider     or cfg.get("provider")     or os.environ.get("ORPILOT_LLM_PROVIDER", "openai")
-    model        = model        or cfg.get("model")        or os.environ.get("ORPILOT_MODEL")
-    api_key      = api_key      or cfg.get("api_key")
-    base_url     = base_url     or cfg.get("base_url")
-    solver       = solver       or cfg.get("solver")       or os.environ.get("ORPILOT_DEFAULT_SOLVER", "pulp")
-    mode         = mode         or cfg.get("mode",        "auto")
-    timeout      = timeout      if timeout      is not None else cfg.get("timeout",      120)
-    verbose      = verbose      if verbose      is not None else cfg.get("verbose",      False)
-    generate_ir  = generate_ir  if generate_ir  is not None else cfg.get("generate_ir",  False)
-    temperature  = temperature  if temperature  is not None else cfg.get("temperature",  0.0)
+    # Merge: CLI > config file > env > defaults
+    provider    = provider    or cfg.get("provider")    or os.environ.get("ORPILOT_LLM_PROVIDER", "openai")
+    model       = model       or cfg.get("model")       or os.environ.get("ORPILOT_MODEL")
+    solver      = solver      or cfg.get("solver")      or os.environ.get("ORPILOT_DEFAULT_SOLVER", "pulp")
+    mode        = mode        or cfg.get("mode",        "direct")
+    max_retries = max_retries if max_retries is not None else cfg.get("max_retries", 3)
+    time_limit  = time_limit  if time_limit  is not None else cfg.get("time_limit",  300)
+    verbose     = verbose     if verbose     is not None else cfg.get("verbose",     False)
+    generate_ir = generate_ir if generate_ir is not None else cfg.get("generate_ir", False)
+    temperature = temperature if temperature is not None else cfg.get("temperature", 0.0)
+    base_url    = base_url    or cfg.get("base_url")
+    api_key     = api_key     or cfg.get("api_key")
+    max_tokens  = int(cfg.get("max_tokens", 8192))
 
-    path = path.resolve()
-    if not path.is_dir():
-        console.print(f"[red]Path is not a directory: {path}[/red]")
+    cfg_dir = resolved_config.parent if resolved_config is not None else Path.cwd()
+    if output_dir is None and "output_dir" in cfg:
+        output_dir = (cfg_dir / cfg["output_dir"]).resolve()
+    elif output_dir is not None:
+        output_dir = output_dir.resolve()
+
+    if mode not in ("direct", "ir"):
+        console.print(f"[red]Unknown mode '{mode}'. Choose 'direct' or 'ir'.[/red]")
         raise typer.Exit(1)
 
-    try:
-        case = load_benchmark_case(path)
-    except (FileNotFoundError, ValueError) as exc:
-        console.print(f"[red]Failed to load benchmark case: {exc}[/red]")
-        raise typer.Exit(1)
+    problem_text = problem_file.read_text(encoding="utf-8").strip()
 
-    console.print(Panel(f"Benchmark: [bold]{case.name}[/bold]", border_style="blue"))
-    console.print(f"  Solver:      {solver}")
-    console.print(f"  Mode:        {mode}")
-    console.print(f"  Generate IR: {generate_ir}")
-    if case.expected_objective is not None:
-        console.print(f"  Expected:    {case.expected_objective} ({case.expected_status})")
+    llm_config = LLMConfig(provider=provider, model=model, api_key=api_key, base_url=base_url, temperature=temperature, max_tokens=max_tokens)
+    llm = get_llm(llm_config)
 
-    # Determine effective mode — default is direct code gen
-    effective_mode = mode
-    if mode == "auto":
-        if case.ir_model is not None and case.tables is not None:
-            effective_mode = "compiler"
-        else:
-            effective_mode = "direct"
-        console.print(f"  Auto-selected mode: {effective_mode}")
+    console.print(Panel(
+        f"[bold]{problem_file.name}[/bold]\n"
+        f"Mode: {mode}  |  Solver: {solver}  |  Model: {model or '(default)'}",
+        title="ORPilot — Solve from file",
+        border_style="blue",
+    ))
 
-    # Instantiate LLM if needed
-    llm = None
-    if effective_mode != "compiler":
-        llm_config = LLMConfig(provider=provider, model=model, api_key=api_key, base_url=base_url, temperature=temperature)
-        llm = get_llm(llm_config)
+    case = BenchmarkCase(name=problem_file.stem, problem_text=problem_text)
+    runner = BenchmarkRunner(timeout=time_limit)
 
-    runner = BenchmarkRunner(timeout=timeout)
-
-    console.print("\n[dim]Running...[/dim]")
-    if effective_mode == "compiler":
-        if case.ir_model is None:
-            console.print("[red]Mode 'compiler' requires ir.json in the case directory.[/red]")
-            raise typer.Exit(1)
-        if case.tables is None:
-            console.print("[red]Mode 'compiler' requires a data/ directory with CSV files.[/red]")
-            raise typer.Exit(1)
-        result = runner.run_compiler_only(case, case.ir_model, case.tables, solver)
-    elif effective_mode == "ir":
-        if case.tables is None:
-            console.print("[red]Mode 'ir' requires a data/ directory with CSV files.[/red]")
-            raise typer.Exit(1)
-        result = runner.run_with_ir_builder(case, case.tables, llm, solver, generate_ir=generate_ir)
-    elif effective_mode == "direct":
-        if case.tables is not None:
-            result = runner.run_direct_code_gen(case, case.tables, llm, solver, generate_ir=generate_ir)
-        else:
-            result = runner.run_direct_pipeline(case, llm, solver, generate_ir=generate_ir)
+    console.print("[blue]>> Ingesting problem text...[/blue]")
+    if mode == "ir":
+        result = runner.run_full_pipeline(case, llm, solver=solver)
     else:
-        # full — TextIngestor + direct code gen
-        result = runner.run_direct_pipeline(case, llm, solver, generate_ir=generate_ir)
+        result = runner.run_direct_pipeline(case, llm, solver=solver, generate_ir=generate_ir)
 
-    # Save IR if requested
-    if save_ir and result.ir_model:
-        import json as _json
-        ir_out = path / "ir_generated.json"
-        ir_out.write_text(_json.dumps(result.ir_model, indent=2), encoding="utf-8")
-        console.print(f"[dim]Saved generated IR to {ir_out}[/dim]")
-
-    # Report
+    # --- Display result ---
     console.print()
-    if result.passed:
-        console.print(f"[green bold]PASS[/green bold]  {case.name}")
+    if result.status in ("optimal", "feasible"):
+        console.print(f"[green bold]✓ {result.status.upper()}[/green bold]")
     else:
-        console.print(f"[red bold]FAIL[/red bold]  {case.name}")
+        console.print(f"[red bold]✗ {result.status.upper()}[/red bold]")
 
-    console.print(f"  Status:    {result.status}")
     if result.objective_value is not None:
-        console.print(f"  Objective: {result.objective_value}")
+        console.print(f"  Objective Value : {result.objective_value:,.4f}")
     if result.solve_time is not None:
-        console.print(f"  Time:      {result.solve_time:.2f}s")
+        console.print(f"  Solve Time      : {result.solve_time:.2f}s")
     if result.error:
         if verbose:
             console.print(Panel(result.error, title="[red]Error[/red]", border_style="red"))
         else:
-            console.print(f"[red]  Error:     {result.error[:200]}[/red]")
+            console.print(f"[red]  Error: {result.error[:300]}[/red]")
+            console.print("[dim]  (use --verbose to see full details)[/dim]")
 
-    if verbose and result.generated_code:
-        console.print(Panel(result.generated_code, title="Generated code", border_style="dim"))
+    # --- Save artifacts ---
+    if output_dir:
+        output_dir.mkdir(parents=True, exist_ok=True)
 
-    raise typer.Exit(0 if result.passed else 1)
+        if result.generated_code:
+            code_path = output_dir / "model.py"
+            code_path.write_text(result.generated_code, encoding="utf-8")
+            console.print(f"[dim]  -> Saved generated code to {code_path}[/dim]")
+
+        if result.ir_model:
+            import json as _json
+            ir_path = output_dir / "ir.json"
+            ir_path.write_text(_json.dumps(result.ir_model, indent=2), encoding="utf-8")
+            console.print(f"[dim]  -> Saved IR to {ir_path}[/dim]")
+
+        if result.tables:
+            import csv as _csv
+            data_dir = output_dir / "data"
+            data_dir.mkdir(exist_ok=True)
+            for stem, rows in result.tables.items():
+                if not rows:
+                    continue
+                csv_path = data_dir / f"{stem}.csv"
+                with open(csv_path, "w", newline="", encoding="utf-8") as fh:
+                    writer = _csv.DictWriter(fh, fieldnames=list(rows[0].keys()))
+                    writer.writeheader()
+                    writer.writerows(rows)
+            console.print(f"[dim]  -> Saved data CSVs to {data_dir}[/dim]")
+
+        if result.lp_content:
+            lp_path = output_dir / "model.lp"
+            lp_path.write_text(result.lp_content, encoding="utf-8")
+            console.print(f"[dim]  -> Saved LP file to {lp_path}[/dim]")
+
+    raise typer.Exit(0 if result.status in ("optimal", "feasible") else 1)
 
 
-@app.command(name="run-dataset")
-def run_dataset(
-    dataset: str = typer.Argument(..., help="HuggingFace dataset name, e.g. CardinalOperations/IndustryOR"),
+@app.command(name="generate-ir")
+def generate_ir_cmd(
+    output_dir: Path = typer.Argument(..., help="Output folder containing session.json and model.py"),
     config_file: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to a TOML or JSON config file. Auto-discovered if orpilot.toml exists in the current directory."),
-    split: Optional[str] = typer.Option(None, "--split", help="Dataset split to use"),
-    difficulty: Optional[str] = typer.Option(None, "--difficulty", help="Filter by difficulty: easy|medium|hard"),
-    ids: Optional[str] = typer.Option(None, "--ids", help="Comma-separated list of case IDs to run, e.g. '1,2,5'"),
-    limit: Optional[int] = typer.Option(None, "--limit", help="Maximum number of cases to run"),
-    solver: Optional[str] = typer.Option(None, "--solver", "-s", help="OR solver (pulp, pyomo, ortools)"),
-    provider: Optional[str] = typer.Option(None, "--provider", "-p", help="LLM provider (openai, anthropic)"),
+    provider: Optional[str] = typer.Option(None, "--provider", "-p", help="LLM provider (openai, anthropic, google)"),
     model: Optional[str] = typer.Option(None, "--model", "-m", help="Model name override"),
-    api_key: Optional[str] = typer.Option(None, "--api-key", envvar="OPENAI_API_KEY"),
+    api_key: Optional[str] = typer.Option(None, "--api-key", envvar="OPENAI_API_KEY", help="API key. For Gemini, set GOOGLE_API_KEY in env instead."),
     base_url: Optional[str] = typer.Option(None, "--base-url", envvar="OPENAI_BASE_URL", help="Custom API base URL"),
-    timeout: Optional[int] = typer.Option(None, "--timeout", help="Timeout in seconds per case"),
-    verbose: Optional[bool] = typer.Option(None, "--verbose/--no-verbose", help="Show full errors"),
-    generate_ir: Optional[bool] = typer.Option(None, "--generate-ir/--no-generate-ir", help="After each successful solve, generate an IR blueprint for solver portability"),
-    save_dir: Optional[Path] = typer.Option(None, "--save-dir", help="Directory to write per-case artifacts"),
     temperature: Optional[float] = typer.Option(None, "--temperature", help="LLM sampling temperature (0.0 = deterministic)"),
 ) -> None:
-    """Run benchmark cases from a HuggingFace dataset through the full pipeline."""
-    from orpilot.benchmark.loader_hf import load_hf_cases
-    from orpilot.benchmark.runner import BenchmarkRunner
+    """Generate an IR blueprint from an existing output folder.
 
-    # --- Load config file ---
+    Reads session.json (for the problem definition and CSV schemas) and model.py
+    (for the working solver code) from the output folder, then calls the
+    ir_builder_on_demand node to produce ir.json in the same folder.
+
+    Example:
+
+        orpilot generate-ir output/
+    """
+    from orpilot.workflow.nodes.ir_builder import ir_builder_on_demand_node
+
+    output_dir = output_dir.resolve()
+    session_path = output_dir / "session.json"
+    model_path = output_dir / "model.py"
+
+    if not session_path.exists():
+        console.print(f"[red]session.json not found in {output_dir}[/red]")
+        raise typer.Exit(1)
+    if not model_path.exists():
+        console.print(f"[red]model.py not found in {output_dir}[/red]")
+        raise typer.Exit(1)
+
+    # --- Load config ---
     cfg: dict = {}
     resolved_config = config_file
     if resolved_config is None:
@@ -667,91 +926,353 @@ def run_dataset(
         cfg = load_config_file(resolved_config)
         console.print(f"[dim]Loaded config from {resolved_config}[/dim]")
 
-    provider   = provider   or cfg.get("provider")   or os.environ.get("ORPILOT_LLM_PROVIDER", "openai")
-    model      = model      or cfg.get("model")      or os.environ.get("ORPILOT_MODEL")
-    api_key    = api_key    or cfg.get("api_key")
-    base_url   = base_url   or cfg.get("base_url")
-    solver     = solver     or cfg.get("solver")     or os.environ.get("ORPILOT_DEFAULT_SOLVER", "pulp")
-    split      = split      or cfg.get("split",      "test")
-    difficulty = difficulty or cfg.get("difficulty")
-    limit      = limit      if limit      is not None else cfg.get("limit")
-    timeout    = timeout    if timeout    is not None else cfg.get("timeout", 180)
-    verbose     = verbose     if verbose     is not None else cfg.get("verbose",      False)
-    generate_ir = generate_ir if generate_ir is not None else cfg.get("generate_ir", False)
-    temperature = temperature if temperature is not None else cfg.get("temperature",  0.0)
-    if save_dir is None and "save_dir" in cfg:
-        save_dir = Path(cfg["save_dir"])
+    provider    = provider    or cfg.get("provider")    or os.environ.get("ORPILOT_LLM_PROVIDER", "openai")
+    model       = model       or cfg.get("model")       or os.environ.get("ORPILOT_MODEL")
+    temperature = temperature if temperature is not None else cfg.get("temperature", 0.0)
+    base_url    = base_url    or cfg.get("base_url")
+    api_key     = api_key     or cfg.get("api_key")
+    max_tokens  = int(cfg.get("max_tokens", 8192))
 
-    # Parse ids
-    parsed_ids: list[int] | None = None
-    if ids:
-        try:
-            parsed_ids = [int(x.strip()) for x in ids.split(",") if x.strip()]
-        except ValueError:
-            console.print("[red]--ids must be a comma-separated list of integers[/red]")
-            raise typer.Exit(1)
+    # --- Load session ---
+    console.print(f"[dim]Loading session from {session_path}[/dim]")
 
-    console.print(f"[dim]Loading cases from {dataset} (split={split})...[/dim]")
-    try:
-        cases = load_hf_cases(dataset, split=split, difficulty=difficulty, ids=parsed_ids, limit=limit)
-    except ImportError as exc:
-        console.print(f"[red]{exc}[/red]")
+    import json as _sess_json
+    session_payload = _sess_json.loads(session_path.read_text(encoding="utf-8"))
+
+    from orpilot.models.data import CsvFileSpec, UserData
+    from orpilot.models.problem import ProblemDefinition
+
+    problem = None
+    if session_payload.get("problem"):
+        problem = ProblemDefinition.model_validate(session_payload["problem"])
+    if problem is None:
+        console.print("[red]session.json does not contain a problem definition.[/red]")
         raise typer.Exit(1)
 
-    if not cases:
-        console.print("[yellow]No cases matched the given filters.[/yellow]")
-        raise typer.Exit(0)
+    # Build user_data: load CSV specs from session AND actual row data from data_dir
+    # (if the CSVs are still present on disk).  Row data populates distinct_values in
+    # csv_schemas so the LLM can see actual member IDs — critical for shared-source
+    # set files (e.g. sets.csv with a set_name category column) so the LLM chooses
+    # MEMBER LIST FROM CSV rather than HARDCODED COUNT for time sets like Periods.
+    csv_spec_dicts = session_payload.get("csv_specs", [])
+    specs = [CsvFileSpec.model_validate(d) for d in csv_spec_dicts]
+    data_dir_str = session_payload.get("data_dir", "")
+    data_dir_path = Path(data_dir_str) if data_dir_str else None
+    if specs and data_dir_path and data_dir_path.is_dir():
+        try:
+            user_data = UserData.load_from_csv_dir(str(data_dir_path), specs)
+            console.print(
+                f"[dim]  -> Loaded {len(specs)} CSV schema(s) + row data from {data_dir_path}[/dim]"
+            )
+        except Exception:
+            # CSV files may have moved since the session — fall back to schema-only
+            user_data = UserData(csv_specs=specs)
+            console.print(
+                f"[dim]  -> Loaded {len(specs)} CSV schema(s) from session "
+                f"(row data unavailable — CSVs not found in {data_dir_path})[/dim]"
+            )
+    elif specs:
+        user_data = UserData(csv_specs=specs)
+        console.print(f"[dim]  -> Loaded {len(specs)} CSV schema(s) from session (no data_dir).[/dim]")
+    else:
+        user_data = None
 
-    console.print(f"[dim]Loaded {len(cases)} case(s).[/dim]")
+    # Augment user_data with any CSV files in data_dir that are not already in csv_specs.
+    # param_computation writes files (e.g. bigM.csv) after the session specs were recorded,
+    # so they are absent from session.json but present on disk.
+    if data_dir_path and data_dir_path.is_dir():
+        import csv as _csv2
+        from orpilot.models.data import CsvColumnSpec, CsvFileSpec
+        known_stems = {Path(s.filename).stem for s in (user_data.csv_specs if user_data else [])}
+        extra_specs: list[CsvFileSpec] = []
+        extra_tables: dict = {}
+        for csv_file in sorted(data_dir_path.glob("*.csv")):
+            stem = csv_file.stem
+            if stem in known_stems:
+                continue
+            try:
+                with open(csv_file, newline="", encoding="utf-8") as _fh:
+                    reader = _csv2.DictReader(_fh)
+                    rows = list(reader)
+                    headers = list(reader.fieldnames or (rows[0].keys() if rows else []))
+                columns = [CsvColumnSpec(name=h, dtype="str") for h in headers]
+                extra_specs.append(CsvFileSpec(filename=csv_file.name, columns=columns))
+                extra_tables[stem] = rows
+                console.print(f"[dim]  -> Found extra CSV (from param_computation): {csv_file.name}[/dim]")
+            except Exception:
+                pass
+        if extra_specs:
+            if user_data is None:
+                user_data = UserData(csv_specs=extra_specs, raw_tables=extra_tables)
+            else:
+                user_data = UserData(
+                    csv_specs=list(user_data.csv_specs) + extra_specs,
+                    raw_tables={**user_data.raw_tables, **extra_tables},
+                )
 
-    llm_config = LLMConfig(provider=provider, model=model, api_key=api_key, base_url=base_url, temperature=temperature)
+    overrides = {
+        "messages": session_payload.get("messages", []),
+        "current_node": session_payload.get("current_node", "interview"),
+        "csv_specs": csv_spec_dicts,
+        "data_dir": session_payload.get("data_dir", ""),
+        "problem": problem,
+        "user_data": user_data,
+    }
+
+    generated_code = model_path.read_text(encoding="utf-8")
+
+    # --- Build state ---
+    state: WorkflowState = {
+        "problem": problem,
+        "user_data": user_data,
+        "generated_code": generated_code,
+        "messages": overrides.get("messages", []),
+        "current_node": "ir_builder_on_demand",
+        "needs_user_input": False,
+        "ir_model": None,
+        "error_context": "",
+        "report": "",
+        "solution": None,
+        "data_dir": overrides.get("data_dir", ""),
+        "csv_specs": overrides.get("csv_specs", []),
+    }
+
+    # --- Run IR generation ---
+    console.print(Panel(
+        f"Problem: [bold]{problem.title}[/bold]\n"
+        f"Model:   {model or '(default)'}  |  Provider: {provider}",
+        title="ORPilot — Generate IR",
+        border_style="blue",
+    ))
+    console.print("[blue]>> Generating IR blueprint...[/blue]")
+
+    llm_config = LLMConfig(
+        provider=provider, model=model, api_key=api_key,
+        base_url=base_url, temperature=temperature, max_tokens=max_tokens,
+    )
     llm = get_llm(llm_config)
 
-    if save_dir:
-        save_dir.mkdir(parents=True, exist_ok=True)
+    result_state = ir_builder_on_demand_node(state, llm)
 
-    runner = BenchmarkRunner(timeout=timeout)
-    passed = 0
-    failed = 0
+    ir_model = result_state.get("ir_model")
+    if ir_model:
+        ir_path = output_dir / "ir.json"
+        ir_path.write_text(json.dumps(ir_model, indent=2), encoding="utf-8")
+        console.print(f"[green bold]✓ IR blueprint saved to {ir_path}[/green bold]")
+        raise typer.Exit(0)
+    else:
+        console.print("[red]✗ IR generation failed after 3 attempts.[/red]")
+        raise typer.Exit(1)
 
-    for case in cases:
-        if case.tables is not None:
-            result = runner.run_direct_code_gen(case, case.tables, llm, solver=solver, generate_ir=generate_ir)
-        else:
-            result = runner.run_direct_pipeline(case, llm, solver=solver, generate_ir=generate_ir)
 
-        obj_str = f"{result.objective_value}" if result.objective_value is not None else "N/A"
-        exp_str = f"{case.expected_objective}" if case.expected_objective is not None else "N/A"
-        time_str = f"{result.solve_time:.1f}s" if result.solve_time is not None else "N/A"
+def _collect_csv_sources(ir: dict, data_dir: Path) -> dict[str, tuple[str, bool]]:
+    """Return {stem: (filename, optional)} for all CSV files the generated solve() needs.
 
-        if result.passed:
-            passed += 1
-            console.print(
-                f"[green bold]PASS[/green bold]  {case.name}  "
-                f"obj={obj_str}  expected={exp_str}  time={time_str}"
+    Tries IR ``source`` fields first; falls back to every ``*.csv`` in
+    *data_dir* so that IRs generated without explicit source annotations still
+    work.  Source values without a file extension are assumed to be ``*.csv``.
+    Optional parameters (IR field ``optional: true``) may be absent on disk.
+    """
+    seen: dict[str, tuple[str, bool]] = {}
+    for meta in list(ir.get("sets", {}).values()) + list(ir.get("parameters", {}).values()):
+        source = meta.get("source")
+        if source:
+            p = Path(source)
+            stem = p.stem
+            fname = p.name if p.suffix else p.name + ".csv"
+            is_optional = bool(meta.get("optional", False))
+            seen[stem] = (fname, is_optional)
+    if not seen:
+        # No source annotations in IR — load every CSV present in data_dir
+        for csv_file in sorted(data_dir.glob("*.csv")):
+            seen[csv_file.stem] = (csv_file.name, False)
+    return seen
+
+
+@app.command(name="compile-ir")
+def compile_ir_cmd(
+    ir_path: Path = typer.Argument(..., help="Path to ir.json (file or directory containing ir.json)"),
+    out: Optional[Path] = typer.Option(None, "--out", "-o", help="Where to write model.py. Defaults to model.py next to ir.json."),
+    solver: Optional[str] = typer.Option(None, "--solver", "-s", help="Solver backend: pulp, pyomo, ortools, gurobi, cplex. Reads from config if omitted."),
+    data_dir: Optional[Path] = typer.Option(None, "--data-dir", "-d", help="Directory containing CSV input files. Required with --run."),
+    run: bool = typer.Option(False, "--run", "-r", help="Solve and save results after compiling. Requires --data-dir. Results (CSVs, optimization_summary.txt, report.md) are saved to the same folder as --out."),
+    show_solver_log: Optional[bool] = typer.Option(None, "--solver-log/--no-solver-log", help="Stream the solver log to stdout. Only used with --run."),
+    provider: Optional[str] = typer.Option(None, "--provider", "-p", help="LLM provider for the reporter (openai, anthropic, google). Only used with --run."),
+    model: Optional[str] = typer.Option(None, "--model", "-m", help="Model name override for the reporter. Only used with --run."),
+    api_key: Optional[str] = typer.Option(None, "--api-key", envvar="OPENAI_API_KEY", help="API key. For Gemini, set GOOGLE_API_KEY in env instead."),
+    base_url: Optional[str] = typer.Option(None, "--base-url", envvar="OPENAI_BASE_URL"),
+    temperature: Optional[float] = typer.Option(None, "--temperature", help="LLM sampling temperature. Only used with --run."),
+    config_file: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to a TOML or JSON config file. Auto-discovered if orpilot.toml exists in the current directory."),
+) -> None:
+    """Compile an ir.json blueprint into solver-specific Python code (model.py).
+
+    The IR compiler is deterministic — no LLM is involved. The generated
+    model.py defines a single solve(data) function that returns a result dict.
+
+    Add --data-dir and --run to execute the full downstream pipeline after
+    compiling: solve → save CSVs + optimization_summary.txt → reporter →
+    report.md. This mirrors the same process as orpilot run.
+
+    Examples:
+
+        orpilot compile-ir output/ir.json
+        orpilot compile-ir output/                         # picks up output/ir.json
+        orpilot compile-ir output/ir.json --solver gurobi
+        orpilot compile-ir ir.json --data-dir data/ --out data_copy/model.py --run
+        orpilot compile-ir path/to/ir.json --out path/to/model.py --solver cplex
+    """
+    from orpilot.codegen.ir_compiler import IRCompiler
+
+    # Accept a directory → look for ir.json inside it
+    ir_path = ir_path.resolve()
+    if ir_path.is_dir():
+        ir_path = ir_path / "ir.json"
+
+    if not ir_path.exists():
+        console.print(f"[red]ir.json not found: {ir_path}[/red]")
+        raise typer.Exit(1)
+
+    # Resolve output path: explicit --out, or model.py next to ir.json
+    out_path = out.resolve() if out else ir_path.parent / "model.py"
+
+    # Load config for solver default
+    cfg: dict = {}
+    resolved_config = config_file
+    if resolved_config is None:
+        resolved_config = discover_config_file()
+    if resolved_config is not None and resolved_config.exists():
+        cfg = load_config_file(resolved_config)
+        console.print(f"[dim]Loaded config from {resolved_config}[/dim]")
+
+    solver = solver or cfg.get("solver") or os.environ.get("ORPILOT_DEFAULT_SOLVER", "pulp")
+    show_solver_log = show_solver_log if show_solver_log is not None else cfg.get("show_solver_log", False)
+
+    # Load IR
+    import json as _json
+    try:
+        ir_model = _json.loads(ir_path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        console.print(f"[red]Failed to read {ir_path}: {exc}[/red]")
+        raise typer.Exit(1)
+
+    console.print(f"[dim]IR:       {ir_path}[/dim]")
+    console.print(f"[dim]Output:   {out_path}[/dim]")
+    console.print(f"[dim]Solver:   {solver}[/dim]")
+
+    # Compile
+    try:
+        code = IRCompiler().compile(ir_model, solver)
+    except Exception as exc:
+        console.print(f"[red]Compilation failed: {exc}[/red]")
+        raise typer.Exit(1)
+
+    if out_path.parent.exists() and not out_path.parent.is_dir():
+        console.print(f"[red]Output path conflict: {out_path.parent} exists as a file, not a directory. Remove it and retry.[/red]")
+        raise typer.Exit(1)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(code, encoding="utf-8")
+    console.print(f"[green bold]✓ model.py written to {out_path}[/green bold]")
+
+    if run:
+        if data_dir is None:
+            console.print("[red]--run requires --data-dir.[/red]")
+            raise typer.Exit(1)
+
+        from orpilot.solver.registry import get_solver
+        from orpilot.models.problem import ProblemDefinition
+        from orpilot.models.solution import SolveStatus
+        from orpilot.workflow.nodes.reporter import reporter_node
+        from rich.markdown import Markdown
+
+        results_dir = out_path.parent
+        results_dir.mkdir(parents=True, exist_ok=True)
+
+        # --- Load CSV data ---
+        console.print("[blue]>> Loading data...[/blue]")
+        import csv as _csv
+        csv_sources = _collect_csv_sources(ir_model, data_dir.resolve())
+        if not csv_sources:
+            console.print("[red]No CSV files found in data-dir and no source fields in IR.[/red]")
+            raise typer.Exit(1)
+        data_dict: dict = {}
+        for stem, (fname, is_optional) in csv_sources.items():
+            fpath = data_dir.resolve() / fname
+            if not fpath.exists():
+                if is_optional:
+                    data_dict[stem] = []
+                    console.print(f"[dim]  Skipped optional {fname} (not found)[/dim]")
+                    continue
+                console.print(f"[red]Data file not found: {fpath}[/red]")
+                raise typer.Exit(1)
+            with open(fpath, newline="", encoding="utf-8") as _f:
+                data_dict[stem] = list(_csv.DictReader(_f))
+            console.print(f"[dim]  Loaded {fname} ({len(data_dict[stem])} rows)[/dim]")
+
+        import json as _json
+        data_json_path = results_dir / "data.json"
+        data_json_path.write_text(_json.dumps(data_dict, indent=2), encoding="utf-8")
+        console.print(f"[dim]  Saved data.json to {data_json_path}[/dim]")
+
+        # --- Solve ---
+        console.print(f"[blue]>> Solving ({solver})...[/blue]")
+        solution = get_solver(solver).solve(code, data_dict, show_solver_log=show_solver_log)
+        console.print(f"  Status: {solution.status.value}")
+        if solution.objective_value is not None:
+            console.print(f"  Objective: {solution.objective_value}")
+        if solution.status.value == "error":
+            if solution.error_message:
+                console.print(f"[red]  Error: {solution.error_message}[/red]")
+            if solution.solver_output:
+                console.print(f"[dim]  Solver output:\n{solution.solver_output}[/dim]")
+
+        # --- Save solution CSVs + summary ---
+        state_for_save = {"solution": solution}
+        _save_solution(state_for_save, str(results_dir), console)
+
+        # --- Reporter ---
+        provider_ = provider or cfg.get("provider") or os.environ.get("ORPILOT_LLM_PROVIDER", "openai")
+        model_ = model or cfg.get("model") or os.environ.get("ORPILOT_MODEL")
+        temperature_ = temperature if temperature is not None else cfg.get("temperature", 0.0)
+        base_url_ = base_url or cfg.get("base_url")
+        api_key_ = api_key or cfg.get("api_key")
+        max_tokens = int(cfg.get("max_tokens", 8192))
+
+        problem_class = ir_model.get("problem_class", "Optimization Model")
+        problem = ProblemDefinition(title=problem_class, description=problem_class)
+        reporter_state: WorkflowState = {
+            "problem": problem,
+            "solution": solution,
+            "generated_code": code,
+            "messages": [],
+            "current_node": "reporter",
+            "needs_user_input": False,
+            "ir_model": ir_model,
+            "error_context": "",
+            "report": "",
+            "data_dir": str(data_dir.resolve()),
+            "csv_specs": [],
+            "user_data": None,
+        }
+
+        console.print("[blue]>> Generating report...[/blue]")
+        try:
+            llm_config = LLMConfig(
+                provider=provider_, model=model_, api_key=api_key_,
+                base_url=base_url_, temperature=temperature_, max_tokens=max_tokens,
             )
-        else:
-            failed += 1
-            console.print(
-                f"[red bold]FAIL[/red bold]  {case.name}  "
-                f"obj={obj_str}  expected={exp_str}  time={time_str}"
-            )
-            if result.error:
-                if verbose:
-                    console.print(Panel(result.error, title="[red]Error[/red]", border_style="red"))
-                else:
-                    console.print(f"  [red]Error: {result.error[:200]}[/red]")
+            llm = get_llm(llm_config)
+            reporter_state = reporter_node(reporter_state, llm)
+            report = reporter_state.get("report", "")
+        except Exception as exc:
+            console.print(f"[yellow]Warning: reporter failed ({exc}). Skipping report.[/yellow]")
+            report = ""
 
-        if save_dir and result.ir_model:
-            import json as _json
-            ir_out = save_dir / f"{case.name}_ir.json"
-            ir_out.write_text(_json.dumps(result.ir_model, indent=2), encoding="utf-8")
-
-    total = passed + failed
-    pct = 100.0 * passed / total if total else 0.0
-    console.print(f"\n[bold]{passed}/{total} passed ({pct:.1f}%)[/bold]")
-
-    raise typer.Exit(0 if failed == 0 else 1)
+        if report:
+            report_path = results_dir / "report.md"
+            report_path.write_text(report, encoding="utf-8")
+            console.print(f"[dim]  -> Saved report to {report_path}[/dim]")
+            console.print()
+            console.print(Panel(Markdown(report), title="Solution Report", border_style="green"))
 
 
 if __name__ == "__main__":

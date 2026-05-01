@@ -6,16 +6,32 @@ from orpilot.solver.registry import get_solver, list_solvers
 from orpilot.solver.base import BaseSolver
 
 
-def test_list_solvers():
+def test_list_solvers_contains_open_source():
     solvers = list_solvers()
     assert "pulp" in solvers
     assert "pyomo" in solvers
     assert "ortools" in solvers
 
 
+def test_list_solvers_contains_commercial():
+    solvers = list_solvers()
+    assert "gurobi" in solvers
+    assert "cplex" in solvers
+
+
+def test_highs_removed():
+    """HiGHS backend was removed — must not appear in the registry."""
+    assert "highs" not in list_solvers()
+
+
 def test_get_pulp_solver():
     solver = get_solver("pulp")
     assert isinstance(solver, BaseSolver)
+    assert solver.name == "pulp"
+
+
+def test_get_solver_case_insensitive():
+    solver = get_solver("PuLP")
     assert solver.name == "pulp"
 
 

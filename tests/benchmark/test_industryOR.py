@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import datetime
 import json
 import logging
 import time
@@ -28,7 +29,7 @@ def _save_artifacts(result, case, out_dir: Path) -> None:
 
 @pytest.mark.llm
 @pytest.mark.industryOR
-def test_industryOR_sample(llm_fixture, save_dir, generate_ir, difficulty, limit):
+def test_industryOR_sample(llm_fixture, save_dir, generate_ir, difficulty, limit, solver):
     """Load IndustryOR cases and run the direct code gen pipeline for each.
 
     Pass --difficulty Easy|Medium|Hard to select the difficulty tier (default: Easy).
@@ -47,13 +48,30 @@ def test_industryOR_sample(llm_fixture, save_dir, generate_ir, difficulty, limit
     passed = 0
     failures: list[str] = []
     solve_times: list[float] = []
+    results: list = []
 
     mode_label = "direct+ir" if generate_ir else "direct"
     log.info("Running %d IndustryOR %s cases (mode=%s)", len(cases), difficulty, mode_label)
     suite_start = time.monotonic()
     for i, case in enumerate(cases, 1):
         log.info("[%d/%d] %s (expected %s) ...", i, len(cases), case.name, case.expected_objective)
-        result = runner.run_direct_pipeline(case, llm_fixture, solver="pulp", generate_ir=generate_ir)
+
+        # Reset token counters before each case so we capture per-case usage
+        if hasattr(llm_fixture, "reset_usage"):
+            llm_fixture.reset_usage()
+
+        result = runner.run_direct_pipeline(case, llm_fixture, solver=solver, generate_ir=generate_ir)
+
+        # Attach per-case token usage
+        if hasattr(llm_fixture, "get_usage"):
+            usage = llm_fixture.get_usage()
+            result.metrics = {
+                "input_tokens": usage.get("input_tokens", 0),
+                "output_tokens": usage.get("output_tokens", 0),
+                "latency_s": round(result.solve_time or 0.0, 2),
+            }
+
+        results.append(result)
         solve_times.append(result.solve_time)
         if save_dir:
             _save_artifacts(result, case, save_dir)
@@ -68,6 +86,7 @@ def test_industryOR_sample(llm_fixture, save_dir, generate_ir, difficulty, limit
             )
             log.info("  FAIL  (%s)", msg)
             failures.append(f"{case.name}: {msg}")
+        print(f"[{i}/{len(cases)}] {'PASS' if result.passed else 'FAIL'}  passed={passed}  failed={len(failures)}  ({result.solve_time:.1f}s)", flush=True)
 
     total = len(cases)
     pct = 100.0 * passed / total if total else 0.0
@@ -83,5 +102,37 @@ def test_industryOR_sample(llm_fixture, save_dir, generate_ir, difficulty, limit
         for f in failures:
             log.info("    - %s", f)
     log.info("=" * 60)
+
+    # Write aggregate metrics.json (one file per batch run, not per case)
+    if save_dir and results:
+        total_input = sum(r.metrics.get("input_tokens", 0) for r in results)
+        total_output = sum(r.metrics.get("output_tokens", 0) for r in results)
+        aggregate = {
+            "run_id": datetime.datetime.now().isoformat(timespec="seconds"),
+            "solver": solver,
+            "difficulty": difficulty,
+            "total_cases": total,
+            "passed": passed,
+            "failed": total - passed,
+            "totals": {
+                "input_tokens": total_input,
+                "output_tokens": total_output,
+                "latency_s": round(total_wall, 2),
+            },
+            "cases": {
+                r.case_name: {
+                    "status": r.status,
+                    "passed": r.passed,
+                    "input_tokens": r.metrics.get("input_tokens", 0),
+                    "output_tokens": r.metrics.get("output_tokens", 0),
+                    "latency_s": r.metrics.get("latency_s", 0.0),
+                }
+                for r in results
+            },
+        }
+        (save_dir / "metrics.json").write_text(
+            json.dumps(aggregate, indent=2), encoding="utf-8"
+        )
+        log.info("  Wrote aggregate metrics to %s/metrics.json", save_dir)
 
     assert not failures, f"{len(failures)}/{total} IndustryOR cases failed:\n" + "\n".join(failures)

@@ -342,7 +342,6 @@ class BenchmarkRunner:
                 "use_ir": False,
             }
 
-            # param_computation runs once before the retry loop.
             state = param_computation_node(state, llm)
             updated_user_data = state.get("user_data")
             data = _tables_to_data(
@@ -434,6 +433,7 @@ class BenchmarkRunner:
         run_with_ir_builder.
         """
         start = time.monotonic()
+
         try:
             _problem_def, tables = TextIngestor().ingest(case.problem_text, llm)
         except Exception as exc:
@@ -467,6 +467,7 @@ class BenchmarkRunner:
         )
         result.solve_time = time.monotonic() - start
         result.mode = "direct_pipeline"
+        result.tables = tables
         return result
 
     # ------------------------------------------------------------------
@@ -514,6 +515,7 @@ class BenchmarkRunner:
         # Adjust elapsed time to include ingestor time
         result.solve_time = time.monotonic() - start
         result.mode = "full"
+        result.tables = tables
         return result
 
     # ------------------------------------------------------------------

@@ -1,0 +1,17 @@
+I need to plan production over four months to meet customer demand at minimum cost.
+
+Production parameters:
+- Variable production cost: $5 per unit
+- Setup cost: $100 per period (charged whenever we produce anything that period)
+- Holding cost: $2 per unit held at end of each period
+- Maximum production capacity: 50 units per period
+
+Monthly demand:
+- Month 1: 10 units
+- Month 2: 20 units
+- Month 3: 30 units
+- Month 4: 20 units
+
+There is no inventory at the start of Month 1 and no inventory should remain after Month 4.
+
+How much should I produce in each month to minimize total cost (production + setup + holding)?

@@ -1,5 +1,5 @@
 """System prompt for the IR builder LLM node."""
 
-from pathlib import Path
+from ._loader import load_prompt
 
-SYSTEM_PROMPT = (Path(__file__).parent / "ir_prompt.txt").read_text()
+SYSTEM_PROMPT, _SYSTEM_VERSION = load_prompt("ir_system.md")

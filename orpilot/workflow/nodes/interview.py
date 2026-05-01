@@ -8,34 +8,47 @@ from orpilot.prompts import interview as interview_prompts
 from orpilot.workflow.state import WorkflowState
 
 
+def _compress_interview_ctx(problem: ProblemDefinition) -> list[dict]:
+    """Reduce N interview turns to 2 messages using the extracted problem as the summary."""
+    return [
+        {"role": "user", "content": "I need help with an optimization problem."},
+        {
+            "role": "assistant",
+            "content": f"[Interview complete. Problem extracted:]\n{problem.model_dump_json(indent=2)}",
+        },
+    ]
+
+
 def interview_node(state: WorkflowState, llm: BaseLLM) -> WorkflowState:
     """Run one turn of the interview conversation.
 
-    If the LLM determines the interview is complete, extract a structured
-    ProblemDefinition. Otherwise, set needs_user_input=True to get more info.
+    Uses messages_ctx (compressed) for LLM calls to keep token usage bounded.
+    The full verbatim history is preserved in messages for display and session resume.
     """
-    # Problem already defined — this node is just acting as a router.
-    # Return state unchanged so no extra assistant message is appended.
     if state.get("problem") is not None:
         return state
 
     messages = list(state.get("messages", []))
+    # Fall back to full messages if messages_ctx has not been initialised yet
+    messages_ctx = list(state["messages_ctx"]) if state.get("messages_ctx") is not None else list(messages)
 
-    # Build conversation with the interview system prompt
     llm_messages = [{"role": "system", "content": interview_prompts.SYSTEM_PROMPT}]
-    llm_messages.extend(messages)
+    llm_messages.extend(messages_ctx)
+    if len(llm_messages) == 1:
+        llm_messages.append({"role": "user", "content": "Hello, I need help with an optimization problem."})
 
     response = llm.chat(llm_messages)
 
     messages.append({"role": "assistant", "content": response})
+    messages_ctx.append({"role": "assistant", "content": response})
 
     updates: dict = {
         "messages": messages,
+        "messages_ctx": messages_ctx,
         "current_node": "interview",
     }
 
     if "[INTERVIEW_COMPLETE]" in response:
-        # Extract structured problem definition
         conversation_text = "\n".join(
             f"{m['role']}: {m['content']}" for m in messages
         )
@@ -49,12 +62,13 @@ def interview_node(state: WorkflowState, llm: BaseLLM) -> WorkflowState:
             ],
             ProblemDefinition,
         )
-        # Clean the marker from the last message
+
         messages[-1] = {
             "role": "assistant",
             "content": response.replace("[INTERVIEW_COMPLETE]", "").strip(),
         }
         updates["messages"] = messages
+        updates["messages_ctx"] = _compress_interview_ctx(problem)
         updates["problem"] = problem
         updates["needs_user_input"] = False
     else:

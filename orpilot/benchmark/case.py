@@ -39,6 +39,10 @@ class BenchmarkResult:
     lp_content: str = ""
     error: str | None = None
     solve_time: float | None = None
+    # Token usage for this case: {"input_tokens": int, "output_tokens": int}
+    metrics: dict = field(default_factory=dict)
+    # Extracted data tables: stem → list of row dicts (populated by solve pipelines)
+    tables: dict[str, list[dict[str, Any]]] | None = None
 
     @property
     def passed(self) -> bool:

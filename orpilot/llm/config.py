@@ -17,7 +17,7 @@ class LLMConfig:
     api_key: str | None = None
     base_url: str | None = None
     # Hard cap on generated tokens — keeps responses fast and bounded.
-    max_tokens: int = 4096
+    max_tokens: int = 8192
     # Per-request timeout in seconds.
     timeout: float = 120.0
     # How many times to retry after a timeout before giving up.
@@ -30,6 +30,7 @@ class LLMConfig:
 _DEFAULT_MODELS: dict[str, str] = {
     "openai": "gpt-4o",
     "anthropic": "claude-sonnet-4-5-20250929",
+    "google": "gemini-2.0-flash",
 }
 
 
@@ -67,5 +68,16 @@ def get_llm(config: LLMConfig | None = None) -> BaseLLM:
             max_retries=config.max_retries,
             temperature=config.temperature,
         )
+    elif provider == "google":
+        from .gemini import GeminiLLM
+
+        return GeminiLLM(
+            model=model,
+            api_key=config.api_key,
+            max_tokens=config.max_tokens,
+            timeout=config.timeout,
+            max_retries=config.max_retries,
+            temperature=config.temperature,
+        )
     else:
-        raise ValueError(f"Unknown LLM provider: {provider!r}. Supported: openai, anthropic")
+        raise ValueError(f"Unknown LLM provider: {provider!r}. Supported: openai, anthropic, google")

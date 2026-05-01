@@ -171,6 +171,7 @@ def _transport_2dim_ir():
                 "source": "costs.csv",
                 "column": "cost",
                 "index_columns": ["from_id", "to_id"],
+                "missing_default": "inf",
             },
         },
         "variables": {
