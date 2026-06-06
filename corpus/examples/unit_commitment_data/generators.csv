@@ -1,0 +1,4 @@
+generator_id,fuel_cost,startup_cost,min_output,max_output
+g1,20,100,50,200
+g2,35,50,20,150
+g3,55,20,10,80

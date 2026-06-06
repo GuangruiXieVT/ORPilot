@@ -193,7 +193,9 @@ class IRCompiler:
                 continue
 
             lines.append(f"    {param_name} = {{}}")
-            lines.append(f"    for _row in data[{table_stem!r}]:")
+            optional = meta.get("optional", False)
+            data_src = f"data.get({table_stem!r}, [])" if optional else f"data[{table_stem!r}]"
+            lines.append(f"    for _row in {data_src}:")
 
             val_expr = f"_row.get({value_col!r})"
             if len(domain) == 1:
@@ -341,6 +343,7 @@ class IRCompiler:
         parameters: dict,
         index_map: dict[str, str],
         constraint_domain: list[str],
+        domain_idx_vars: list[str] | None = None,
     ) -> tuple[str | None, str | None]:
         """Return (precompute_stmt, guard_expr) for sparse constraint filtering.
 
@@ -356,33 +359,62 @@ class IRCompiler:
 
         No usable overlap or unknown param:
           (None, None)
+
+        *domain_idx_vars*: optional list of actual loop variable names produced by
+        _domain_idx_vars (handles duplicate sets like [Nodes, Nodes] → ["i1", "i2"]).
+        When provided, positional matching is used so duplicate-set domains produce
+        the correct key (e.g. "(i1, i2)" not "(i, i)").
         """
         if not sparse_filter or sparse_filter not in parameters:
             return None, None
         filter_domain = parameters[sparse_filter].get("domain", [])
         if not filter_domain:
             return None, None
-        constraint_sets = set(constraint_domain)
 
-        # Collect filter dims that are also loop variables in this constraint
-        in_scope: list[tuple[str, str]] = [
-            (s, index_map[s])
-            for s in filter_domain
-            if s in constraint_sets and s in index_map
-        ]
-        if not in_scope:
+        # Build a positional map: constraint_domain[pos] → loop_var
+        # When domain_idx_vars is provided, use it directly (handles duplicates correctly).
+        if domain_idx_vars is not None and len(domain_idx_vars) == len(constraint_domain):
+            pos_to_var = {i: v for i, v in enumerate(domain_idx_vars)}
+            # For each set in filter_domain, find its position(s) in constraint_domain
+            # and map to the correct loop variable.
+            in_scope: list[tuple[str, str]] = []
+            # Track which positions in constraint_domain are still available to match.
+            used_positions: set[int] = set()
+            for fs in filter_domain:
+                # Find the first unused position in constraint_domain with set == fs
+                matched = False
+                for ci, cs in enumerate(constraint_domain):
+                    if cs == fs and ci not in used_positions:
+                        used_positions.add(ci)
+                        in_scope.append((fs, domain_idx_vars[ci]))
+                        matched = True
+                        break
+                if not matched:
+                    # filter set not in constraint_domain — partial coverage
+                    in_scope.append((fs, None))  # type: ignore[arg-type]
+        else:
+            constraint_sets = set(constraint_domain)
+            in_scope = [
+                (s, index_map[s])
+                for s in filter_domain
+                if s in constraint_sets and s in index_map
+            ]
+
+        # Remove entries where the loop var is None (set not in constraint domain)
+        in_scope_valid = [(s, v) for (s, v) in in_scope if v is not None]
+        if not in_scope_valid:
             return None, None
 
         total = len(filter_domain)
-        if len(in_scope) == total:
+        if len(in_scope_valid) == total:
             # Full coverage — emit a direct key lookup
-            key_vars = [iv for (_, iv) in in_scope]
+            key_vars = [iv for (_, iv) in in_scope_valid]
             key_expr = key_vars[0] if len(key_vars) == 1 else "(" + ", ".join(key_vars) + ")"
             return None, f"{key_expr} not in {sparse_filter}"
         else:
             # Partial coverage — project onto in-scope dims and precompute a set
-            positions = [filter_domain.index(s) for (s, _) in in_scope]
-            in_scope_vars = [iv for (_, iv) in in_scope]
+            positions = [filter_domain.index(s) for (s, _) in in_scope_valid]
+            in_scope_vars = [iv for (_, iv) in in_scope_valid]
             set_var = f"_valid_{'_'.join(in_scope_vars)}_{sparse_filter}"
             if total == 1:
                 key_inner = "k"
@@ -410,17 +442,27 @@ class IRCompiler:
         The filter key is built from the positions in *var_domain* that match the
         parameter's domain — in the order the parameter's domain lists them.
         Returns None if the parameter is unknown or has no overlap with var_domain.
+
+        Handles duplicate sets correctly (e.g. filter_domain=[Nodes, Nodes] with
+        var_domain=[Nodes, Nodes]) using first-available positional matching so that
+        the resulting key uses the distinct loop variables (i1, i2) not (i1, i1).
         """
         domain_filter = var_meta.get("domain_filter")
         if not domain_filter or domain_filter not in parameters:
             return None
         filter_domain = parameters[domain_filter].get("domain", [])
         filter_key_vars: list[str] = []
+        used_positions: set[int] = set()
         for s in filter_domain:
-            try:
-                pos = var_domain.index(s)
-                filter_key_vars.append(idx_vars[pos])
-            except ValueError:
+            # Find first unused position in var_domain with matching set name
+            matched = False
+            for i, vs in enumerate(var_domain):
+                if vs == s and i not in used_positions:
+                    used_positions.add(i)
+                    filter_key_vars.append(idx_vars[i])
+                    matched = True
+                    break
+            if not matched:
                 pass  # set not in variable's domain — skip
         if not filter_key_vars:
             return None
@@ -485,13 +527,17 @@ class IRCompiler:
                     var_domain = vmeta.get("domain", [])
                     indices = node.get("indices", [])
                     key_vars: list[str] = []
+                    # Use first-available positional matching to handle duplicate sets
+                    # (e.g. var_domain=[Nodes,Nodes] with filter_domain=[Nodes,Nodes]
+                    # should map to indices[0], indices[1] not indices[0], indices[0]).
+                    used_positions: set[int] = set()
                     for s in filter_domain:
-                        try:
-                            pos = var_domain.index(s)
-                            if pos < len(indices):
-                                key_vars.append(indices[pos])
-                        except ValueError:
-                            pass
+                        for pos, vs in enumerate(var_domain):
+                            if vs == s and pos not in used_positions:
+                                if pos < len(indices):
+                                    used_positions.add(pos)
+                                    key_vars.append(indices[pos])
+                                break
                     if (
                         key_vars
                         and all(iv in all_known for iv in key_vars)
@@ -508,6 +554,18 @@ class IRCompiler:
 
         _scan(body)
         return conditions
+
+    @staticmethod
+    def _node_has_variable(node: dict) -> bool:
+        """Return True if *node* contains at least one variable-type leaf."""
+        if not isinstance(node, dict):
+            return False
+        if node.get("type") == "variable":
+            return True
+        for child_key in ("left", "right", "body"):
+            if child_key in node and IRCompiler._node_has_variable(node[child_key]):
+                return True
+        return False
 
     @staticmethod
     def _collect_lag_symbols(
@@ -809,10 +867,11 @@ class IRCompiler:
                 return f"model.{name}[{idx_str}]"
             if len(domain) == 1:
                 key = _fmt_index(indices[0], known)
-                return f"model.{name}.get({key}, 0)" if use_get_var else f"model.{name}[{key}]"
+                return f"model.{name}[{key}]"
             idx_str = ", ".join(_fmt_index(i, known) for i in indices[: len(domain)])
-            # Pyomo Var with a filtered index set uses dict-style access; .get() is safe.
-            return f"model.{name}.get(({idx_str}), 0)" if use_get_var else f"model.{name}[{idx_str}]"
+            # Pyomo IndexedVar does not support .get(); use direct indexing.
+            # Loop conditions generated by _collect_sparse_filters guarantee the key exists.
+            return f"model.{name}[{idx_str}]"
 
         if node_type == "parameter":
             name = node["name"]
@@ -910,17 +969,18 @@ class IRCompiler:
             indices = node.get("indices", [])
             domain = variables.get(name, {}).get("domain", [])
             excl = bool(variables.get(name, {}).get("exclude_diagonal", False))
+            use_get_v = excl or bool(variables.get(name, {}).get("domain_filter"))
             lag = node.get("lag", 0)
             if lag and lag_context:
                 var_ref = self._emit_lagged_ref(name, indices, domain, lag, lag_context, known, excl)
             else:
                 var_ref = self._var_ref(name, indices, domain, known)
             coeff = "1.0" if sign == 1 else "-1.0"
-            if excl:
+            if use_get_v:
                 lines.append(f"{pad}_v = {name}.get({self._index_key(indices, domain, known)})")
-                lines.append(f"{pad}if _v is not None: {target}.SetCoefficient(_v, {coeff})")
+                lines.append(f"{pad}if _v is not None: {target}.SetCoefficient(_v, {target}.GetCoefficient(_v) + {coeff})")
             else:
-                lines.append(f"{pad}{target}.SetCoefficient({var_ref}, {coeff})")
+                lines.append(f"{pad}{target}.SetCoefficient({var_ref}, {target}.GetCoefficient({var_ref}) + {coeff})")
             return
 
         if op == "multiply":
@@ -934,6 +994,7 @@ class IRCompiler:
             indices = var_node.get("indices", [])
             domain = variables.get(name, {}).get("domain", [])
             excl = bool(variables.get(name, {}).get("exclude_diagonal", False))
+            use_get_v = excl or bool(variables.get(name, {}).get("domain_filter"))
             lag = var_node.get("lag", 0)
             coeff_str = self._emit_expr(coeff_node, index_map, variables, parameters, extra_known, lag_context)
             if sign == -1:
@@ -942,11 +1003,11 @@ class IRCompiler:
                 var_ref = self._emit_lagged_ref(name, indices, domain, lag, lag_context, known, excl)
             else:
                 var_ref = self._var_ref(name, indices, domain, known)
-            if excl:
+            if use_get_v:
                 lines.append(f"{pad}_v = {name}.get({self._index_key(indices, domain, known)})")
-                lines.append(f"{pad}if _v is not None: {target}.SetCoefficient(_v, {coeff_str})")
+                lines.append(f"{pad}if _v is not None: {target}.SetCoefficient(_v, {target}.GetCoefficient(_v) + ({coeff_str}))")
             else:
-                lines.append(f"{pad}{target}.SetCoefficient({var_ref}, {coeff_str})")
+                lines.append(f"{pad}{target}.SetCoefficient({var_ref}, {target}.GetCoefficient({var_ref}) + ({coeff_str}))")
             return
 
         if op == "sum":
@@ -965,6 +1026,17 @@ class IRCompiler:
             self._emit_ortools_coefficients(
                 node["right"], target, index_map, variables, parameters, lines, indent, -sign, extra_known, lag_context
             )
+            return
+
+        if ntype == "parameter" and target != "objective":
+            # Parameter constant on the LHS: move it to the RHS by adjusting constraint bounds.
+            # new_bounds = old_bounds - sign * param_value
+            val_expr = self._emit_expr(node, index_map, variables, parameters, extra_known, lag_context)
+            lines.append(f"{pad}_adj = float({val_expr})")
+            if sign == 1:
+                lines.append(f"{pad}{target}.SetBounds({target}.lb() - _adj, {target}.ub() - _adj)")
+            else:
+                lines.append(f"{pad}{target}.SetBounds({target}.lb() + _adj, {target}.ub() + _adj)")
             return
 
         lines.append(f"{pad}# TODO: unsupported expression node type={ntype!r} op={op!r}")
@@ -1090,14 +1162,15 @@ class IRCompiler:
             domain = cmeta.get("domain", [])
             sense_op = {"<=": "<=", ">=": ">=", "=": "=="}.get(cmeta.get("sense", "<="), "<=")
             sparse_filter = cmeta.get("sparse_filter")
-            domain_loop_vars = set(self._domain_idx_vars(domain, index_map)) if domain else set()
+            _domain_idx = self._domain_idx_vars(domain, index_map) if domain else []
+            domain_loop_vars = set(_domain_idx)
             lag_syms: dict[str, int] = {}
             lag_syms.update(self._collect_lag_symbols(cmeta["expression"], variables, parameters, sets))
             lag_syms.update(self._collect_lag_symbols(cmeta["rhs"], variables, parameters, sets))
             lag_ctx = self._build_lag_context(lag_syms, sets) if lag_syms else {}
             lhs = self._emit_expr(cmeta["expression"], index_map, variables, parameters, extra_known=domain_loop_vars, lag_context=lag_ctx or None)
             rhs = self._emit_expr(cmeta["rhs"], index_map, variables, parameters, extra_known=domain_loop_vars, lag_context=lag_ctx or None)
-            sf_precompute, sf_guard = self._sparse_filter_guard(sparse_filter, parameters, index_map, domain)
+            sf_precompute, sf_guard = self._sparse_filter_guard(sparse_filter, parameters, index_map, domain, _domain_idx or None)
             if sf_precompute:
                 lines.append(sf_precompute)
 
@@ -1208,17 +1281,23 @@ class IRCompiler:
                 )
             elif len(domain) == 1:
                 idx0 = index_map[domain[0]]
+                df_cond = self._domain_filter_cond(meta, parameters, [idx0], domain)
                 lines.append(f"    for {idx0} in {domain[0]}:")
+                if df_cond:
+                    lines.append(f"        if not {df_cond}: continue")
                 lines.append(
                     f"        result['variables'][f\"{var_name}\\x1f{{{idx0}}}\"] = "
                     f"pulp.value({var_name}[{idx0}])"
                 )
             elif len(domain) == 2:
                 idx0, idx1 = self._domain_idx_vars(domain, index_map)
+                df_cond = self._domain_filter_cond(meta, parameters, [idx0, idx1], domain)
                 lines.append(f"    for {idx0} in {domain[0]}:")
                 lines.append(f"        for {idx1} in {domain[1]}:")
                 if excl:
                     lines.append(f"            if {idx0} == {idx1}: continue")
+                if df_cond:
+                    lines.append(f"            if not {df_cond}: continue")
                 lines.append(
                     f"            result['variables'][f\"{var_name}\\x1f{{{idx0}}}\\x1f{{{idx1}}}\"] = "
                     f"pulp.value({var_name}[({idx0}, {idx1})])"
@@ -1231,6 +1310,9 @@ class IRCompiler:
                 if excl and len(idx_vars) >= 2:
                     _da, _db = self._excl_diag_pair(domain, idx_vars)
                     lines.append(f"{inner}if {_da} == {_db}: continue")
+                df_cond = self._domain_filter_cond(meta, parameters, idx_vars, domain)
+                if df_cond:
+                    lines.append(f"{inner}if not {df_cond}: continue")
                 idx_tuple = "(" + ", ".join(idx_vars) + ")"
                 name_parts = "\\x1f".join(f"{{{iv}}}" for iv in idx_vars)
                 lines.append(
@@ -1370,14 +1452,15 @@ class IRCompiler:
             domain = cmeta.get("domain", [])
             sense_op = {"<=": "<=", ">=": ">=", "=": "=="}.get(cmeta.get("sense", "<="), "<=")
             sparse_filter = cmeta.get("sparse_filter")
-            domain_loop_vars = set(self._domain_idx_vars(domain, index_map)) if domain else set()
+            _domain_idx = self._domain_idx_vars(domain, index_map) if domain else []
+            domain_loop_vars = set(_domain_idx)
             lag_syms: dict[str, int] = {}
             lag_syms.update(self._collect_lag_symbols(cmeta["expression"], variables, parameters, sets))
             lag_syms.update(self._collect_lag_symbols(cmeta["rhs"], variables, parameters, sets))
             lag_ctx = self._build_lag_context(lag_syms, sets) if lag_syms else {}
             lhs = self._emit_expr_gurobi(cmeta["expression"], index_map, variables, parameters, extra_known=domain_loop_vars, lag_context=lag_ctx or None)
             rhs = self._emit_expr_gurobi(cmeta["rhs"], index_map, variables, parameters, extra_known=domain_loop_vars, lag_context=lag_ctx or None)
-            sf_precompute, sf_guard = self._sparse_filter_guard(sparse_filter, parameters, index_map, domain)
+            sf_precompute, sf_guard = self._sparse_filter_guard(sparse_filter, parameters, index_map, domain, _domain_idx or None)
             if sf_precompute:
                 lines.append(sf_precompute)
 
@@ -1667,14 +1750,15 @@ class IRCompiler:
             domain = cmeta.get("domain", [])
             sense_op = {"<=": "<=", ">=": ">=", "=": "=="}.get(cmeta.get("sense", "<="), "<=")
             sparse_filter = cmeta.get("sparse_filter")
-            domain_loop_vars = set(self._domain_idx_vars(domain, index_map)) if domain else set()
+            _domain_idx = self._domain_idx_vars(domain, index_map) if domain else []
+            domain_loop_vars = set(_domain_idx)
             lag_syms: dict[str, int] = {}
             lag_syms.update(self._collect_lag_symbols(cmeta["expression"], variables, parameters, sets))
             lag_syms.update(self._collect_lag_symbols(cmeta["rhs"], variables, parameters, sets))
             lag_ctx = self._build_lag_context(lag_syms, sets) if lag_syms else {}
             lhs = self._emit_expr_cplex(cmeta["expression"], index_map, variables, parameters, extra_known=domain_loop_vars, lag_context=lag_ctx or None)
             rhs = self._emit_expr_cplex(cmeta["rhs"], index_map, variables, parameters, extra_known=domain_loop_vars, lag_context=lag_ctx or None)
-            sf_precompute, sf_guard = self._sparse_filter_guard(sparse_filter, parameters, index_map, domain)
+            sf_precompute, sf_guard = self._sparse_filter_guard(sparse_filter, parameters, index_map, domain, _domain_idx or None)
             if sf_precompute:
                 lines.append(sf_precompute)
 
@@ -1962,13 +2046,11 @@ class IRCompiler:
         lines.append("    model.obj = pyo.Objective(expr=(")
         for i, (sign, node) in enumerate(terms):
             expr = self._emit_pyomo_expr(node, index_map, variables, parameters)
-            is_last = i == len(terms) - 1
-            suffix = "," if is_last else ""
             if i == 0:
                 prefix = "        " if sign == 1 else "        -"
             else:
                 prefix = "        + " if sign == 1 else "        - "
-            lines.append(f"{prefix}{expr}{suffix}")
+            lines.append(f"{prefix}{expr}")
         lines.append(f"    ), sense={pyo_sense})")
 
         lines.append("")
@@ -1976,7 +2058,8 @@ class IRCompiler:
         for cname, cmeta in constraints.items():
             domain = cmeta.get("domain", [])
             sense_op = {"<=": "<=", ">=": ">=", "=": "=="}.get(cmeta.get("sense", "<="), "<=")
-            domain_loop_vars = set(self._domain_idx_vars(domain, index_map)) if domain else set()
+            _domain_idx = self._domain_idx_vars(domain, index_map) if domain else []
+            domain_loop_vars = set(_domain_idx)
             lag_syms: dict[str, int] = {}
             lag_syms.update(self._collect_lag_symbols(cmeta["expression"], variables, parameters, sets))
             lag_syms.update(self._collect_lag_symbols(cmeta["rhs"], variables, parameters, sets))
@@ -1984,7 +2067,7 @@ class IRCompiler:
             lhs = self._emit_pyomo_expr(cmeta["expression"], index_map, variables, parameters, extra_known=domain_loop_vars, lag_context=lag_ctx or None)
             rhs = self._emit_pyomo_expr(cmeta["rhs"], index_map, variables, parameters, extra_known=domain_loop_vars, lag_context=lag_ctx or None)
             sparse_filter = cmeta.get("sparse_filter")
-            sf_precompute, sf_guard = self._sparse_filter_guard(sparse_filter, parameters, index_map, domain)
+            sf_precompute, sf_guard = self._sparse_filter_guard(sparse_filter, parameters, index_map, domain, _domain_idx or None)
             if sf_precompute:
                 lines.append(sf_precompute)
 
@@ -2337,54 +2420,58 @@ class IRCompiler:
             domain = cmeta.get("domain", [])
             sense_c = cmeta.get("sense", "<=")
             rhs_node = cmeta["rhs"]
-            domain_loop_vars = set(self._domain_idx_vars(domain, index_map)) if domain else set()
+            _domain_idx = self._domain_idx_vars(domain, index_map) if domain else []
+            domain_loop_vars = set(_domain_idx)
             lag_syms: dict[str, int] = {}
             lag_syms.update(self._collect_lag_symbols(cmeta["expression"], variables, parameters, sets))
             lag_syms.update(self._collect_lag_symbols(rhs_node, variables, parameters, sets))
             lag_ctx = self._build_lag_context(lag_syms, sets) if lag_syms else {}
             sparse_filter = cmeta.get("sparse_filter")
-            sf_precompute, sf_guard = self._sparse_filter_guard(sparse_filter, parameters, index_map, domain)
+            sf_precompute, sf_guard = self._sparse_filter_guard(sparse_filter, parameters, index_map, domain, _domain_idx or None)
             if sf_precompute:
                 lines.append(sf_precompute)
 
             def _emit_ct_body(
-                rhs_expr: str,
+                rhs_n: dict,
                 ct_indent: int,
                 name_expr: str,
                 extra_known: set[str] | None = None,
                 _lc: dict | None = None,
             ) -> None:
                 pad = "    " * ct_indent
-                if sense_c == "<=":
-                    lines.append(
-                        f"{pad}ct = solver.Constraint(-solver.infinity(), "
-                        f"float({rhs_expr}), {name_expr})"
+                rhs_has_var = self._node_has_variable(rhs_n)
+                if rhs_has_var:
+                    # RHS contains a decision variable (e.g. min_run[p] * active[p,w]).
+                    # OR-Tools bounds must be scalars, so move RHS vars to LHS: bound = 0.
+                    if sense_c == "<=":
+                        lines.append(f"{pad}ct = solver.Constraint(-solver.infinity(), 0.0, {name_expr})")
+                    elif sense_c == ">=":
+                        lines.append(f"{pad}ct = solver.Constraint(0.0, solver.infinity(), {name_expr})")
+                    else:
+                        lines.append(f"{pad}ct = solver.Constraint(0.0, 0.0, {name_expr})")
+                    self._emit_ortools_coefficients(
+                        cmeta["expression"], "ct", index_map, variables, parameters,
+                        lines, ct_indent, sign=1, extra_known=extra_known, lag_context=_lc,
                     )
-                elif sense_c == ">=":
-                    lines.append(
-                        f"{pad}ct = solver.Constraint("
-                        f"float({rhs_expr}), solver.infinity(), {name_expr})"
+                    self._emit_ortools_coefficients(
+                        rhs_n, "ct", index_map, variables, parameters,
+                        lines, ct_indent, sign=-1, extra_known=extra_known, lag_context=_lc,
                     )
-                else:  # "="
-                    lines.append(
-                        f"{pad}ct = solver.Constraint("
-                        f"float({rhs_expr}), float({rhs_expr}), {name_expr})"
+                else:
+                    rhs_expr = self._emit_expr(rhs_n, index_map, variables, parameters, extra_known=extra_known, lag_context=_lc)
+                    if sense_c == "<=":
+                        lines.append(f"{pad}ct = solver.Constraint(-solver.infinity(), float({rhs_expr}), {name_expr})")
+                    elif sense_c == ">=":
+                        lines.append(f"{pad}ct = solver.Constraint(float({rhs_expr}), solver.infinity(), {name_expr})")
+                    else:
+                        lines.append(f"{pad}ct = solver.Constraint(float({rhs_expr}), float({rhs_expr}), {name_expr})")
+                    self._emit_ortools_coefficients(
+                        cmeta["expression"], "ct", index_map, variables, parameters,
+                        lines, ct_indent, extra_known=extra_known, lag_context=_lc,
                     )
-                self._emit_ortools_coefficients(
-                    cmeta["expression"],
-                    "ct",
-                    index_map,
-                    variables,
-                    parameters,
-                    lines,
-                    ct_indent,
-                    extra_known=extra_known,
-                    lag_context=_lc,
-                )
 
             if not domain:
-                rhs_expr = self._emit_expr(rhs_node, index_map, variables, parameters, lag_context=lag_ctx or None)
-                _emit_ct_body(rhs_expr, ct_indent=1, name_expr=repr(cname), _lc=lag_ctx or None)
+                _emit_ct_body(rhs_node, ct_indent=1, name_expr=repr(cname), _lc=lag_ctx or None)
             elif len(domain) == 1:
                 idx0 = index_map[domain[0]]
                 if idx0 in lag_ctx:
@@ -2399,8 +2486,7 @@ class IRCompiler:
                     lines.append(f"    for {idx0} in {domain[0]}:")
                 if sf_guard:
                     lines.append(f"        if {sf_guard}: continue")
-                rhs_expr = self._emit_expr(rhs_node, index_map, variables, parameters, extra_known=domain_loop_vars, lag_context=lag_ctx or None)
-                _emit_ct_body(rhs_expr, ct_indent=2, name_expr=f"f\"{cname}_{{{idx0}}}\"", extra_known=domain_loop_vars, _lc=lag_ctx or None)
+                _emit_ct_body(rhs_node, ct_indent=2, name_expr=f"f\"{cname}_{{{idx0}}}\"", extra_known=domain_loop_vars, _lc=lag_ctx or None)
             elif len(domain) == 2:
                 idx0, idx1 = self._domain_idx_vars(domain, index_map)
                 if idx0 in lag_ctx:
@@ -2428,9 +2514,8 @@ class IRCompiler:
                     lines.append(f"            if {guard}: continue")
                 if sf_guard:
                     lines.append(f"            if {sf_guard}: continue")
-                rhs_expr = self._emit_expr(rhs_node, index_map, variables, parameters, extra_known=domain_loop_vars, lag_context=lag_ctx or None)
                 _emit_ct_body(
-                    rhs_expr,
+                    rhs_node,
                     ct_indent=3,
                     name_expr=f"f\"{cname}_{{{idx0}}}_{{{idx1}}}\"",
                     extra_known=domain_loop_vars,
@@ -2456,9 +2541,8 @@ class IRCompiler:
                     lines.append(f"{inner_pad}if {guard}: continue")
                 if sf_guard:
                     lines.append(f"{inner_pad}if {sf_guard}: continue")
-                rhs_expr = self._emit_expr(rhs_node, index_map, variables, parameters, extra_known=domain_loop_vars, lag_context=lag_ctx or None)
                 _emit_ct_body(
-                    rhs_expr,
+                    rhs_node,
                     ct_indent=len(domain) + 1,
                     name_expr=f"f\"{cname}_{name_parts}\"",
                     extra_known=domain_loop_vars,

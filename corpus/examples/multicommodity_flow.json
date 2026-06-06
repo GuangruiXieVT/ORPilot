@@ -1,0 +1,393 @@
+{
+  "problem": {
+    "title": "Multicommodity Network Flow",
+    "description": "A network operator routes multiple traffic demands (commodities) over a shared 5-node network with 8 directed arcs. Each commodity has a source node with positive supply and a destination node with negative supply; transit nodes have zero supply. Each arc has a capacity shared across all commodities. Minimize total routing cost.",
+    "problem_type": "linear_programming",
+    "objective": "minimize",
+    "objective_description": "Total cost = sum over all commodities and arcs of arc_cost[i,j]*flow[k,i,j]",
+    "constraints": [
+      {
+        "description": "Flow conservation: for each commodity-node pair, outflow minus inflow equals net supply (positive at source, negative at destination, zero at transit)"
+      },
+      {
+        "description": "Arc capacity: total flow across all commodities on each arc must not exceed arc capacity"
+      }
+    ],
+    "decision_variables": [
+      "flow[k,i,j]: units of commodity k flowing on arc (i,j) (continuous, non-negative)"
+    ],
+    "parameters": [
+      "arc_cost[i,j]: per-unit routing cost on arc from node i to node j",
+      "arc_limit[i,j]: capacity on arc from node i to node j (shared across commodities; 0 for non-existent arcs)",
+      "net_supply[k,i]: net supply of commodity k at node i (+demand at source, -demand at destination, 0 at transit)"
+    ],
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "arc_cost": "arc_cost.csv",
+      "arc_capacity": "arc_capacity.csv",
+      "net_supply": "net_supply.csv"
+    }
+  },
+  "ir_patterns": [
+    "duplicate set",
+    "sparse filter",
+    "exclude diagonal"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "nodes",
+        "element": "A"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "nodes",
+          "commodities"
+        ],
+        "element": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "E",
+          "k1",
+          "k2",
+          "k3",
+          "k4"
+        ]
+      },
+      "row_count": 9
+    },
+    "arc_cost": {
+      "columns": {
+        "from_node": "str",
+        "to_node": "str",
+        "cost": "float"
+      },
+      "sample": {
+        "from_node": "A",
+        "to_node": "B",
+        "cost": 2.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "from_node": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "E"
+        ],
+        "to_node": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "E"
+        ],
+        "cost": [
+          "1.0",
+          "2.0",
+          "3.0",
+          "4.0",
+          "5.0",
+          "6.0"
+        ]
+      },
+      "row_count": 8
+    },
+    "arc_capacity": {
+      "columns": {
+        "from_node": "str",
+        "to_node": "str",
+        "capacity": "float"
+      },
+      "sample": {
+        "from_node": "A",
+        "to_node": "B",
+        "capacity": 100.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "from_node": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "E"
+        ],
+        "to_node": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "E"
+        ],
+        "capacity": [
+          "40.0",
+          "50.0",
+          "60.0",
+          "70.0",
+          "80.0",
+          "90.0",
+          "100.0"
+        ]
+      },
+      "row_count": 8
+    },
+    "net_supply": {
+      "columns": {
+        "commodity_id": "str",
+        "node_id": "str",
+        "supply": "float"
+      },
+      "sample": {
+        "commodity_id": "k1",
+        "node_id": "A",
+        "supply": 40.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "commodity_id": [
+          "k1",
+          "k2",
+          "k3",
+          "k4"
+        ],
+        "node_id": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "E"
+        ],
+        "supply": [
+          "-40.0",
+          "-30.0",
+          "-25.0",
+          "-20.0",
+          "20.0",
+          "25.0",
+          "30.0",
+          "40.0"
+        ]
+      },
+      "row_count": 8
+    }
+  },
+  "ir": {
+    "problem_class": "MulticommodityFlow",
+    "model_type": "Linear Program",
+    "sense": "minimize",
+    "sets": {
+      "Nodes": {
+        "size": null,
+        "index_symbol": "i",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "nodes",
+        "ordered": false
+      },
+      "Commodities": {
+        "size": null,
+        "index_symbol": "k",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "commodities",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "arc_cost": {
+        "domain": [
+          "Nodes",
+          "Nodes"
+        ],
+        "type": "float",
+        "source": "arc_cost.csv",
+        "column": "cost",
+        "index_columns": [
+          "from_node",
+          "to_node"
+        ],
+        "missing_default": "inf"
+      },
+      "arc_limit": {
+        "domain": [
+          "Nodes",
+          "Nodes"
+        ],
+        "type": "float",
+        "source": "arc_capacity.csv",
+        "column": "capacity",
+        "index_columns": [
+          "from_node",
+          "to_node"
+        ],
+        "missing_default": "zero"
+      },
+      "net_supply": {
+        "domain": [
+          "Commodities",
+          "Nodes"
+        ],
+        "type": "float",
+        "source": "net_supply.csv",
+        "column": "supply",
+        "index_columns": [
+          "commodity_id",
+          "node_id"
+        ],
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "flow": {
+        "description": "Units of commodity k flowing on arc from node i to node j",
+        "label": "commodity_flows",
+        "domain": [
+          "Commodities",
+          "Nodes",
+          "Nodes"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "flow_conservation": {
+        "domain": [
+          "Commodities",
+          "Nodes"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Nodes:j"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "flow",
+              "indices": [
+                "k",
+                "i",
+                "j"
+              ]
+            }
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "operation": "indexed_sum",
+              "over": [
+                "Nodes:j"
+              ],
+              "body": {
+                "type": "variable",
+                "name": "flow",
+                "indices": [
+                  "k",
+                  "j",
+                  "i"
+                ]
+              }
+            },
+            "right": {
+              "type": "parameter",
+              "name": "net_supply",
+              "indices": [
+                "k",
+                "i"
+              ]
+            }
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "arc_capacity_limit": {
+        "domain": [
+          "Nodes",
+          "Nodes"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Commodities:k"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "flow",
+              "indices": [
+                "k",
+                "i1",
+                "i2"
+              ]
+            }
+          },
+          "right": {
+            "type": "parameter",
+            "name": "arc_limit",
+            "indices": [
+              "i1",
+              "i2"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Commodities:k",
+          "Nodes:l1",
+          "Nodes:l2"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "type": "parameter",
+            "name": "arc_cost",
+            "indices": [
+              "l1",
+              "l2"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "flow",
+            "indices": [
+              "k",
+              "l1",
+              "l2"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

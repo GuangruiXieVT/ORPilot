@@ -1,0 +1,431 @@
+{
+  "problem": {
+    "title": "Cyclic Staff Rostering",
+    "description": "Assign workers to weekly cyclic shift patterns. Each pattern specifies which days a worker is on duty. Minimum daily staffing requirements must be met. Workers have contract hours; overtime is tracked. Minimize total overtime above contract hours.",
+    "problem_type": "mixed_integer_program",
+    "objective": "minimize",
+    "objective_description": "Total overtime hours across all workers",
+    "constraints": [
+      {
+        "description": "Each worker is assigned exactly one pattern"
+      },
+      {
+        "description": "Daily staffing requirement is met for each day of the week"
+      },
+      {
+        "description": "Overtime equals scheduled hours minus contract hours (if positive)"
+      }
+    ],
+    "decision_variables": [
+      "assign[w,p]: 1 if worker w follows pattern p (binary)",
+      "overtime[w]: excess hours above contract for worker w (continuous >= 0)"
+    ],
+    "parameters": [
+      "pattern_day[p,d]: 1 if pattern p includes day d",
+      "daily_demand[d]: minimum workers needed on day d",
+      "contract_hours[w]: standard weekly hours for worker w",
+      "pattern_hours[p]: total weekly hours for pattern p"
+    ],
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "patterns": "patterns.csv",
+      "pattern_days": "pattern_days.csv",
+      "demand": "demand.csv",
+      "workers": "workers.csv"
+    }
+  },
+  "ir_patterns": [
+    "binary variable",
+    "coverage with parameter weight",
+    "overtime deviation variable"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "workers",
+        "element": "w1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "workers",
+          "patterns",
+          "days"
+        ],
+        "element": [
+          "w1",
+          "w2",
+          "w3",
+          "w4",
+          "w5",
+          "w6",
+          "pat1",
+          "pat2",
+          "pat3",
+          "pat4",
+          "pat5",
+          "mon",
+          "tue",
+          "wed",
+          "thu",
+          "fri",
+          "sat",
+          "sun"
+        ]
+      }
+    },
+    "patterns": {
+      "columns": {
+        "pattern_id": "str",
+        "pattern_hours": "float"
+      },
+      "sample": {
+        "pattern_id": "pat1",
+        "pattern_hours": 40.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "pattern_id": [
+          "pat1",
+          "pat2",
+          "pat3",
+          "pat4",
+          "pat5"
+        ]
+      }
+    },
+    "pattern_days": {
+      "columns": {
+        "pattern_id": "str",
+        "day_id": "str",
+        "pattern_day": "float"
+      },
+      "sample": {
+        "pattern_id": "pat1",
+        "day_id": "mon",
+        "pattern_day": 1.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "pattern_id": [
+          "pat1",
+          "pat2",
+          "pat3",
+          "pat4",
+          "pat5"
+        ],
+        "day_id": [
+          "mon",
+          "tue",
+          "wed",
+          "thu",
+          "fri",
+          "sat",
+          "sun"
+        ]
+      }
+    },
+    "demand": {
+      "columns": {
+        "day_id": "str",
+        "daily_demand": "float"
+      },
+      "sample": {
+        "day_id": "mon",
+        "daily_demand": 3.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "day_id": [
+          "mon",
+          "tue",
+          "wed",
+          "thu",
+          "fri",
+          "sat",
+          "sun"
+        ]
+      }
+    },
+    "workers": {
+      "columns": {
+        "worker_id": "str",
+        "contract_hours": "float"
+      },
+      "sample": {
+        "worker_id": "w1",
+        "contract_hours": 40.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "worker_id": [
+          "w1",
+          "w2",
+          "w3",
+          "w4",
+          "w5",
+          "w6"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "StaffRostering",
+    "model_type": "Mixed Integer Program",
+    "sense": "minimize",
+    "sets": {
+      "Workers": {
+        "size": null,
+        "index_symbol": "w",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "workers",
+        "ordered": false
+      },
+      "Patterns": {
+        "size": null,
+        "index_symbol": "p",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "patterns",
+        "ordered": false
+      },
+      "Days": {
+        "size": null,
+        "index_symbol": "d",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "days",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "pattern_day": {
+        "domain": [
+          "Patterns",
+          "Days"
+        ],
+        "type": "float",
+        "source": "pattern_days.csv",
+        "column": "pattern_day",
+        "index_columns": [
+          "pattern_id",
+          "day_id"
+        ],
+        "missing_default": "zero"
+      },
+      "daily_demand": {
+        "domain": [
+          "Days"
+        ],
+        "type": "float",
+        "source": "demand.csv",
+        "column": "daily_demand",
+        "index_columns": [
+          "day_id"
+        ],
+        "missing_default": "zero"
+      },
+      "contract_hours": {
+        "domain": [
+          "Workers"
+        ],
+        "type": "float",
+        "source": "workers.csv",
+        "column": "contract_hours",
+        "index_columns": [
+          "worker_id"
+        ],
+        "missing_default": "zero"
+      },
+      "pattern_hours": {
+        "domain": [
+          "Patterns"
+        ],
+        "type": "float",
+        "source": "patterns.csv",
+        "column": "pattern_hours",
+        "index_columns": [
+          "pattern_id"
+        ],
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "assign": {
+        "description": "1 if worker w is assigned to pattern p",
+        "label": "worker_pattern_assignments",
+        "domain": [
+          "Workers",
+          "Patterns"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "overtime": {
+        "description": "Overtime hours for worker w above contract",
+        "label": "worker_overtime",
+        "domain": [
+          "Workers"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "one_pattern": {
+        "domain": [
+          "Workers"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Patterns:p"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "assign",
+            "indices": [
+              "w",
+              "p"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 1
+        }
+      },
+      "daily_coverage": {
+        "domain": [
+          "Days"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Workers:w",
+              "Patterns:p"
+            ],
+            "body": {
+              "operation": "multiply",
+              "left": {
+                "type": "parameter",
+                "name": "pattern_day",
+                "indices": [
+                  "p",
+                  "d"
+                ]
+              },
+              "right": {
+                "type": "variable",
+                "name": "assign",
+                "indices": [
+                  "w",
+                  "p"
+                ]
+              }
+            }
+          },
+          "right": {
+            "type": "parameter",
+            "name": "daily_demand",
+            "indices": [
+              "d"
+            ]
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "overtime_calc": {
+        "domain": [
+          "Workers"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "subtract",
+            "left": {
+              "operation": "indexed_sum",
+              "over": [
+                "Patterns:p"
+              ],
+              "body": {
+                "operation": "multiply",
+                "left": {
+                  "type": "parameter",
+                  "name": "pattern_hours",
+                  "indices": [
+                    "p"
+                  ]
+                },
+                "right": {
+                  "type": "variable",
+                  "name": "assign",
+                  "indices": [
+                    "w",
+                    "p"
+                  ]
+                }
+              }
+            },
+            "right": {
+              "type": "parameter",
+              "name": "contract_hours",
+              "indices": [
+                "w"
+              ]
+            }
+          },
+          "right": {
+            "type": "variable",
+            "name": "overtime",
+            "indices": [
+              "w"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Workers:w"
+        ],
+        "body": {
+          "type": "variable",
+          "name": "overtime",
+          "indices": [
+            "w"
+          ]
+        }
+      }
+    }
+  }
+}

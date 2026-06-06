@@ -1,0 +1,425 @@
+{
+  "problem": {
+    "title": "Two-Stage Stochastic Production (Newsvendor)",
+    "description": "A producer must commit to production quantities before demand is revealed (first stage). After the scenario is realised, surplus (over-production) incurs a disposal penalty and shortfall (under-production) incurs a lost-sales penalty (second stage). Three demand scenarios with known probabilities. Minimise expected total cost.",
+    "problem_type": "linear_programming",
+    "objective": "minimize",
+    "objective_description": "Production cost + expected recourse cost (probability-weighted overage and underage penalties)",
+    "constraints": [
+      {
+        "description": "Overage definition: surplus >= produce - demand (per product per scenario)"
+      },
+      {
+        "description": "Underage definition: shortfall >= demand - produce (per product per scenario)"
+      }
+    ],
+    "decision_variables": [
+      "produce[Products]: units produced before demand is known (first-stage, continuous)",
+      "surplus[Products,Scenarios]: over-production in scenario s (second-stage, continuous)",
+      "shortfall[Products,Scenarios]: under-production in scenario s (second-stage, continuous)"
+    ],
+    "parameters": [
+      "prod_cost[Products]: per-unit production cost",
+      "overage_cost[Products]: per-unit disposal penalty for surplus",
+      "underage_cost[Products]: per-unit lost-sales penalty for shortfall",
+      "probability[Scenarios]: scenario probabilities (sum to 1)",
+      "demand_scen[Products,Scenarios]: demand under each scenario"
+    ],
+    "additional_notes": "Optimal: produce[A]=70 (breakeven between s_med and s_high), produce[B]=50 (breakeven between s_med and s_high). Objective = 1000 (production) + 157.5 (A recourse) + 60 (B recourse) = 1217.5.",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "products": "products.csv",
+      "scenarios": "scenarios.csv",
+      "demand_scenarios": "demand_scenarios.csv"
+    }
+  },
+  "ir_patterns": [
+    "scenario weighted sum",
+    "deviation variables"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "products",
+        "element": "prod_A"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "products",
+          "scenarios"
+        ],
+        "element": [
+          "prod_A",
+          "prod_B",
+          "s_low",
+          "s_med",
+          "s_high"
+        ]
+      }
+    },
+    "products": {
+      "columns": {
+        "id": "str",
+        "prod_cost": "float",
+        "overage_cost": "float",
+        "underage_cost": "float"
+      },
+      "sample": {
+        "id": "prod_A",
+        "prod_cost": 10.0,
+        "overage_cost": 1.0,
+        "underage_cost": 20.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "id": [
+          "prod_A",
+          "prod_B"
+        ]
+      }
+    },
+    "scenarios": {
+      "columns": {
+        "id": "str",
+        "probability": "float"
+      },
+      "sample": {
+        "id": "s_low",
+        "probability": 0.25
+      },
+      "optional": false,
+      "distinct_values": {
+        "id": [
+          "s_low",
+          "s_med",
+          "s_high"
+        ]
+      }
+    },
+    "demand_scenarios": {
+      "columns": {
+        "product_id": "str",
+        "scenario_id": "str",
+        "demand": "float"
+      },
+      "sample": {
+        "product_id": "prod_A",
+        "scenario_id": "s_low",
+        "demand": 40.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "product_id": [
+          "prod_A",
+          "prod_B"
+        ],
+        "scenario_id": [
+          "s_low",
+          "s_med",
+          "s_high"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "StochasticProduction",
+    "model_type": "Linear Program",
+    "sense": "minimize",
+    "sets": {
+      "Products": {
+        "size": null,
+        "index_symbol": "p",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "products",
+        "ordered": false
+      },
+      "Scenarios": {
+        "size": null,
+        "index_symbol": "s",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "scenarios",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "prod_cost": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "products.csv",
+        "column": "prod_cost",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "inf"
+      },
+      "overage_cost": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "products.csv",
+        "column": "overage_cost",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "inf"
+      },
+      "underage_cost": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "products.csv",
+        "column": "underage_cost",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "inf"
+      },
+      "probability": {
+        "domain": [
+          "Scenarios"
+        ],
+        "type": "float",
+        "source": "scenarios.csv",
+        "column": "probability",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "zero"
+      },
+      "demand_scen": {
+        "domain": [
+          "Products",
+          "Scenarios"
+        ],
+        "type": "float",
+        "source": "demand_scenarios.csv",
+        "column": "demand",
+        "index_columns": [
+          "product_id",
+          "scenario_id"
+        ],
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "produce": {
+        "description": "First-stage production quantity for product p",
+        "label": "production_quantities",
+        "domain": [
+          "Products"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "surplus": {
+        "description": "Over-production in scenario s for product p",
+        "label": "surplus_by_scenario",
+        "domain": [
+          "Products",
+          "Scenarios"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "shortfall": {
+        "description": "Under-production in scenario s for product p",
+        "label": "shortfall_by_scenario",
+        "domain": [
+          "Products",
+          "Scenarios"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "overage_def": {
+        "domain": [
+          "Products",
+          "Scenarios"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "surplus",
+              "indices": [
+                "p",
+                "s"
+              ]
+            },
+            "right": {
+              "type": "parameter",
+              "name": "demand_scen",
+              "indices": [
+                "p",
+                "s"
+              ]
+            }
+          },
+          "right": {
+            "type": "variable",
+            "name": "produce",
+            "indices": [
+              "p"
+            ]
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "underage_def": {
+        "domain": [
+          "Products",
+          "Scenarios"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "shortfall",
+              "indices": [
+                "p",
+                "s"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "produce",
+              "indices": [
+                "p"
+              ]
+            }
+          },
+          "right": {
+            "type": "parameter",
+            "name": "demand_scen",
+            "indices": [
+              "p",
+              "s"
+            ]
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "sum",
+        "left": {
+          "operation": "indexed_sum",
+          "over": [
+            "Products:p"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "prod_cost",
+              "indices": [
+                "p"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "produce",
+              "indices": [
+                "p"
+              ]
+            }
+          }
+        },
+        "right": {
+          "operation": "indexed_sum",
+          "over": [
+            "Scenarios:s",
+            "Products:p"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "probability",
+              "indices": [
+                "s"
+              ]
+            },
+            "right": {
+              "operation": "sum",
+              "left": {
+                "operation": "multiply",
+                "left": {
+                  "type": "parameter",
+                  "name": "overage_cost",
+                  "indices": [
+                    "p"
+                  ]
+                },
+                "right": {
+                  "type": "variable",
+                  "name": "surplus",
+                  "indices": [
+                    "p",
+                    "s"
+                  ]
+                }
+              },
+              "right": {
+                "operation": "multiply",
+                "left": {
+                  "type": "parameter",
+                  "name": "underage_cost",
+                  "indices": [
+                    "p"
+                  ]
+                },
+                "right": {
+                  "type": "variable",
+                  "name": "shortfall",
+                  "indices": [
+                    "p",
+                    "s"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

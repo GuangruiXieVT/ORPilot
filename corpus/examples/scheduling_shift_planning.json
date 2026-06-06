@@ -1,0 +1,340 @@
+{
+  "problem": {
+    "title": "Multi-Type Worker Shift Planning",
+    "description": "A company operates three daily shifts (morning, afternoon, night) seven days a week. Two categories of workers are available: full-time (ft) and part-time (pt), each with different per-shift costs. Each shift on each day has a minimum staffing requirement. Full-time workers are limited to 20 total shift assignments per week and part-time workers to 15. Determine how many workers of each type to assign to each shift-day combination to meet all coverage requirements at minimum total labor cost.",
+    "problem_type": "integer_programming",
+    "objective": "minimize",
+    "objective_description": "Total labor cost summed over all worker-type, shift, day combinations",
+    "constraints": [
+      {
+        "description": "For each shift on each day, the total number of workers (across all types) must meet or exceed the required staffing level"
+      },
+      {
+        "description": "For each worker type, the total number of shift assignments across the week must not exceed the weekly capacity limit"
+      }
+    ],
+    "decision_variables": [
+      "workers[wt,s,d]: number of workers of type wt assigned to shift s on day d (non-negative integer)"
+    ],
+    "parameters": [
+      "demand[s,d]: minimum number of workers required for shift s on day d",
+      "cost_per_shift[wt,s]: cost of scheduling one worker of type wt for shift s",
+      "weekly_capacity[wt]: maximum total shift assignments per week for worker type wt"
+    ],
+    "additional_notes": "Workers of both types are interchangeable for coverage purposes. The model optimizes the mix of worker types to minimize total cost while respecting all staffing and capacity constraints.",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "demand": "demand.csv",
+      "shift_costs": "shift_costs.csv",
+      "weekly_capacity": "weekly_capacity.csv"
+    }
+  },
+  "ir_patterns": [
+    "integer variable"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "worker_types",
+        "element": "ft"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "worker_types",
+          "shifts",
+          "days"
+        ],
+        "element": [
+          "ft",
+          "pt",
+          "morning",
+          "afternoon",
+          "night",
+          "mon",
+          "tue",
+          "wed",
+          "thu",
+          "fri",
+          "sat",
+          "sun"
+        ]
+      }
+    },
+    "demand": {
+      "columns": {
+        "shift_id": "str",
+        "day_id": "str",
+        "demand": "int"
+      },
+      "sample": {
+        "shift_id": "morning",
+        "day_id": "mon",
+        "demand": 4
+      },
+      "optional": false,
+      "distinct_values": {
+        "shift_id": [
+          "morning",
+          "afternoon",
+          "night"
+        ],
+        "day_id": [
+          "mon",
+          "tue",
+          "wed",
+          "thu",
+          "fri",
+          "sat",
+          "sun"
+        ],
+        "demand": [
+          "2",
+          "3",
+          "4",
+          "5"
+        ]
+      }
+    },
+    "shift_costs": {
+      "columns": {
+        "worker_type_id": "str",
+        "shift_id": "str",
+        "cost_per_shift": "float"
+      },
+      "sample": {
+        "worker_type_id": "ft",
+        "shift_id": "morning",
+        "cost_per_shift": 12.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "worker_type_id": [
+          "ft",
+          "pt"
+        ],
+        "shift_id": [
+          "morning",
+          "afternoon",
+          "night"
+        ],
+        "cost_per_shift": [
+          "7.0",
+          "8.0",
+          "10.0",
+          "12.0",
+          "15.0"
+        ]
+      }
+    },
+    "weekly_capacity": {
+      "columns": {
+        "worker_type_id": "str",
+        "weekly_capacity": "int"
+      },
+      "sample": {
+        "worker_type_id": "ft",
+        "weekly_capacity": 20
+      },
+      "optional": false,
+      "distinct_values": {
+        "worker_type_id": [
+          "ft",
+          "pt"
+        ],
+        "weekly_capacity": [
+          "30",
+          "40"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "SchedulingProblem",
+    "model_type": "Mixed Integer Program",
+    "sense": "minimize",
+    "sets": {
+      "WorkerTypes": {
+        "size": null,
+        "index_symbol": "wt",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "worker_types",
+        "ordered": false
+      },
+      "Shifts": {
+        "size": null,
+        "index_symbol": "s",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "shifts",
+        "ordered": false
+      },
+      "Days": {
+        "size": null,
+        "index_symbol": "d",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "days",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "demand": {
+        "domain": [
+          "Shifts",
+          "Days"
+        ],
+        "type": "float",
+        "source": "demand.csv",
+        "column": "demand",
+        "index_columns": [
+          "shift_id",
+          "day_id"
+        ],
+        "missing_default": "zero"
+      },
+      "cost_per_shift": {
+        "domain": [
+          "WorkerTypes",
+          "Shifts"
+        ],
+        "type": "float",
+        "source": "shift_costs.csv",
+        "column": "cost_per_shift",
+        "index_columns": [
+          "worker_type_id",
+          "shift_id"
+        ],
+        "missing_default": "inf"
+      },
+      "weekly_capacity": {
+        "domain": [
+          "WorkerTypes"
+        ],
+        "type": "float",
+        "source": "weekly_capacity.csv",
+        "column": "weekly_capacity",
+        "index_columns": [
+          "worker_type_id"
+        ],
+        "missing_default": "inf"
+      }
+    },
+    "variables": {
+      "workers": {
+        "description": "Number of workers of type wt assigned to shift s on day d",
+        "label": "workers",
+        "domain": [
+          "WorkerTypes",
+          "Shifts",
+          "Days"
+        ],
+        "type": "integer",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "demand_coverage": {
+        "domain": [
+          "Shifts",
+          "Days"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "WorkerTypes:wt"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "workers",
+            "indices": [
+              "wt",
+              "s",
+              "d"
+            ]
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "parameter",
+          "name": "demand",
+          "indices": [
+            "s",
+            "d"
+          ]
+        }
+      },
+      "weekly_budget": {
+        "domain": [
+          "WorkerTypes"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Shifts:s",
+            "Days:d"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "workers",
+            "indices": [
+              "wt",
+              "s",
+              "d"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "parameter",
+          "name": "weekly_capacity",
+          "indices": [
+            "wt"
+          ]
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "WorkerTypes:wt",
+          "Shifts:s",
+          "Days:d"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "type": "parameter",
+            "name": "cost_per_shift",
+            "indices": [
+              "wt",
+              "s"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "workers",
+            "indices": [
+              "wt",
+              "s",
+              "d"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

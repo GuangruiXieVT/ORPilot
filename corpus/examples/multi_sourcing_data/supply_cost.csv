@@ -1,0 +1,13 @@
+sup_id,item_id,unit_cost,max_qty
+sup_1,item_1,10.0,100.0
+sup_1,item_2,15.0,80.0
+sup_1,item_3,8.0,60.0
+sup_1,item_4,12.0,90.0
+sup_2,item_1,12.0,60.0
+sup_2,item_2,11.0,80.0
+sup_2,item_3,9.0,120.0
+sup_2,item_4,10.0,90.0
+sup_3,item_1,9.0,60.0
+sup_3,item_2,13.0,40.0
+sup_3,item_3,11.0,80.0
+sup_3,item_4,11.0,50.0

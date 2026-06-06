@@ -1,0 +1,1490 @@
+{
+  "problem": {
+    "title": "Multi-Period Production-Inventory-Distribution Network with Plant Opening and Step Operating Costs",
+    "description": "A manufacturer must decide when to activate plants and how to operate a three-tier distribution network over multiple time periods. A plant can be opened in any period; once opened, it remains open for the rest of the planning horizon and cannot be closed. Opening a plant incurs a one-time fixed cost charged in the period it first becomes active. Once a plant is open, it incurs a per-period step operating cost that depends on how much it produces: production is divided into tiers (low, medium, high), each tier covering a range of output levels and carrying a fixed operating cost per period. In each period, a plant operates in exactly one tier (or not at all if not yet opened). Within the selected tier, the actual production quantity can range freely between the tier's lower and upper bounds, and each unit produced also incurs a per-unit production cost. Produced goods are added to plant inventory; a holding cost applies to every unit stored at a plant at period end. Goods are shipped from plants to warehouses and from warehouses to retailers over a sparse set of established arcs, each with a per-unit shipping cost and a per-period arc capacity. Warehouses hold inventory across periods at a holding cost and are limited by a storage capacity. Each retailer has a known demand per period that must be exactly met. The goal is to choose when to open each plant, which production tier each open plant uses each period, how much to produce, and how to route goods through the network to minimize total cost: plant opening costs, step operating costs, per-unit production costs, plant and warehouse holding costs, and transportation costs.",
+    "problem_type": "mixed_integer",
+    "objective": "minimize",
+    "objective_description": "Total cost: one-time plant opening costs, per-period step operating costs based on production tier, per-unit production costs, inventory holding costs at plants and warehouses, and per-unit shipping costs across all arcs and periods",
+    "constraints": [
+      {
+        "description": "For each plant and each subsequent period, the open status in period t must be at least as large as in period t-1: a plant that opens cannot close (monotone non-decreasing open status)"
+      },
+      {
+        "description": "For each plant and period, exactly one production tier must be active if open_plant[i,t]=1, and no tier may be active if open_plant[i,t]=0 (tier selection equals current open status)"
+      },
+      {
+        "description": "Production at plant i in period t must be at least the lower bound of the active tier (production cannot fall below the tier's minimum threshold)"
+      },
+      {
+        "description": "Production at plant i in period t must not exceed the upper bound of the active tier (production cannot exceed the tier's maximum capacity)"
+      },
+      {
+        "description": "Plant inventory balance for the first period: ending inventory at plant i equals initial inventory plus production minus total outgoing shipments to warehouses in period t0"
+      },
+      {
+        "description": "Plant inventory balance for subsequent periods: ending inventory at plant i in period t equals ending inventory in the previous period plus production minus total outgoing shipments"
+      },
+      {
+        "description": "Warehouse inventory balance for the first period: ending inventory at warehouse w equals initial inventory plus inflow from plants minus outflow to retailers in period t0"
+      },
+      {
+        "description": "Warehouse inventory balance for subsequent periods: ending inventory at warehouse w in period t equals ending inventory in the previous period plus inflow from plants minus outflow to retailers"
+      },
+      {
+        "description": "Inventory held at each warehouse at end of each period must not exceed the warehouse storage capacity"
+      },
+      {
+        "description": "For each retailer and period, total inflow from all connected warehouses must exactly equal the retailer's demand"
+      },
+      {
+        "description": "Flow on each plant-to-warehouse arc in each period must not exceed that arc's per-period throughput capacity"
+      },
+      {
+        "description": "Flow on each warehouse-to-retailer arc in each period must not exceed that arc's per-period throughput capacity"
+      }
+    ],
+    "decision_variables": [
+      "open_plant[i,t]: 1 if plant i is open in period t, 0 otherwise (binary); once a plant opens it stays open for all subsequent periods; the one-time opening cost is charged in the first period the plant becomes active",
+      "use_tier[i,t,k]: 1 if plant i operates at production tier k in period t, 0 otherwise (binary); exactly one tier active per open plant per period",
+      "produce[i,t]: units produced at plant i in period t (continuous, non-negative)",
+      "inventory_plant[i,t]: inventory held at plant i at end of period t (continuous, non-negative)",
+      "inventory_wh[w,t]: inventory held at warehouse w at end of period t (continuous, non-negative)",
+      "flow_pw[i,w,t]: units shipped from plant i to warehouse w in period t (continuous, non-negative, defined only for valid arcs)",
+      "flow_wr[w,r,t]: units shipped from warehouse w to retailer r in period t (continuous, non-negative, defined only for valid arcs)"
+    ],
+    "parameters": [
+      "opening_cost[i]: one-time fixed cost incurred when plant i is activated",
+      "prod_cost[i]: variable production cost per unit produced at plant i",
+      "hold_cost_plant[i]: inventory holding cost per unit per period at plant i",
+      "initial_inv_plant[i]: inventory at plant i at the start of the planning horizon",
+      "tier_lb[i,k]: minimum production quantity required when plant i operates at tier k",
+      "tier_ub[i,k]: maximum production quantity allowed when plant i operates at tier k; the highest tier's upper bound is the plant's effective production capacity",
+      "tier_op_cost[i,k]: fixed operating cost per period when plant i is in tier k",
+      "hold_cost_wh[w]: inventory holding cost per unit per period at warehouse w",
+      "wh_capacity[w]: maximum inventory that can be held at warehouse w at end of any period",
+      "initial_inv_wh[w]: inventory at warehouse w at the start of the planning horizon",
+      "demand[r,t]: units required by retailer r in period t, which must be exactly fulfilled",
+      "cost_pw[i,w]: per-unit shipping cost from plant i to warehouse w (defined only for valid arcs)",
+      "cost_wr[w,r]: per-unit shipping cost from warehouse w to retailer r (defined only for valid arcs)",
+      "cap_pw[i,w]: per-period arc capacity from plant i to warehouse w (defined only for valid arcs)",
+      "cap_wr[w,r]: per-period arc capacity from warehouse w to retailer r (defined only for valid arcs)"
+    ],
+    "additional_notes": "The step operating cost models economies of scale at plant level: a low-volume tier incurs a small fixed cost per period; a high-volume tier incurs a large fixed cost but permits higher output. Each unit also incurs a per-unit production cost on top of the tier's fixed cost. Plants with initial_inventory=0 cannot ship unless opened, since the inventory balance prevents flow without production. Arc parameters are defined only for established shipping lanes.",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "plants": "plants.csv",
+      "plant_tiers": "plant_tiers.csv",
+      "warehouses": "warehouses.csv",
+      "demand_data": "demand_data.csv",
+      "arc_costs_pw": "arc_costs_pw.csv",
+      "arc_costs_wr": "arc_costs_wr.csv",
+      "arc_caps_pw": "arc_caps_pw.csv",
+      "arc_caps_wr": "arc_caps_wr.csv"
+    }
+  },
+  "ir_patterns": [
+    "binary variable",
+    "domain filter",
+    "sparse filter",
+    "ordered set",
+    "temporal lag",
+    "init constraint",
+    "big-M linking",
+    "step cost"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "plants",
+        "element": "p1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "plants",
+          "warehouses",
+          "retailers",
+          "periods",
+          "tiers"
+        ],
+        "element": [
+          "p1",
+          "p2",
+          "p3",
+          "w1",
+          "w2",
+          "w3",
+          "r1",
+          "r2",
+          "r3",
+          "r4",
+          "t1",
+          "t2",
+          "t3",
+          "tier1",
+          "tier2",
+          "tier3"
+        ]
+      }
+    },
+    "plants": {
+      "columns": {
+        "id": "str",
+        "prod_cost": "float",
+        "hold_cost": "float",
+        "opening_cost": "float",
+        "initial_inventory": "float"
+      },
+      "sample": {
+        "id": "p1",
+        "prod_cost": 5.0,
+        "hold_cost": 0.5,
+        "opening_cost": 1500.0,
+        "initial_inventory": 0.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "id": [
+          "p1",
+          "p2",
+          "p3"
+        ],
+        "prod_cost": [
+          "4.5",
+          "5.0",
+          "6.0"
+        ],
+        "hold_cost": [
+          "0.4",
+          "0.5",
+          "0.6"
+        ],
+        "opening_cost": [
+          "1200.0",
+          "1500.0",
+          "1800.0"
+        ],
+        "initial_inventory": [
+          "0.0"
+        ]
+      }
+    },
+    "plant_tiers": {
+      "columns": {
+        "plant_id": "str",
+        "tier_id": "str",
+        "tier_lb": "float",
+        "tier_ub": "float",
+        "op_cost": "float"
+      },
+      "sample": {
+        "plant_id": "p1",
+        "tier_id": "tier1",
+        "tier_lb": 0.0,
+        "tier_ub": 75.0,
+        "op_cost": 300.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "plant_id": [
+          "p1",
+          "p2",
+          "p3"
+        ],
+        "tier_id": [
+          "tier1",
+          "tier2",
+          "tier3"
+        ],
+        "tier_lb": [
+          "0.0",
+          "60.0",
+          "75.0",
+          "100.0",
+          "120.0",
+          "140.0",
+          "150.0"
+        ],
+        "tier_ub": [
+          "60.0",
+          "75.0",
+          "100.0",
+          "120.0",
+          "140.0",
+          "150.0",
+          "180.0",
+          "200.0"
+        ],
+        "op_cost": [
+          "200.0",
+          "250.0",
+          "300.0",
+          "350.0",
+          "420.0",
+          "480.0",
+          "500.0",
+          "600.0",
+          "700.0"
+        ]
+      }
+    },
+    "warehouses": {
+      "columns": {
+        "id": "str",
+        "hold_cost": "float",
+        "capacity": "float",
+        "initial_inventory": "float"
+      },
+      "sample": {
+        "id": "w1",
+        "hold_cost": 0.3,
+        "capacity": 150.0,
+        "initial_inventory": 20.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "id": [
+          "w1",
+          "w2",
+          "w3"
+        ],
+        "hold_cost": [
+          "0.25",
+          "0.30",
+          "0.35"
+        ],
+        "capacity": [
+          "120.0",
+          "150.0",
+          "200.0"
+        ],
+        "initial_inventory": [
+          "10.0",
+          "20.0",
+          "30.0"
+        ]
+      }
+    },
+    "demand_data": {
+      "columns": {
+        "retailer_id": "str",
+        "period_id": "str",
+        "demand": "float"
+      },
+      "sample": {
+        "retailer_id": "r1",
+        "period_id": "t1",
+        "demand": 50.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "retailer_id": [
+          "r1",
+          "r2",
+          "r3",
+          "r4"
+        ],
+        "period_id": [
+          "t1",
+          "t2",
+          "t3"
+        ],
+        "demand": [
+          "40.0",
+          "45.0",
+          "50.0",
+          "55.0",
+          "60.0",
+          "65.0",
+          "70.0",
+          "75.0",
+          "80.0"
+        ]
+      }
+    },
+    "arc_costs_pw": {
+      "columns": {
+        "plant_id": "str",
+        "warehouse_id": "str",
+        "cost_per_unit": "float"
+      },
+      "sample": {
+        "plant_id": "p1",
+        "warehouse_id": "w1",
+        "cost_per_unit": 2.5
+      },
+      "optional": false,
+      "distinct_values": {
+        "plant_id": [
+          "p1",
+          "p2",
+          "p3"
+        ],
+        "warehouse_id": [
+          "w1",
+          "w2",
+          "w3"
+        ],
+        "cost_per_unit": [
+          "1.5",
+          "2.0",
+          "2.5",
+          "3.0",
+          "3.5",
+          "4.0"
+        ]
+      }
+    },
+    "arc_costs_wr": {
+      "columns": {
+        "warehouse_id": "str",
+        "retailer_id": "str",
+        "cost_per_unit": "float"
+      },
+      "sample": {
+        "warehouse_id": "w1",
+        "retailer_id": "r1",
+        "cost_per_unit": 1.5
+      },
+      "optional": false,
+      "distinct_values": {
+        "warehouse_id": [
+          "w1",
+          "w2",
+          "w3"
+        ],
+        "retailer_id": [
+          "r1",
+          "r2",
+          "r3",
+          "r4"
+        ],
+        "cost_per_unit": [
+          "1.0",
+          "1.5",
+          "2.0",
+          "2.5",
+          "3.0"
+        ]
+      }
+    },
+    "arc_caps_pw": {
+      "columns": {
+        "plant_id": "str",
+        "warehouse_id": "str",
+        "capacity": "float"
+      },
+      "sample": {
+        "plant_id": "p1",
+        "warehouse_id": "w1",
+        "capacity": 120.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "plant_id": [
+          "p1",
+          "p2",
+          "p3"
+        ],
+        "warehouse_id": [
+          "w1",
+          "w2",
+          "w3"
+        ],
+        "capacity": [
+          "80.0",
+          "90.0",
+          "100.0",
+          "110.0",
+          "120.0"
+        ]
+      }
+    },
+    "arc_caps_wr": {
+      "columns": {
+        "warehouse_id": "str",
+        "retailer_id": "str",
+        "capacity": "float"
+      },
+      "sample": {
+        "warehouse_id": "w1",
+        "retailer_id": "r1",
+        "capacity": 80.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "warehouse_id": [
+          "w1",
+          "w2",
+          "w3"
+        ],
+        "retailer_id": [
+          "r1",
+          "r2",
+          "r3",
+          "r4"
+        ],
+        "capacity": [
+          "60.0",
+          "70.0",
+          "80.0",
+          "90.0",
+          "100.0"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "ProductionInventoryStepCost",
+    "model_type": "Mixed Integer Program",
+    "sense": "minimize",
+    "sets": {
+      "Plants": {
+        "size": null,
+        "index_symbol": "i",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "plants",
+        "ordered": false
+      },
+      "Warehouses": {
+        "size": null,
+        "index_symbol": "w",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "warehouses",
+        "ordered": false
+      },
+      "Retailers": {
+        "size": null,
+        "index_symbol": "r",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "retailers",
+        "ordered": false
+      },
+      "Periods": {
+        "size": null,
+        "index_symbol": "t",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "periods",
+        "ordered": true
+      },
+      "Tiers": {
+        "size": null,
+        "index_symbol": "k",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "tiers",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "opening_cost": {
+        "domain": [
+          "Plants"
+        ],
+        "type": "float",
+        "source": "plants.csv",
+        "column": "opening_cost",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "inf"
+      },
+      "prod_cost": {
+        "domain": [
+          "Plants"
+        ],
+        "type": "float",
+        "source": "plants.csv",
+        "column": "prod_cost",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "inf"
+      },
+      "hold_cost_plant": {
+        "domain": [
+          "Plants"
+        ],
+        "type": "float",
+        "source": "plants.csv",
+        "column": "hold_cost",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "inf"
+      },
+      "initial_inv_plant": {
+        "domain": [
+          "Plants"
+        ],
+        "type": "float",
+        "source": "plants.csv",
+        "column": "initial_inventory",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "zero"
+      },
+      "tier_lb": {
+        "domain": [
+          "Plants",
+          "Tiers"
+        ],
+        "type": "float",
+        "source": "plant_tiers.csv",
+        "column": "tier_lb",
+        "index_columns": [
+          "plant_id",
+          "tier_id"
+        ],
+        "missing_default": "zero"
+      },
+      "tier_ub": {
+        "domain": [
+          "Plants",
+          "Tiers"
+        ],
+        "type": "float",
+        "source": "plant_tiers.csv",
+        "column": "tier_ub",
+        "index_columns": [
+          "plant_id",
+          "tier_id"
+        ],
+        "missing_default": "zero"
+      },
+      "tier_op_cost": {
+        "domain": [
+          "Plants",
+          "Tiers"
+        ],
+        "type": "float",
+        "source": "plant_tiers.csv",
+        "column": "op_cost",
+        "index_columns": [
+          "plant_id",
+          "tier_id"
+        ],
+        "missing_default": "inf"
+      },
+      "hold_cost_wh": {
+        "domain": [
+          "Warehouses"
+        ],
+        "type": "float",
+        "source": "warehouses.csv",
+        "column": "hold_cost",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "inf"
+      },
+      "wh_capacity": {
+        "domain": [
+          "Warehouses"
+        ],
+        "type": "float",
+        "source": "warehouses.csv",
+        "column": "capacity",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "inf"
+      },
+      "initial_inv_wh": {
+        "domain": [
+          "Warehouses"
+        ],
+        "type": "float",
+        "source": "warehouses.csv",
+        "column": "initial_inventory",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "zero"
+      },
+      "demand": {
+        "domain": [
+          "Retailers",
+          "Periods"
+        ],
+        "type": "float",
+        "source": "demand_data.csv",
+        "column": "demand",
+        "index_columns": [
+          "retailer_id",
+          "period_id"
+        ],
+        "missing_default": "zero"
+      },
+      "cost_pw": {
+        "domain": [
+          "Plants",
+          "Warehouses"
+        ],
+        "type": "float",
+        "source": "arc_costs_pw.csv",
+        "column": "cost_per_unit",
+        "index_columns": [
+          "plant_id",
+          "warehouse_id"
+        ],
+        "missing_default": "inf"
+      },
+      "cost_wr": {
+        "domain": [
+          "Warehouses",
+          "Retailers"
+        ],
+        "type": "float",
+        "source": "arc_costs_wr.csv",
+        "column": "cost_per_unit",
+        "index_columns": [
+          "warehouse_id",
+          "retailer_id"
+        ],
+        "missing_default": "inf"
+      },
+      "cap_pw": {
+        "domain": [
+          "Plants",
+          "Warehouses"
+        ],
+        "type": "float",
+        "source": "arc_caps_pw.csv",
+        "column": "capacity",
+        "index_columns": [
+          "plant_id",
+          "warehouse_id"
+        ],
+        "missing_default": "inf"
+      },
+      "cap_wr": {
+        "domain": [
+          "Warehouses",
+          "Retailers"
+        ],
+        "type": "float",
+        "source": "arc_caps_wr.csv",
+        "column": "capacity",
+        "index_columns": [
+          "warehouse_id",
+          "retailer_id"
+        ],
+        "missing_default": "inf"
+      }
+    },
+    "variables": {
+      "open_plant": {
+        "description": "1 if plant i is open in period t, 0 otherwise; non-decreasing over time",
+        "label": "plant_open_decisions",
+        "domain": [
+          "Plants",
+          "Periods"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "use_tier": {
+        "description": "1 if plant i operates at production tier k in period t, 0 otherwise",
+        "label": "tier_selections",
+        "domain": [
+          "Plants",
+          "Periods",
+          "Tiers"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "produce": {
+        "description": "Units produced at plant i in period t",
+        "label": "production_quantities",
+        "domain": [
+          "Plants",
+          "Periods"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "inventory_plant": {
+        "description": "Inventory held at plant i at end of period t",
+        "label": "plant_inventory",
+        "domain": [
+          "Plants",
+          "Periods"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "inventory_wh": {
+        "description": "Inventory held at warehouse w at end of period t",
+        "label": "warehouse_inventory",
+        "domain": [
+          "Warehouses",
+          "Periods"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "flow_pw": {
+        "description": "Units shipped from plant i to warehouse w in period t along a valid arc",
+        "label": "plant_to_warehouse_flow",
+        "domain": [
+          "Plants",
+          "Warehouses",
+          "Periods"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false,
+        "domain_filter": "cost_pw"
+      },
+      "flow_wr": {
+        "description": "Units shipped from warehouse w to retailer r in period t along a valid arc",
+        "label": "warehouse_to_retailer_flow",
+        "domain": [
+          "Warehouses",
+          "Retailers",
+          "Periods"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false,
+        "domain_filter": "cost_wr"
+      }
+    },
+    "constraints": {
+      "open_plant_persist": {
+        "domain": [
+          "Plants",
+          "Periods"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "open_plant",
+            "indices": [
+              "i",
+              "t"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "open_plant",
+            "indices": [
+              "i",
+              "t"
+            ],
+            "lag": -1
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "plant_tier_select": {
+        "domain": [
+          "Plants",
+          "Periods"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Tiers:k"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "use_tier",
+              "indices": [
+                "i",
+                "t",
+                "k"
+              ]
+            }
+          },
+          "right": {
+            "type": "variable",
+            "name": "open_plant",
+            "indices": [
+              "i",
+              "t"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "tier_prod_lb": {
+        "domain": [
+          "Plants",
+          "Periods"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Tiers:k"
+            ],
+            "body": {
+              "operation": "multiply",
+              "left": {
+                "type": "parameter",
+                "name": "tier_lb",
+                "indices": [
+                  "i",
+                  "k"
+                ]
+              },
+              "right": {
+                "type": "variable",
+                "name": "use_tier",
+                "indices": [
+                  "i",
+                  "t",
+                  "k"
+                ]
+              }
+            }
+          },
+          "right": {
+            "type": "variable",
+            "name": "produce",
+            "indices": [
+              "i",
+              "t"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "tier_prod_ub": {
+        "domain": [
+          "Plants",
+          "Periods"
+        ],
+        "expression": {
+          "type": "variable",
+          "name": "produce",
+          "indices": [
+            "i",
+            "t"
+          ]
+        },
+        "sense": "<=",
+        "rhs": {
+          "operation": "indexed_sum",
+          "over": [
+            "Tiers:k"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "tier_ub",
+              "indices": [
+                "i",
+                "k"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "use_tier",
+              "indices": [
+                "i",
+                "t",
+                "k"
+              ]
+            }
+          }
+        }
+      },
+      "plant_inv_balance_init": {
+        "domain": [
+          "Plants"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "inventory_plant",
+              "indices": [
+                "i",
+                "Periods[0]"
+              ]
+            },
+            "right": {
+              "operation": "indexed_sum",
+              "over": [
+                "Warehouses:w"
+              ],
+              "body": {
+                "type": "variable",
+                "name": "flow_pw",
+                "indices": [
+                  "i",
+                  "w",
+                  "Periods[0]"
+                ]
+              }
+            }
+          },
+          "right": {
+            "type": "variable",
+            "name": "produce",
+            "indices": [
+              "i",
+              "Periods[0]"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "parameter",
+          "name": "initial_inv_plant",
+          "indices": [
+            "i"
+          ]
+        }
+      },
+      "plant_inv_balance": {
+        "domain": [
+          "Plants",
+          "Periods"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "operation": "subtract",
+              "left": {
+                "type": "variable",
+                "name": "inventory_plant",
+                "indices": [
+                  "i",
+                  "t"
+                ]
+              },
+              "right": {
+                "type": "variable",
+                "name": "inventory_plant",
+                "indices": [
+                  "i",
+                  "t"
+                ],
+                "lag": -1
+              }
+            },
+            "right": {
+              "operation": "indexed_sum",
+              "over": [
+                "Warehouses:w"
+              ],
+              "body": {
+                "type": "variable",
+                "name": "flow_pw",
+                "indices": [
+                  "i",
+                  "w",
+                  "t"
+                ]
+              }
+            }
+          },
+          "right": {
+            "type": "variable",
+            "name": "produce",
+            "indices": [
+              "i",
+              "t"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "wh_inv_balance_init": {
+        "domain": [
+          "Warehouses"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "inventory_wh",
+              "indices": [
+                "w",
+                "Periods[0]"
+              ]
+            },
+            "right": {
+              "operation": "indexed_sum",
+              "over": [
+                "Retailers:r"
+              ],
+              "body": {
+                "type": "variable",
+                "name": "flow_wr",
+                "indices": [
+                  "w",
+                  "r",
+                  "Periods[0]"
+                ]
+              }
+            }
+          },
+          "right": {
+            "operation": "indexed_sum",
+            "over": [
+              "Plants:i"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "flow_pw",
+              "indices": [
+                "i",
+                "w",
+                "Periods[0]"
+              ]
+            }
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "parameter",
+          "name": "initial_inv_wh",
+          "indices": [
+            "w"
+          ]
+        }
+      },
+      "wh_inv_balance": {
+        "domain": [
+          "Warehouses",
+          "Periods"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "operation": "subtract",
+              "left": {
+                "type": "variable",
+                "name": "inventory_wh",
+                "indices": [
+                  "w",
+                  "t"
+                ]
+              },
+              "right": {
+                "type": "variable",
+                "name": "inventory_wh",
+                "indices": [
+                  "w",
+                  "t"
+                ],
+                "lag": -1
+              }
+            },
+            "right": {
+              "operation": "indexed_sum",
+              "over": [
+                "Retailers:r"
+              ],
+              "body": {
+                "type": "variable",
+                "name": "flow_wr",
+                "indices": [
+                  "w",
+                  "r",
+                  "t"
+                ]
+              }
+            }
+          },
+          "right": {
+            "operation": "indexed_sum",
+            "over": [
+              "Plants:i"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "flow_pw",
+              "indices": [
+                "i",
+                "w",
+                "t"
+              ]
+            }
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "wh_cap_limit": {
+        "domain": [
+          "Warehouses",
+          "Periods"
+        ],
+        "expression": {
+          "type": "variable",
+          "name": "inventory_wh",
+          "indices": [
+            "w",
+            "t"
+          ]
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "parameter",
+          "name": "wh_capacity",
+          "indices": [
+            "w"
+          ]
+        }
+      },
+      "demand_satisfaction": {
+        "domain": [
+          "Retailers",
+          "Periods"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Warehouses:w"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "flow_wr",
+            "indices": [
+              "w",
+              "r",
+              "t"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "parameter",
+          "name": "demand",
+          "indices": [
+            "r",
+            "t"
+          ]
+        }
+      },
+      "arc_cap_pw": {
+        "domain": [
+          "Plants",
+          "Warehouses",
+          "Periods"
+        ],
+        "expression": {
+          "type": "variable",
+          "name": "flow_pw",
+          "indices": [
+            "i",
+            "w",
+            "t"
+          ]
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "parameter",
+          "name": "cap_pw",
+          "indices": [
+            "i",
+            "w"
+          ]
+        },
+        "sparse_filter": "cap_pw"
+      },
+      "arc_cap_wr": {
+        "domain": [
+          "Warehouses",
+          "Retailers",
+          "Periods"
+        ],
+        "expression": {
+          "type": "variable",
+          "name": "flow_wr",
+          "indices": [
+            "w",
+            "r",
+            "t"
+          ]
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "parameter",
+          "name": "cap_wr",
+          "indices": [
+            "w",
+            "r"
+          ]
+        },
+        "sparse_filter": "cap_wr"
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "sum",
+        "left": {
+          "operation": "sum",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "operation": "sum",
+              "left": {
+                "operation": "sum",
+                "left": {
+                  "operation": "sum",
+                  "left": {
+                    "operation": "indexed_sum",
+                    "over": [
+                      "Plants:i"
+                    ],
+                    "body": {
+                      "operation": "multiply",
+                      "left": {
+                        "type": "parameter",
+                        "name": "opening_cost",
+                        "indices": [
+                          "i"
+                        ]
+                      },
+                      "right": {
+                        "type": "variable",
+                        "name": "open_plant",
+                        "indices": [
+                          "i",
+                          "Periods[-1]"
+                        ]
+                      }
+                    }
+                  },
+                  "right": {
+                    "operation": "indexed_sum",
+                    "over": [
+                      "Plants:i",
+                      "Periods:t",
+                      "Tiers:k"
+                    ],
+                    "body": {
+                      "operation": "multiply",
+                      "left": {
+                        "type": "parameter",
+                        "name": "tier_op_cost",
+                        "indices": [
+                          "i",
+                          "k"
+                        ]
+                      },
+                      "right": {
+                        "type": "variable",
+                        "name": "use_tier",
+                        "indices": [
+                          "i",
+                          "t",
+                          "k"
+                        ]
+                      }
+                    }
+                  }
+                },
+                "right": {
+                  "operation": "indexed_sum",
+                  "over": [
+                    "Plants:i",
+                    "Periods:t"
+                  ],
+                  "body": {
+                    "operation": "multiply",
+                    "left": {
+                      "type": "parameter",
+                      "name": "prod_cost",
+                      "indices": [
+                        "i"
+                      ]
+                    },
+                    "right": {
+                      "type": "variable",
+                      "name": "produce",
+                      "indices": [
+                        "i",
+                        "t"
+                      ]
+                    }
+                  }
+                }
+              },
+              "right": {
+                "operation": "indexed_sum",
+                "over": [
+                  "Plants:i",
+                  "Periods:t"
+                ],
+                "body": {
+                  "operation": "multiply",
+                  "left": {
+                    "type": "parameter",
+                    "name": "hold_cost_plant",
+                    "indices": [
+                      "i"
+                    ]
+                  },
+                  "right": {
+                    "type": "variable",
+                    "name": "inventory_plant",
+                    "indices": [
+                      "i",
+                      "t"
+                    ]
+                  }
+                }
+              }
+            },
+            "right": {
+              "operation": "indexed_sum",
+              "over": [
+                "Warehouses:w",
+                "Periods:t"
+              ],
+              "body": {
+                "operation": "multiply",
+                "left": {
+                  "type": "parameter",
+                  "name": "hold_cost_wh",
+                  "indices": [
+                    "w"
+                  ]
+                },
+                "right": {
+                  "type": "variable",
+                  "name": "inventory_wh",
+                  "indices": [
+                    "w",
+                    "t"
+                  ]
+                }
+              }
+            }
+          },
+          "right": {
+            "operation": "indexed_sum",
+            "over": [
+              "Plants:i",
+              "Warehouses:w",
+              "Periods:t"
+            ],
+            "body": {
+              "operation": "multiply",
+              "left": {
+                "type": "parameter",
+                "name": "cost_pw",
+                "indices": [
+                  "i",
+                  "w"
+                ]
+              },
+              "right": {
+                "type": "variable",
+                "name": "flow_pw",
+                "indices": [
+                  "i",
+                  "w",
+                  "t"
+                ]
+              }
+            }
+          }
+        },
+        "right": {
+          "operation": "indexed_sum",
+          "over": [
+            "Warehouses:w",
+            "Retailers:r",
+            "Periods:t"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "cost_wr",
+              "indices": [
+                "w",
+                "r"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "flow_wr",
+              "indices": [
+                "w",
+                "r",
+                "t"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

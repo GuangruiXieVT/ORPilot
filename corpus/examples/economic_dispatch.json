@@ -1,0 +1,461 @@
+{
+  "problem": {
+    "title": "Economic Dispatch with Ramp Rate Constraints",
+    "description": "All generators are online. Allocate generation output each period to meet power demand at minimum fuel cost. Ramp rate constraints limit how quickly each generator can change its output between consecutive periods. Minimize total fuel cost.",
+    "problem_type": "linear_programming",
+    "objective": "minimize",
+    "objective_description": "Total fuel cost = sum of fuel_cost[g]*generate[g,t] over all generators and periods",
+    "constraints": [
+      {
+        "description": "Power balance: total generation across all generators equals demand each period"
+      },
+      {
+        "description": "Minimum generation: each generator produces at least min_output each period"
+      },
+      {
+        "description": "Maximum generation: each generator produces at most max_output each period"
+      },
+      {
+        "description": "Ramp up init: first-period output is bounded by min_output (no previous state constraint)"
+      },
+      {
+        "description": "Ramp up: increase in output from previous period cannot exceed ramp_limit (temporal lag)"
+      },
+      {
+        "description": "Ramp down: decrease in output from previous period cannot exceed ramp_limit (temporal lag)"
+      }
+    ],
+    "decision_variables": [
+      "generate[g,t]: MW output of generator g in period t (continuous, non-negative)"
+    ],
+    "parameters": [
+      "fuel_cost[g]: cost per MWh for generator g",
+      "min_output[g]: minimum MW output for generator g",
+      "max_output[g]: maximum MW output for generator g",
+      "ramp_limit[g]: maximum change in MW output per period for generator g",
+      "demand[t]: MW demand in period t"
+    ],
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "generators": "generators.csv",
+      "demand": "demand.csv"
+    }
+  },
+  "ir_patterns": [
+    "ordered set",
+    "temporal lag",
+    "init constraint"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "generators",
+        "element": "g1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "generators",
+          "periods"
+        ],
+        "element": [
+          "g1",
+          "g2",
+          "g3",
+          "h1",
+          "h2",
+          "h3",
+          "h4",
+          "h5",
+          "h6"
+        ]
+      },
+      "row_count": 9
+    },
+    "generators": {
+      "columns": {
+        "generator_id": "str",
+        "fuel_cost": "float",
+        "min_output": "float",
+        "max_output": "float",
+        "ramp_limit": "float"
+      },
+      "sample": {
+        "generator_id": "g1",
+        "fuel_cost": 15.0,
+        "min_output": 50.0,
+        "max_output": 300.0,
+        "ramp_limit": 80.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "generator_id": [
+          "g1",
+          "g2",
+          "g3"
+        ],
+        "fuel_cost": [
+          "15.0",
+          "25.0",
+          "40.0"
+        ],
+        "min_output": [
+          "50.0",
+          "30.0",
+          "10.0"
+        ],
+        "max_output": [
+          "300.0",
+          "200.0",
+          "100.0"
+        ],
+        "ramp_limit": [
+          "80.0",
+          "60.0",
+          "30.0"
+        ]
+      },
+      "row_count": 3
+    },
+    "demand": {
+      "columns": {
+        "period_id": "str",
+        "demand": "float"
+      },
+      "sample": {
+        "period_id": "h1",
+        "demand": 200.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "period_id": [
+          "h1",
+          "h2",
+          "h3",
+          "h4",
+          "h5",
+          "h6"
+        ],
+        "demand": [
+          "200.0",
+          "250.0",
+          "350.0",
+          "400.0",
+          "320.0",
+          "250.0"
+        ]
+      },
+      "row_count": 6
+    }
+  },
+  "ir": {
+    "problem_class": "EconomicDispatch",
+    "model_type": "Linear Program",
+    "sense": "minimize",
+    "sets": {
+      "Generators": {
+        "size": null,
+        "index_symbol": "g",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "generators",
+        "ordered": false
+      },
+      "Periods": {
+        "size": null,
+        "index_symbol": "t",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "periods",
+        "ordered": true
+      }
+    },
+    "parameters": {
+      "fuel_cost": {
+        "domain": [
+          "Generators"
+        ],
+        "type": "float",
+        "source": "generators.csv",
+        "column": "fuel_cost",
+        "index_columns": [
+          "generator_id"
+        ],
+        "missing_default": "inf"
+      },
+      "min_output": {
+        "domain": [
+          "Generators"
+        ],
+        "type": "float",
+        "source": "generators.csv",
+        "column": "min_output",
+        "index_columns": [
+          "generator_id"
+        ],
+        "missing_default": "zero"
+      },
+      "max_output": {
+        "domain": [
+          "Generators"
+        ],
+        "type": "float",
+        "source": "generators.csv",
+        "column": "max_output",
+        "index_columns": [
+          "generator_id"
+        ],
+        "missing_default": "zero"
+      },
+      "ramp_limit": {
+        "domain": [
+          "Generators"
+        ],
+        "type": "float",
+        "source": "generators.csv",
+        "column": "ramp_limit",
+        "index_columns": [
+          "generator_id"
+        ],
+        "missing_default": "inf"
+      },
+      "demand": {
+        "domain": [
+          "Periods"
+        ],
+        "type": "float",
+        "source": "demand.csv",
+        "column": "demand",
+        "index_columns": [
+          "period_id"
+        ],
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "generate": {
+        "description": "MW output of generator g in period t",
+        "label": "generation_levels",
+        "domain": [
+          "Generators",
+          "Periods"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "power_balance": {
+        "domain": [
+          "Periods"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Generators:g"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "generate",
+              "indices": [
+                "g",
+                "t"
+              ]
+            }
+          },
+          "right": {
+            "type": "parameter",
+            "name": "demand",
+            "indices": [
+              "t"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "gen_min": {
+        "domain": [
+          "Generators",
+          "Periods"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "generate",
+            "indices": [
+              "g",
+              "t"
+            ]
+          },
+          "right": {
+            "type": "parameter",
+            "name": "min_output",
+            "indices": [
+              "g"
+            ]
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "gen_max": {
+        "domain": [
+          "Generators",
+          "Periods"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "generate",
+            "indices": [
+              "g",
+              "t"
+            ]
+          },
+          "right": {
+            "type": "parameter",
+            "name": "max_output",
+            "indices": [
+              "g"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "ramp_up": {
+        "domain": [
+          "Generators",
+          "Periods"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "subtract",
+            "left": {
+              "type": "variable",
+              "name": "generate",
+              "indices": [
+                "g",
+                "t"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "generate",
+              "indices": [
+                "g",
+                "t"
+              ],
+              "lag": -1
+            }
+          },
+          "right": {
+            "type": "parameter",
+            "name": "ramp_limit",
+            "indices": [
+              "g"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "ramp_down": {
+        "domain": [
+          "Generators",
+          "Periods"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "subtract",
+            "left": {
+              "type": "variable",
+              "name": "generate",
+              "indices": [
+                "g",
+                "t"
+              ],
+              "lag": -1
+            },
+            "right": {
+              "type": "variable",
+              "name": "generate",
+              "indices": [
+                "g",
+                "t"
+              ]
+            }
+          },
+          "right": {
+            "type": "parameter",
+            "name": "ramp_limit",
+            "indices": [
+              "g"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Generators:g",
+          "Periods:t"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "type": "parameter",
+            "name": "fuel_cost",
+            "indices": [
+              "g"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "generate",
+            "indices": [
+              "g",
+              "t"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

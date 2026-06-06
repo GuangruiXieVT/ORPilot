@@ -1,0 +1,584 @@
+{
+  "problem": {
+    "title": "Furniture Factory Multi-Week Production Mix",
+    "description": "A furniture factory produces chairs, tables, and shelves over a multi-week planning horizon. Each product type requires a certain number of labor-hours and board-feet of wood per unit. The factory has a fixed weekly supply of labor hours and wood. Products can only be produced in whole units — no fractional quantities. If the factory decides to include a product type in a given week's production run, it incurs a fixed setup cost and a variable per unit production cost, and the factory must produce at least a minimum batch size for that product type for this week. Each product type also has a maximum weekly production capacity due to machine constraints. Due to changeover constraints, at most two product types can be produced in any given week. Each product type has a revenue per unit produced. Determine which product types to include in the production plan each week and how many units of each to make to maximize total revenue minus total cost across all weeks.",
+    "problem_type": "integer_programming",
+    "objective": "maximize",
+    "objective_description": "Total revenue from production minus total cost (fixed setup cost plus variable per unit production cost) summed across all weeks",
+    "constraints": [
+      {
+        "description": "Total labor-hours consumed by all active product types in week w cannot exceed the factory's fixed weekly labor capacity"
+      },
+      {
+        "description": "Total board-feet of wood consumed by all active product types in week w cannot exceed the factory's fixed weekly wood supply"
+      },
+      {
+        "description": "If product type p is included in week w's production run, at least min_batch[p] units must be produced that week; if not included, production must be zero"
+      },
+      {
+        "description": "Production of product type p in week w cannot exceed its maximum weekly machine capacity, and production can only be positive if product type p is active in that week"
+      },
+      {
+        "description": "Due to changeover constraints, at most two product types can be active in any given week"
+      }
+    ],
+    "decision_variables": [
+      "produce[p,w]: integer number of units of product p to produce in week w",
+      "active[p,w]: binary, 1 if product p is included in week w's production run, 0 otherwise"
+    ],
+    "parameters": [
+      "revenue_per_unit[p]: revenue earned per unit of product p sold",
+      "production_cost[p]: variable cost per unit of product p produced",
+      "labor_hours[p]: labor-hours required to produce one unit of product p",
+      "wood_board_feet[p]: board-feet of wood required to produce one unit of product p",
+      "setup_cost[p]: fixed cost incurred if product p is included in a week's production run",
+      "min_batch[p]: minimum number of units of product p that must be produced if active in a given week",
+      "max_batch[p]: maximum number of units of product p that can be produced in a given week",
+      "labor_capacity: total labor-hours available per week (shared across all products)",
+      "wood_capacity: total board-feet of wood available per week (shared across all products)"
+    ],
+    "additional_notes": "",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "products": "products.csv",
+      "weeks": "weeks.csv",
+      "capacity": "capacity.csv"
+    }
+  },
+  "ir_patterns": [
+    "binary variable",
+    "integer variable",
+    "scalar parameter",
+    "big-M linking"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "products",
+        "element": "chair"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "products",
+          "weeks"
+        ],
+        "element": [
+          "chair",
+          "table",
+          "shelf",
+          "week_1",
+          "week_2",
+          "week_3",
+          "week_4"
+        ]
+      }
+    },
+    "products": {
+      "columns": {
+        "id": "str",
+        "revenue_per_unit": "float",
+        "production_cost": "float",
+        "labor_hours": "float",
+        "wood_board_feet": "float",
+        "setup_cost": "float",
+        "min_batch": "int",
+        "max_batch": "int"
+      },
+      "sample": {
+        "id": "chair",
+        "revenue_per_unit": 40.0,
+        "production_cost": 15.0,
+        "labor_hours": 2.0,
+        "wood_board_feet": 10.0,
+        "setup_cost": 50.0,
+        "min_batch": 10,
+        "max_batch": 100
+      },
+      "optional": false,
+      "distinct_values": {
+        "id": [
+          "chair",
+          "table",
+          "shelf"
+        ],
+        "revenue_per_unit": [
+          "40.0",
+          "90.0",
+          "45.0"
+        ],
+        "production_cost": [
+          "15.0",
+          "30.0",
+          "15.0"
+        ],
+        "labor_hours": [
+          "2.0",
+          "4.0",
+          "1.5"
+        ],
+        "wood_board_feet": [
+          "10.0",
+          "25.0",
+          "8.0"
+        ],
+        "setup_cost": [
+          "50.0",
+          "100.0",
+          "40.0"
+        ],
+        "min_batch": [
+          "10",
+          "5",
+          "15"
+        ],
+        "max_batch": [
+          "100",
+          "50",
+          "80"
+        ]
+      }
+    },
+    "weeks": {
+      "columns": {
+        "id": "str"
+      },
+      "sample": {
+        "id": "week_1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "id": [
+          "week_1",
+          "week_2",
+          "week_3",
+          "week_4"
+        ]
+      }
+    },
+    "capacity": {
+      "columns": {
+        "labor_capacity": "float",
+        "wood_capacity": "float"
+      },
+      "sample": {
+        "labor_capacity": 400.0,
+        "wood_capacity": 1500.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "labor_capacity": [
+          "400.0"
+        ],
+        "wood_capacity": [
+          "1500.0"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "ProductionMix",
+    "model_type": "Integer Program",
+    "sense": "maximize",
+    "sets": {
+      "Products": {
+        "size": null,
+        "index_symbol": "p",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "products",
+        "ordered": false
+      },
+      "Weeks": {
+        "size": null,
+        "index_symbol": "w",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "weeks",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "revenue": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "products.csv",
+        "column": "revenue_per_unit",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "zero"
+      },
+      "production_cost": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "products.csv",
+        "column": "production_cost",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "inf"
+      },
+      "labor_req": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "products.csv",
+        "column": "labor_hours",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "zero"
+      },
+      "wood_req": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "products.csv",
+        "column": "wood_board_feet",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "zero"
+      },
+      "setup_cost": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "products.csv",
+        "column": "setup_cost",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "inf"
+      },
+      "min_run": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "products.csv",
+        "column": "min_batch",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "zero"
+      },
+      "max_run": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "products.csv",
+        "column": "max_batch",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "zero"
+      },
+      "labor_capacity": {
+        "domain": [],
+        "type": "float",
+        "source": "capacity.csv",
+        "column": "labor_capacity",
+        "index_columns": null,
+        "missing_default": "zero"
+      },
+      "wood_capacity": {
+        "domain": [],
+        "type": "float",
+        "source": "capacity.csv",
+        "column": "wood_capacity",
+        "index_columns": null,
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "produce": {
+        "description": "Integer units of product p to produce in week w",
+        "label": "production_quantities",
+        "domain": [
+          "Products",
+          "Weeks"
+        ],
+        "type": "integer",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "active": {
+        "description": "1 if product p is included in week w's production run, 0 otherwise",
+        "label": "production_active",
+        "domain": [
+          "Products",
+          "Weeks"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "labor_limit": {
+        "domain": [
+          "Weeks"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Products:p"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "labor_req",
+              "indices": [
+                "p"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "produce",
+              "indices": [
+                "p",
+                "w"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "parameter",
+          "name": "labor_capacity",
+          "indices": []
+        }
+      },
+      "wood_limit": {
+        "domain": [
+          "Weeks"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Products:p"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "wood_req",
+              "indices": [
+                "p"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "produce",
+              "indices": [
+                "p",
+                "w"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "parameter",
+          "name": "wood_capacity",
+          "indices": []
+        }
+      },
+      "min_production": {
+        "domain": [
+          "Products",
+          "Weeks"
+        ],
+        "expression": {
+          "type": "variable",
+          "name": "produce",
+          "indices": [
+            "p",
+            "w"
+          ]
+        },
+        "sense": ">=",
+        "rhs": {
+          "operation": "multiply",
+          "left": {
+            "type": "parameter",
+            "name": "min_run",
+            "indices": [
+              "p"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "active",
+            "indices": [
+              "p",
+              "w"
+            ]
+          }
+        }
+      },
+      "max_production": {
+        "domain": [
+          "Products",
+          "Weeks"
+        ],
+        "expression": {
+          "type": "variable",
+          "name": "produce",
+          "indices": [
+            "p",
+            "w"
+          ]
+        },
+        "sense": "<=",
+        "rhs": {
+          "operation": "multiply",
+          "left": {
+            "type": "parameter",
+            "name": "max_run",
+            "indices": [
+              "p"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "active",
+            "indices": [
+              "p",
+              "w"
+            ]
+          }
+        }
+      },
+      "max_product_types": {
+        "domain": [
+          "Weeks"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Products:p"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "active",
+            "indices": [
+              "p",
+              "w"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 2
+        }
+      }
+    },
+    "objective": {
+      "sense": "maximize",
+      "expression": {
+        "operation": "subtract",
+        "left": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Products:p",
+              "Weeks:w"
+            ],
+            "body": {
+              "operation": "multiply",
+              "left": {
+                "type": "parameter",
+                "name": "revenue",
+                "indices": [
+                  "p"
+                ]
+              },
+              "right": {
+                "type": "variable",
+                "name": "produce",
+                "indices": [
+                  "p",
+                  "w"
+                ]
+              }
+            }
+          },
+          "right": {
+            "operation": "indexed_sum",
+            "over": [
+              "Products:p",
+              "Weeks:w"
+            ],
+            "body": {
+              "operation": "multiply",
+              "left": {
+                "type": "parameter",
+                "name": "production_cost",
+                "indices": [
+                  "p"
+                ]
+              },
+              "right": {
+                "type": "variable",
+                "name": "produce",
+                "indices": [
+                  "p",
+                  "w"
+                ]
+              }
+            }
+          }
+        },
+        "right": {
+          "operation": "indexed_sum",
+          "over": [
+            "Products:p",
+            "Weeks:w"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "setup_cost",
+              "indices": [
+                "p"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "active",
+              "indices": [
+                "p",
+                "w"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

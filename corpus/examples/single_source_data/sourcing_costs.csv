@@ -1,0 +1,13 @@
+supplier_id,factory_id,cost_per_unit
+sup_1,fac_1,3.0
+sup_1,fac_2,3.5
+sup_1,fac_3,4.0
+sup_1,fac_4,4.5
+sup_2,fac_1,5.0
+sup_2,fac_2,5.5
+sup_2,fac_3,6.0
+sup_2,fac_4,3.0
+sup_3,fac_1,3.5
+sup_3,fac_2,4.0
+sup_3,fac_3,4.5
+sup_3,fac_4,5.0

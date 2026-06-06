@@ -1,0 +1,567 @@
+{
+  "problem": {
+    "title": "Multi-Product Multi-Period Transportation with Truck Type Selection",
+    "description": "A regional distribution company ships two product types (Product A and Product B) from three warehouses to four retail customers over three time periods. Due to geographic constraints, only eight of the twelve possible warehouse-customer routes have established shipping lanes. Each route has a fixed per-unit shipping cost shared across all products and periods. In addition, all shipments must be transported in discrete trucks. Three truck types are available (small, medium, large), each with a different cargo capacity (maximum total units carried per trip) and a fixed dispatch cost charged per truck used, regardless of how full it is. For each warehouse-customer route in each period, the company chooses how many trucks of each type to dispatch. The total cargo capacity of dispatched trucks on a route must cover the total volume of all products shipped on that route in that period. Each warehouse has a known supply of each product each period. Each customer has a fixed demand for each product each period that must be exactly fulfilled. Minimize total cost: per-unit shipping costs across all products and periods, plus fixed dispatch costs for all trucks used.",
+    "problem_type": "mixed_integer",
+    "objective": "minimize",
+    "objective_description": "Total cost: per-unit shipping costs summed over all valid routes, products, and periods, plus fixed dispatch costs summed over all valid routes, truck types, and periods",
+    "constraints": [
+      {
+        "description": "For each warehouse, product, and period, the total amount shipped out across all valid routes must not exceed the warehouse's available supply"
+      },
+      {
+        "description": "For each customer, product, and period, the total amount received from all warehouses via valid routes must exactly equal the customer's demand"
+      },
+      {
+        "description": "For each valid route and period, the total volume shipped across all products must not exceed the combined cargo capacity of all trucks dispatched on that route in that period"
+      }
+    ],
+    "decision_variables": [
+      "ship[i,j,p,t]: amount of product p shipped from warehouse i to customer j in period t (continuous, non-negative, defined only for valid routes)",
+      "trucks[i,j,k,t]: number of trucks of type k dispatched from warehouse i to customer j in period t (integer, non-negative, defined only for valid routes)"
+    ],
+    "parameters": [
+      "transport_cost[i,j]: per-unit shipping cost from warehouse i to customer j, shared across all products and periods (defined only for valid routes)",
+      "supply[i,p,t]: supply of product p available at warehouse i in period t",
+      "demand[j,p,t]: demand for product p required by customer j in period t, which must be exactly met",
+      "truck_size[k]: cargo capacity in units for one truck of type k (maximum total units that one truck can carry per trip)",
+      "truck_fixed_cost[k]: fixed dispatch cost per truck of type k used on any route in any period"
+    ],
+    "additional_notes": "The truck_capacity_cover constraint links continuous shipment volumes to integer truck counts: the sum of all products shipped on a route in a period cannot exceed the total cargo capacity of dispatched trucks. Using larger trucks is more cost-efficient per unit of capacity but incurs a higher fixed charge, creating a trade-off between truck type and shipment volume. Multiple truck types may be combined on the same route and period.",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "transport_links": "transport_links.csv",
+      "supply_data": "supply_data.csv",
+      "demand_data": "demand_data.csv",
+      "truck_types": "truck_types.csv"
+    }
+  },
+  "ir_patterns": [
+    "integer variable",
+    "domain filter",
+    "sparse filter"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "warehouses",
+        "element": "wh1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "warehouses",
+          "customers",
+          "products",
+          "periods",
+          "truck_types"
+        ],
+        "element": [
+          "wh1",
+          "wh2",
+          "wh3",
+          "c1",
+          "c2",
+          "c3",
+          "c4",
+          "prod_A",
+          "prod_B",
+          "t1",
+          "t2",
+          "t3",
+          "small",
+          "medium",
+          "large"
+        ]
+      }
+    },
+    "transport_links": {
+      "columns": {
+        "warehouse_id": "str",
+        "customer_id": "str",
+        "cost_per_unit": "float"
+      },
+      "sample": {
+        "warehouse_id": "wh1",
+        "customer_id": "c1",
+        "cost_per_unit": 3.5
+      },
+      "optional": false,
+      "distinct_values": {
+        "warehouse_id": [
+          "wh1",
+          "wh2",
+          "wh3"
+        ],
+        "customer_id": [
+          "c1",
+          "c2",
+          "c3",
+          "c4"
+        ],
+        "cost_per_unit": [
+          "2.5",
+          "3.0",
+          "3.5",
+          "4.0",
+          "5.0"
+        ]
+      }
+    },
+    "supply_data": {
+      "columns": {
+        "warehouse_id": "str",
+        "product_id": "str",
+        "period_id": "str",
+        "supply": "float"
+      },
+      "sample": {
+        "warehouse_id": "wh1",
+        "product_id": "prod_A",
+        "period_id": "t1",
+        "supply": 150.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "warehouse_id": [
+          "wh1",
+          "wh2",
+          "wh3"
+        ],
+        "product_id": [
+          "prod_A",
+          "prod_B"
+        ],
+        "period_id": [
+          "t1",
+          "t2",
+          "t3"
+        ],
+        "supply": [
+          "100.0",
+          "110.0",
+          "120.0",
+          "130.0",
+          "140.0",
+          "150.0"
+        ]
+      }
+    },
+    "demand_data": {
+      "columns": {
+        "customer_id": "str",
+        "product_id": "str",
+        "period_id": "str",
+        "demand": "float"
+      },
+      "sample": {
+        "customer_id": "c1",
+        "product_id": "prod_A",
+        "period_id": "t1",
+        "demand": 80.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "customer_id": [
+          "c1",
+          "c2",
+          "c3",
+          "c4"
+        ],
+        "product_id": [
+          "prod_A",
+          "prod_B"
+        ],
+        "period_id": [
+          "t1",
+          "t2",
+          "t3"
+        ],
+        "demand": [
+          "55.0",
+          "60.0",
+          "65.0",
+          "70.0",
+          "75.0",
+          "80.0"
+        ]
+      }
+    },
+    "truck_types": {
+      "columns": {
+        "truck_id": "str",
+        "capacity": "float",
+        "fixed_cost": "float"
+      },
+      "sample": {
+        "truck_id": "small",
+        "capacity": 20.0,
+        "fixed_cost": 50.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "truck_id": [
+          "small",
+          "medium",
+          "large"
+        ],
+        "capacity": [
+          "20.0",
+          "40.0",
+          "80.0"
+        ],
+        "fixed_cost": [
+          "50.0",
+          "80.0",
+          "130.0"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "TransportationTruckSelection",
+    "model_type": "Mixed Integer Program",
+    "sense": "minimize",
+    "sets": {
+      "Warehouses": {
+        "size": null,
+        "index_symbol": "i",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "warehouses",
+        "ordered": false
+      },
+      "Customers": {
+        "size": null,
+        "index_symbol": "j",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "customers",
+        "ordered": false
+      },
+      "Products": {
+        "size": null,
+        "index_symbol": "p",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "products",
+        "ordered": false
+      },
+      "Periods": {
+        "size": null,
+        "index_symbol": "t",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "periods",
+        "ordered": false
+      },
+      "TruckTypes": {
+        "size": null,
+        "index_symbol": "k",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "truck_types",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "transport_cost": {
+        "domain": [
+          "Warehouses",
+          "Customers"
+        ],
+        "type": "float",
+        "source": "transport_links.csv",
+        "column": "cost_per_unit",
+        "index_columns": [
+          "warehouse_id",
+          "customer_id"
+        ],
+        "missing_default": "inf"
+      },
+      "supply": {
+        "domain": [
+          "Warehouses",
+          "Products",
+          "Periods"
+        ],
+        "type": "float",
+        "source": "supply_data.csv",
+        "column": "supply",
+        "index_columns": [
+          "warehouse_id",
+          "product_id",
+          "period_id"
+        ],
+        "missing_default": "zero"
+      },
+      "demand": {
+        "domain": [
+          "Customers",
+          "Products",
+          "Periods"
+        ],
+        "type": "float",
+        "source": "demand_data.csv",
+        "column": "demand",
+        "index_columns": [
+          "customer_id",
+          "product_id",
+          "period_id"
+        ],
+        "missing_default": "zero"
+      },
+      "truck_size": {
+        "domain": [
+          "TruckTypes"
+        ],
+        "type": "float",
+        "source": "truck_types.csv",
+        "column": "capacity",
+        "index_columns": [
+          "truck_id"
+        ],
+        "missing_default": "zero"
+      },
+      "truck_fixed_cost": {
+        "domain": [
+          "TruckTypes"
+        ],
+        "type": "float",
+        "source": "truck_types.csv",
+        "column": "fixed_cost",
+        "index_columns": [
+          "truck_id"
+        ],
+        "missing_default": "inf"
+      }
+    },
+    "variables": {
+      "ship": {
+        "description": "Amount of product p shipped from warehouse i to customer j in period t along a valid route",
+        "label": "shipments",
+        "domain": [
+          "Warehouses",
+          "Customers",
+          "Products",
+          "Periods"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false,
+        "domain_filter": "transport_cost"
+      },
+      "trucks": {
+        "description": "Number of trucks of type k dispatched from warehouse i to customer j in period t",
+        "label": "truck_dispatches",
+        "domain": [
+          "Warehouses",
+          "Customers",
+          "TruckTypes",
+          "Periods"
+        ],
+        "type": "integer",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false,
+        "domain_filter": "transport_cost"
+      }
+    },
+    "constraints": {
+      "supply_limit": {
+        "domain": [
+          "Warehouses",
+          "Products",
+          "Periods"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Customers:j"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "ship",
+            "indices": [
+              "i",
+              "j",
+              "p",
+              "t"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "parameter",
+          "name": "supply",
+          "indices": [
+            "i",
+            "p",
+            "t"
+          ]
+        }
+      },
+      "demand_satisfaction": {
+        "domain": [
+          "Customers",
+          "Products",
+          "Periods"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Warehouses:i"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "ship",
+            "indices": [
+              "i",
+              "j",
+              "p",
+              "t"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "parameter",
+          "name": "demand",
+          "indices": [
+            "j",
+            "p",
+            "t"
+          ]
+        }
+      },
+      "truck_capacity_cover": {
+        "domain": [
+          "Warehouses",
+          "Customers",
+          "Periods"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Products:p"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "ship",
+            "indices": [
+              "i",
+              "j",
+              "p",
+              "t"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "operation": "indexed_sum",
+          "over": [
+            "TruckTypes:k"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "truck_size",
+              "indices": [
+                "k"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "trucks",
+              "indices": [
+                "i",
+                "j",
+                "k",
+                "t"
+              ]
+            }
+          }
+        },
+        "sparse_filter": "transport_cost"
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "sum",
+        "left": {
+          "operation": "indexed_sum",
+          "over": [
+            "Warehouses:i",
+            "Customers:j",
+            "Products:p",
+            "Periods:t"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "transport_cost",
+              "indices": [
+                "i",
+                "j"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "ship",
+              "indices": [
+                "i",
+                "j",
+                "p",
+                "t"
+              ]
+            }
+          }
+        },
+        "right": {
+          "operation": "indexed_sum",
+          "over": [
+            "Warehouses:i",
+            "Customers:j",
+            "TruckTypes:k",
+            "Periods:t"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "truck_fixed_cost",
+              "indices": [
+                "k"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "trucks",
+              "indices": [
+                "i",
+                "j",
+                "k",
+                "t"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

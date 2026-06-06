@@ -1,0 +1,13 @@
+supplier_id,scenario_id,available_fraction
+s1,sc1,1.0
+s1,sc2,0.5
+s1,sc3,1.0
+s2,sc1,1.0
+s2,sc2,1.0
+s2,sc3,0.3
+s3,sc1,0.8
+s3,sc2,1.0
+s3,sc3,1.0
+s4,sc1,1.0
+s4,sc2,0.9
+s4,sc3,0.7

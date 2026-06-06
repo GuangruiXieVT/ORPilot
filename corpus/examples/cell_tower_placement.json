@@ -1,0 +1,383 @@
+{
+  "problem": {
+    "title": "Cell Tower Placement",
+    "description": "Place cell towers at candidate sites to maximize population covered. Each tower covers several geographic zones. Budget limits total construction cost. Maximize total population covered.",
+    "problem_type": "integer_programming",
+    "objective": "maximize",
+    "objective_description": "Total population covered by at least one tower",
+    "constraints": [
+      {
+        "description": "Total build cost does not exceed budget"
+      },
+      {
+        "description": "A zone is only covered if at least one tower covering it is built"
+      }
+    ],
+    "decision_variables": [
+      "build[s]: 1 if tower built at site s (binary)",
+      "covered[z]: 1 if zone z is covered (binary)"
+    ],
+    "parameters": [
+      "covers[s,z]: 1 if tower at site s covers zone z",
+      "population[z]: population in zone z",
+      "site_fee[s]: cost to build tower at site s",
+      "budget: total budget"
+    ],
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "coverage": "coverage.csv",
+      "population": "population.csv",
+      "costs": "costs.csv",
+      "params": "params.csv"
+    }
+  },
+  "ir_patterns": [
+    "binary variable",
+    "coverage linking",
+    "sparse parameter",
+    "scalar parameter"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "sites",
+        "element": "s1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "sites",
+          "zones"
+        ],
+        "element": [
+          "s1",
+          "s2",
+          "s3",
+          "s4",
+          "s5",
+          "s6",
+          "s7",
+          "s8",
+          "z1",
+          "z2",
+          "z3",
+          "z4",
+          "z5",
+          "z6",
+          "z7",
+          "z8",
+          "z9",
+          "z10"
+        ]
+      }
+    },
+    "coverage": {
+      "columns": {
+        "site_id": "str",
+        "zone_id": "str",
+        "covers": "int"
+      },
+      "sample": {
+        "site_id": "s1",
+        "zone_id": "z1",
+        "covers": 1
+      },
+      "optional": false,
+      "distinct_values": {
+        "site_id": [
+          "s1",
+          "s2",
+          "s3",
+          "s4",
+          "s5",
+          "s6",
+          "s7",
+          "s8"
+        ],
+        "zone_id": [
+          "z1",
+          "z2",
+          "z3",
+          "z4",
+          "z5",
+          "z6",
+          "z7",
+          "z8",
+          "z9",
+          "z10"
+        ]
+      }
+    },
+    "population": {
+      "columns": {
+        "zone_id": "str",
+        "population": "float"
+      },
+      "sample": {
+        "zone_id": "z1",
+        "population": 5000.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "zone_id": [
+          "z1",
+          "z2",
+          "z3",
+          "z4",
+          "z5",
+          "z6",
+          "z7",
+          "z8",
+          "z9",
+          "z10"
+        ]
+      }
+    },
+    "costs": {
+      "columns": {
+        "site_id": "str",
+        "build_cost": "float"
+      },
+      "sample": {
+        "site_id": "s1",
+        "build_cost": 100.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "site_id": [
+          "s1",
+          "s2",
+          "s3",
+          "s4",
+          "s5",
+          "s6",
+          "s7",
+          "s8"
+        ]
+      }
+    },
+    "params": {
+      "columns": {
+        "budget": "float"
+      },
+      "sample": {
+        "budget": 350.0
+      },
+      "optional": false,
+      "distinct_values": {}
+    }
+  },
+  "ir": {
+    "problem_class": "CoverageMaximization",
+    "model_type": "Mixed Integer Program",
+    "sense": "maximize",
+    "sets": {
+      "Sites": {
+        "size": null,
+        "index_symbol": "s",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "sites",
+        "ordered": false
+      },
+      "Zones": {
+        "size": null,
+        "index_symbol": "z",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "zones",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "covers": {
+        "domain": [
+          "Sites",
+          "Zones"
+        ],
+        "type": "float",
+        "source": "coverage.csv",
+        "column": "covers",
+        "index_columns": [
+          "site_id",
+          "zone_id"
+        ],
+        "missing_default": "zero"
+      },
+      "population": {
+        "domain": [
+          "Zones"
+        ],
+        "type": "float",
+        "source": "population.csv",
+        "column": "population",
+        "index_columns": [
+          "zone_id"
+        ],
+        "missing_default": "zero"
+      },
+      "budget": {
+        "domain": [],
+        "type": "float",
+        "source": "params.csv",
+        "column": "budget",
+        "missing_default": "zero"
+      },
+      "site_fee": {
+        "domain": [
+          "Sites"
+        ],
+        "type": "float",
+        "source": "costs.csv",
+        "column": "construction_fee",
+        "index_columns": [
+          "site_id"
+        ],
+        "missing_default": "inf"
+      }
+    },
+    "variables": {
+      "build": {
+        "description": "1 if tower is built at site s",
+        "label": "tower_builds",
+        "domain": [
+          "Sites"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "covered": {
+        "description": "1 if zone z is covered by at least one tower",
+        "label": "zone_coverage",
+        "domain": [
+          "Zones"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "budget_limit": {
+        "domain": [],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Sites:s"
+            ],
+            "body": {
+              "operation": "multiply",
+              "left": {
+                "type": "parameter",
+                "name": "site_fee",
+                "indices": [
+                  "s"
+                ]
+              },
+              "right": {
+                "type": "variable",
+                "name": "build",
+                "indices": [
+                  "s"
+                ]
+              }
+            }
+          },
+          "right": {
+            "type": "parameter",
+            "name": "budget",
+            "indices": []
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "coverage_link": {
+        "domain": [
+          "Zones"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "covered",
+            "indices": [
+              "z"
+            ]
+          },
+          "right": {
+            "operation": "indexed_sum",
+            "over": [
+              "Sites:s"
+            ],
+            "body": {
+              "operation": "multiply",
+              "left": {
+                "type": "parameter",
+                "name": "covers",
+                "indices": [
+                  "s",
+                  "z"
+                ]
+              },
+              "right": {
+                "type": "variable",
+                "name": "build",
+                "indices": [
+                  "s"
+                ]
+              }
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "maximize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Zones:z"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "type": "parameter",
+            "name": "population",
+            "indices": [
+              "z"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "covered",
+            "indices": [
+              "z"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

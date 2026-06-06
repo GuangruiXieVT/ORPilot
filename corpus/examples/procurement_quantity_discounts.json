@@ -1,0 +1,421 @@
+{
+  "problem": {
+    "title": "Procurement with All-Units Quantity Discounts",
+    "description": "A buyer procures several items from a supplier that offers all-units quantity discounts: each item has pricing tiers (small, medium, large) with decreasing unit costs as order volume increases. Within a tier, the unit cost applies to every unit ordered. The buyer must select exactly one tier per item, order at least the tier minimum quantity if that tier is selected, and meet all demand. Determine the tier and order quantity for each item to minimize total procurement cost.",
+    "problem_type": "mixed_integer_programming",
+    "objective": "minimize",
+    "objective_description": "Total procurement cost = sum of unit cost times order quantity across all items and tiers",
+    "constraints": [
+      {
+        "description": "Exactly one pricing tier must be selected per item"
+      },
+      {
+        "description": "Total order quantity across tiers for each item must meet the item's demand"
+      },
+      {
+        "description": "Order quantity at a tier must be at least the tier's minimum order quantity if that tier is selected (lower bound link)"
+      },
+      {
+        "description": "Order quantity at a tier must not exceed the tier's maximum order quantity if selected, and is zero if not selected (upper bound link)"
+      }
+    ],
+    "decision_variables": [
+      "order_qty[i,k]: quantity of item i ordered under tier k (continuous, non-negative)",
+      "use_tier[i,k]: 1 if item i is ordered at tier k, else 0 (binary)"
+    ],
+    "parameters": [
+      "demand[i]: total demand for item i",
+      "unit_cost[i,k]: cost per unit for item i ordered at tier k",
+      "tier_lb[i,k]: minimum order quantity for item i under tier k",
+      "tier_ub[i,k]: maximum order quantity for item i under tier k"
+    ],
+    "additional_notes": "All-units discounts mean the chosen tier's unit price applies to the entire quantity ordered. Tier bounds combined with the binary use_tier variable enforce that order quantities only fall within the valid range for the selected tier.",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "items": "items.csv",
+      "item_tiers": "item_tiers.csv"
+    }
+  },
+  "ir_patterns": [
+    "binary variable",
+    "big-M linking",
+    "step cost"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "items",
+        "element": "item_A"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "items",
+          "tiers"
+        ],
+        "element": [
+          "item_A",
+          "item_B",
+          "item_C",
+          "item_D",
+          "small",
+          "medium",
+          "large"
+        ]
+      }
+    },
+    "items": {
+      "columns": {
+        "id": "str",
+        "demand": "float"
+      },
+      "sample": {
+        "id": "item_A",
+        "demand": 80.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "id": [
+          "item_A",
+          "item_B",
+          "item_C",
+          "item_D"
+        ],
+        "demand": [
+          "50.0",
+          "80.0",
+          "120.0",
+          "200.0"
+        ]
+      }
+    },
+    "item_tiers": {
+      "columns": {
+        "item_id": "str",
+        "tier_id": "str",
+        "unit_cost": "float",
+        "tier_lb": "float",
+        "tier_ub": "float"
+      },
+      "sample": {
+        "item_id": "item_A",
+        "tier_id": "small",
+        "unit_cost": 10.0,
+        "tier_lb": 1.0,
+        "tier_ub": 99.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "item_id": [
+          "item_A",
+          "item_B",
+          "item_C",
+          "item_D"
+        ],
+        "tier_id": [
+          "small",
+          "medium",
+          "large"
+        ],
+        "unit_cost": [
+          "5.0",
+          "6.0",
+          "6.5",
+          "7.5",
+          "8.0",
+          "9.0",
+          "10.0",
+          "11.0",
+          "12.0"
+        ],
+        "tier_lb": [
+          "1.0",
+          "100.0",
+          "300.0"
+        ],
+        "tier_ub": [
+          "99.0",
+          "299.0",
+          "9999.0"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "ProcurementQuantityDiscounts",
+    "model_type": "Mixed Integer Program",
+    "sense": "minimize",
+    "sets": {
+      "Items": {
+        "size": null,
+        "index_symbol": "i",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "items",
+        "ordered": false
+      },
+      "Tiers": {
+        "size": null,
+        "index_symbol": "k",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "tiers",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "demand": {
+        "domain": [
+          "Items"
+        ],
+        "type": "float",
+        "source": "items.csv",
+        "column": "demand",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "zero"
+      },
+      "unit_cost": {
+        "domain": [
+          "Items",
+          "Tiers"
+        ],
+        "type": "float",
+        "source": "item_tiers.csv",
+        "column": "unit_cost",
+        "index_columns": [
+          "item_id",
+          "tier_id"
+        ],
+        "missing_default": "inf"
+      },
+      "tier_lb": {
+        "domain": [
+          "Items",
+          "Tiers"
+        ],
+        "type": "float",
+        "source": "item_tiers.csv",
+        "column": "tier_lb",
+        "index_columns": [
+          "item_id",
+          "tier_id"
+        ],
+        "missing_default": "zero"
+      },
+      "tier_ub": {
+        "domain": [
+          "Items",
+          "Tiers"
+        ],
+        "type": "float",
+        "source": "item_tiers.csv",
+        "column": "tier_ub",
+        "index_columns": [
+          "item_id",
+          "tier_id"
+        ],
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "order_qty": {
+        "description": "Quantity of item i ordered at tier k",
+        "label": "order_quantities",
+        "domain": [
+          "Items",
+          "Tiers"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "use_tier": {
+        "description": "1 if item i is ordered at tier k",
+        "label": "tier_selections",
+        "domain": [
+          "Items",
+          "Tiers"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "one_tier": {
+        "domain": [
+          "Items"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Tiers:k"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "use_tier",
+            "indices": [
+              "i",
+              "k"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 1
+        }
+      },
+      "demand_coverage": {
+        "domain": [
+          "Items"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Tiers:k"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "order_qty",
+            "indices": [
+              "i",
+              "k"
+            ]
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "parameter",
+          "name": "demand",
+          "indices": [
+            "i"
+          ]
+        }
+      },
+      "tier_lb_link": {
+        "domain": [
+          "Items",
+          "Tiers"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "tier_lb",
+              "indices": [
+                "i",
+                "k"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "use_tier",
+              "indices": [
+                "i",
+                "k"
+              ]
+            }
+          },
+          "right": {
+            "type": "variable",
+            "name": "order_qty",
+            "indices": [
+              "i",
+              "k"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "tier_ub_link": {
+        "domain": [
+          "Items",
+          "Tiers"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "order_qty",
+            "indices": [
+              "i",
+              "k"
+            ]
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "tier_ub",
+              "indices": [
+                "i",
+                "k"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "use_tier",
+              "indices": [
+                "i",
+                "k"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Items:i",
+          "Tiers:k"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "type": "parameter",
+            "name": "unit_cost",
+            "indices": [
+              "i",
+              "k"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "order_qty",
+            "indices": [
+              "i",
+              "k"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

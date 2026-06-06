@@ -2,7 +2,7 @@
 
 from enum import Enum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class ProblemType(str, Enum):
@@ -23,7 +23,6 @@ class ObjectiveType(str, Enum):
 
 class Constraint(BaseModel):
     description: str = Field(..., description="Natural language description of the constraint")
-    expression: str | None = Field(None, description="Mathematical expression if available")
 
 
 class ProblemDefinition(BaseModel):
@@ -39,7 +38,20 @@ class ProblemDefinition(BaseModel):
         default_factory=list,
         description="Natural language descriptions of decision variables",
     )
+    parameters: list[str] = Field(
+        default_factory=list,
+        description="Natural language descriptions of parameters with their indices, e.g. 'cost[i,j]: shipping cost from i to j'",
+    )
     additional_notes: str = Field("", description="Any extra context from the user")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_none_lists(cls, data):
+        if isinstance(data, dict):
+            for field in ("constraints", "decision_variables", "parameters"):
+                if data.get(field) is None:
+                    data[field] = []
+        return data
     csv_file_paths: dict[str, str] = Field(
         default_factory=dict,
         description="Mapping of table name to absolute CSV file path (e.g. {'costs': '/data/costs.csv'})",

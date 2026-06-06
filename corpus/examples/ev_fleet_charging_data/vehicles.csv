@@ -1,0 +1,9 @@
+vehicle_id,min_charge,max_battery
+v1,20,60
+v2,15,50
+v3,25,70
+v4,18,55
+v5,22,65
+v6,12,45
+v7,20,60
+v8,16,50

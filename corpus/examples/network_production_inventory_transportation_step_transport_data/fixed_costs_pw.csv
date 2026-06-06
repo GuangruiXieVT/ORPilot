@@ -1,0 +1,8 @@
+plant_id,warehouse_id,fixed_cost,shipment_size
+p1,w1,50.0,40.0
+p1,w2,60.0,35.0
+p2,w1,40.0,45.0
+p2,w2,35.0,40.0
+p2,w3,45.0,30.0
+p3,w2,55.0,35.0
+p3,w3,40.0,40.0

@@ -1,0 +1,13 @@
+set_name,element
+worker_types,ft
+worker_types,pt
+shifts,morning
+shifts,afternoon
+shifts,night
+days,mon
+days,tue
+days,wed
+days,thu
+days,fri
+days,sat
+days,sun

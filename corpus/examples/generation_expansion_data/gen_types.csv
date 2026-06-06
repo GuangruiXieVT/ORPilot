@@ -1,0 +1,4 @@
+gen_type,build_cost,fuel_cost,max_build,initial_capacity
+coal,1500,30,200,500
+gas,800,50,150,300
+solar,600,0,100,0

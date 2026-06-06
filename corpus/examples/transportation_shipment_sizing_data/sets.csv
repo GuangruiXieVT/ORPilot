@@ -1,0 +1,16 @@
+set_name,element
+truck_types,small
+truck_types,medium
+truck_types,large
+warehouses,wh1
+warehouses,wh2
+warehouses,wh3
+customers,c1
+customers,c2
+customers,c3
+customers,c4
+products,prod_A
+products,prod_B
+periods,t1
+periods,t2
+periods,t3

@@ -1,0 +1,291 @@
+{
+  "problem": {
+    "title": "Multi-Period Capital Budgeting",
+    "description": "A company is evaluating a set of investment projects. Each project has a known net present value (NPV) if undertaken. Undertaking a project requires capital expenditures spread across multiple time periods — the expenditure required for each project in each period is known. In each period, the total capital expenditure across all selected projects cannot exceed a period-specific budget limit. Projects are binary decisions: either fully undertaken or not at all. Determine which projects to select to maximize total NPV subject to the per-period budget constraints.",
+    "problem_type": "integer_programming",
+    "objective": "maximize",
+    "objective_description": "Total net present value (NPV) of all selected investment projects",
+    "constraints": [
+      {
+        "description": "For each time period, the total capital expenditure required by all selected projects must not exceed the period's available budget"
+      }
+    ],
+    "decision_variables": [
+      "select[p]: 1 if project p is selected for investment, 0 otherwise (binary)"
+    ],
+    "parameters": [
+      "npv[p]: net present value of project p if selected",
+      "investment_required[p,t]: capital expenditure required by project p in period t",
+      "budget[t]: maximum capital available for investment in period t"
+    ],
+    "additional_notes": "",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "projects": "projects.csv",
+      "investment_costs": "investment_costs.csv",
+      "periods": "periods.csv"
+    }
+  },
+  "ir_patterns": [
+    "binary variable",
+    "big-M linking"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "projects",
+        "element": "proj_A"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "projects",
+          "periods"
+        ],
+        "element": [
+          "proj_A",
+          "proj_B",
+          "proj_C",
+          "proj_D",
+          "proj_E",
+          "yr_1",
+          "yr_2",
+          "yr_3"
+        ]
+      }
+    },
+    "projects": {
+      "columns": {
+        "id": "str",
+        "npv": "float"
+      },
+      "sample": {
+        "id": "proj_A",
+        "npv": 150.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "id": [
+          "proj_A",
+          "proj_B",
+          "proj_C",
+          "proj_D",
+          "proj_E"
+        ],
+        "npv": [
+          "80.0",
+          "100.0",
+          "120.0",
+          "150.0",
+          "200.0"
+        ]
+      }
+    },
+    "investment_costs": {
+      "columns": {
+        "project_id": "str",
+        "period_id": "str",
+        "investment_required": "float"
+      },
+      "sample": {
+        "project_id": "proj_A",
+        "period_id": "yr_1",
+        "investment_required": 40.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "project_id": [
+          "proj_A",
+          "proj_B",
+          "proj_C",
+          "proj_D",
+          "proj_E"
+        ],
+        "period_id": [
+          "yr_1",
+          "yr_2",
+          "yr_3"
+        ],
+        "investment_required": [
+          "10.0",
+          "20.0",
+          "30.0",
+          "40.0",
+          "50.0",
+          "60.0"
+        ]
+      }
+    },
+    "periods": {
+      "columns": {
+        "id": "str",
+        "budget": "float"
+      },
+      "sample": {
+        "id": "yr_1",
+        "budget": 100.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "id": [
+          "yr_1",
+          "yr_2",
+          "yr_3"
+        ],
+        "budget": [
+          "80.0",
+          "100.0",
+          "120.0"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "CapitalBudgeting",
+    "model_type": "Mixed Integer Program",
+    "sense": "maximize",
+    "sets": {
+      "Projects": {
+        "size": null,
+        "index_symbol": "p",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "projects",
+        "ordered": false
+      },
+      "Periods": {
+        "size": null,
+        "index_symbol": "t",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "periods",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "npv": {
+        "domain": [
+          "Projects"
+        ],
+        "type": "float",
+        "source": "projects.csv",
+        "column": "npv",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "zero"
+      },
+      "investment_required": {
+        "domain": [
+          "Projects",
+          "Periods"
+        ],
+        "type": "float",
+        "source": "investment_costs.csv",
+        "column": "investment_required",
+        "index_columns": [
+          "project_id",
+          "period_id"
+        ],
+        "missing_default": "zero"
+      },
+      "budget": {
+        "domain": [
+          "Periods"
+        ],
+        "type": "float",
+        "source": "periods.csv",
+        "column": "budget",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "select": {
+        "description": "1 if project p is selected for investment, 0 otherwise",
+        "label": "selected_projects",
+        "domain": [
+          "Projects"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "budget_limit": {
+        "domain": [
+          "Periods"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Projects:p"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "investment_required",
+              "indices": [
+                "p",
+                "t"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "select",
+              "indices": [
+                "p"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "parameter",
+          "name": "budget",
+          "indices": [
+            "t"
+          ]
+        }
+      }
+    },
+    "objective": {
+      "sense": "maximize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Projects:p"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "type": "parameter",
+            "name": "npv",
+            "indices": [
+              "p"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "select",
+            "indices": [
+              "p"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

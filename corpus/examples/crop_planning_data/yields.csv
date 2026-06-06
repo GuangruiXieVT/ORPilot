@@ -1,0 +1,11 @@
+crop,season,yield_per_acre
+wheat,sp,3.5
+wheat,su,2.8
+wheat,fa,3.0
+corn,sp,5.0
+corn,su,4.5
+soy,su,2.5
+soy,fa,2.0
+cotton,sp,2.0
+cotton,su,2.5
+cotton,fa,1.5

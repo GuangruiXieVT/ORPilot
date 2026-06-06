@@ -1,0 +1,5 @@
+vehicle_id,capacity,cost_per_km
+v1,40.0,2.5
+v2,35.0,2.8
+v3,50.0,2.2
+v4,30.0,3.0

@@ -1,0 +1,13 @@
+component_id,product_id,quantity
+comp_1,prod_X,0.0
+comp_1,prod_Y,1.0
+comp_1,prod_Z,2.0
+comp_2,prod_X,3.0
+comp_2,prod_Y,4.0
+comp_2,prod_Z,5.0
+comp_3,prod_X,0.0
+comp_3,prod_Y,1.0
+comp_3,prod_Z,2.0
+comp_4,prod_X,3.0
+comp_4,prod_Y,4.0
+comp_4,prod_Z,5.0

@@ -74,5 +74,9 @@ class WorkflowState(TypedDict, total=False):
     # When True: save data.json to output_dir for portability (run model on another machine)
     save_data: bool
 
+    # API key and model for OpenAI embedding (used by RAG retrieval)
+    embed_api_key: str | None
+    embed_model: str | None
+
     # Observability: per-node token counts and latency (accumulated by graph.py instrumentation)
     metrics: dict

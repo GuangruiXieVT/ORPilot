@@ -1,0 +1,11 @@
+project_id,resource_id,resource_use
+pj1,r1,3
+pj1,r2,2
+pj2,r1,5
+pj2,r2,4
+pj3,r1,2
+pj3,r2,3
+pj4,r1,6
+pj4,r2,5
+pj5,r1,1
+pj5,r2,2

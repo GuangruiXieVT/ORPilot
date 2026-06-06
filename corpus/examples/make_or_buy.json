@@ -1,0 +1,420 @@
+{
+  "problem": {
+    "title": "Make-or-Buy Sourcing Decision",
+    "description": "A manufacturer must decide, for each product, whether to produce it in-house or purchase it from an external supplier. Producing a product in-house incurs a fixed setup cost plus a variable cost per unit; outsourcing incurs only a per-unit purchase price. All demand must be met. In-house production consumes shared labor capacity, so the total production volume across all products cannot exceed the available labor hours. Determine which products to make in-house and how much of each to produce or buy to minimize total cost.",
+    "problem_type": "mixed_integer_programming",
+    "objective": "minimize",
+    "objective_description": "Total cost = sum of (fixed setup cost × make decision + variable production cost × produced units + purchase cost × bought units) over all products",
+    "constraints": [
+      {
+        "description": "Demand met: produced plus purchased quantity must equal demand for each product"
+      },
+      {
+        "description": "Make-link: production quantity is zero unless the product is made in-house (big-M linking constraint using prod_cap as upper bound)"
+      },
+      {
+        "description": "Labor capacity: total production across all products must not exceed available labor capacity"
+      }
+    ],
+    "decision_variables": [
+      "produce[p]: units of product p produced in-house (continuous, non-negative)",
+      "buy[p]: units of product p purchased externally (continuous, non-negative)",
+      "make[p]: 1 if product p is produced in-house, else 0 (binary)"
+    ],
+    "parameters": [
+      "demand[p]: total demand for product p",
+      "prod_cost[p]: variable in-house production cost per unit of product p",
+      "fixed_cost[p]: fixed setup cost for producing product p in-house",
+      "buy_cost[p]: cost per unit of product p purchased externally",
+      "prod_cap[p]: maximum in-house production quantity for product p (also serves as big-M for make-link)",
+      "labor_cap: total labor capacity available for in-house production (shared across all products)"
+    ],
+    "additional_notes": "The make-link constraint (produce[p] ≤ prod_cap[p] × make[p]) ensures in-house production can only occur when make[p] = 1. The fixed_cost is only incurred when make[p] = 1. The optimizer balances fixed setup costs against per-unit savings from in-house production, subject to the shared labor capacity constraint.",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "products": "products.csv",
+      "capacity": "capacity.csv"
+    }
+  },
+  "ir_patterns": [
+    "binary variable",
+    "scalar parameter",
+    "big-M linking"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "products",
+        "element": "prod_A"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "products"
+        ],
+        "element": [
+          "prod_A",
+          "prod_B",
+          "prod_C",
+          "prod_D"
+        ]
+      }
+    },
+    "products": {
+      "columns": {
+        "id": "str",
+        "demand": "float",
+        "prod_cost": "float",
+        "fixed_cost": "float",
+        "buy_cost": "float",
+        "prod_cap": "float"
+      },
+      "sample": {
+        "id": "prod_A",
+        "demand": 100.0,
+        "prod_cost": 5.0,
+        "fixed_cost": 200.0,
+        "buy_cost": 9.0,
+        "prod_cap": 150.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "id": [
+          "prod_A",
+          "prod_B",
+          "prod_C",
+          "prod_D"
+        ],
+        "demand": [
+          "60.0",
+          "80.0",
+          "100.0",
+          "120.0"
+        ],
+        "prod_cost": [
+          "4.0",
+          "5.0",
+          "7.0",
+          "10.0"
+        ],
+        "fixed_cost": [
+          "100.0",
+          "150.0",
+          "200.0",
+          "300.0"
+        ],
+        "buy_cost": [
+          "9.0",
+          "10.0",
+          "11.0",
+          "12.0"
+        ],
+        "prod_cap": [
+          "80.0",
+          "120.0",
+          "150.0",
+          "200.0"
+        ]
+      }
+    },
+    "capacity": {
+      "columns": {
+        "labor_cap": "float"
+      },
+      "sample": {
+        "labor_cap": 250.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "labor_cap": [
+          "250.0"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "MakeOrBuy",
+    "model_type": "Mixed Integer Program",
+    "sense": "minimize",
+    "sets": {
+      "Products": {
+        "size": null,
+        "index_symbol": "p",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "products",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "demand": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "products.csv",
+        "column": "demand",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "zero"
+      },
+      "prod_cost": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "products.csv",
+        "column": "prod_cost",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "inf"
+      },
+      "fixed_cost": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "products.csv",
+        "column": "fixed_cost",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "inf"
+      },
+      "buy_cost": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "products.csv",
+        "column": "buy_cost",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "inf"
+      },
+      "prod_cap": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "products.csv",
+        "column": "prod_cap",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "zero"
+      },
+      "labor_cap": {
+        "domain": [],
+        "type": "float",
+        "source": "capacity.csv",
+        "column": "labor_cap",
+        "index_columns": null,
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "produce": {
+        "description": "Units of product p produced in-house",
+        "label": "production_quantities",
+        "domain": [
+          "Products"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "buy": {
+        "description": "Units of product p purchased externally",
+        "label": "purchase_quantities",
+        "domain": [
+          "Products"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "make": {
+        "description": "1 if product p is produced in-house",
+        "label": "make_decisions",
+        "domain": [
+          "Products"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "demand_met": {
+        "domain": [
+          "Products"
+        ],
+        "expression": {
+          "operation": "sum",
+          "left": {
+            "type": "variable",
+            "name": "produce",
+            "indices": [
+              "p"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "buy",
+            "indices": [
+              "p"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "parameter",
+          "name": "demand",
+          "indices": [
+            "p"
+          ]
+        }
+      },
+      "make_link": {
+        "domain": [
+          "Products"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "produce",
+            "indices": [
+              "p"
+            ]
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "prod_cap",
+              "indices": [
+                "p"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "make",
+              "indices": [
+                "p"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "labor_capacity": {
+        "domain": [],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Products:p"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "produce",
+            "indices": [
+              "p"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "parameter",
+          "name": "labor_cap",
+          "indices": []
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Products:p"
+        ],
+        "body": {
+          "operation": "sum",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "operation": "multiply",
+              "left": {
+                "type": "parameter",
+                "name": "fixed_cost",
+                "indices": [
+                  "p"
+                ]
+              },
+              "right": {
+                "type": "variable",
+                "name": "make",
+                "indices": [
+                  "p"
+                ]
+              }
+            },
+            "right": {
+              "operation": "multiply",
+              "left": {
+                "type": "parameter",
+                "name": "prod_cost",
+                "indices": [
+                  "p"
+                ]
+              },
+              "right": {
+                "type": "variable",
+                "name": "produce",
+                "indices": [
+                  "p"
+                ]
+              }
+            }
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "buy_cost",
+              "indices": [
+                "p"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "buy",
+              "indices": [
+                "p"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

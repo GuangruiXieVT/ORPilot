@@ -1,0 +1,290 @@
+{
+  "problem": {
+    "title": "Clinic Appointment Scheduling",
+    "description": "A clinic schedules patient appointments to time slots and clinicians. Each patient must be seen exactly once by a clinician they are eligible for (sparse). Each clinician can handle at most one patient per slot. Maximize total patient preference score.",
+    "problem_type": "mixed_integer",
+    "objective": "maximize",
+    "objective_description": "Total preference score = sum over all assignments of preference[patient, slot] * schedule[patient, slot, clinician]",
+    "constraints": [
+      {
+        "description": "Each patient is seen exactly once"
+      },
+      {
+        "description": "Each clinician handles at most one patient per slot"
+      }
+    ],
+    "decision_variables": [
+      "schedule[Patients, Slots, Clinicians]: 1 if patient p is scheduled in slot sl with clinician cl (binary, sparse by eligibility)"
+    ],
+    "parameters": [
+      "eligible[Patients, Clinicians]: 1 if patient p is eligible to see clinician cl (sparse)",
+      "pref[Patients, Slots]: patient preference score for each slot"
+    ],
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "eligible": "eligible.csv",
+      "preference": "preference.csv"
+    }
+  },
+  "ir_patterns": [
+    "binary variable",
+    "domain filter",
+    "3D variable",
+    "maximize preference"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "patients",
+        "element": "p1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "patients",
+          "slots",
+          "clinicians"
+        ],
+        "element": [
+          "p1",
+          "p2",
+          "p3",
+          "p4",
+          "p5",
+          "sl1",
+          "sl2",
+          "sl3",
+          "sl4",
+          "cl1",
+          "cl2",
+          "cl3"
+        ]
+      }
+    },
+    "eligible": {
+      "columns": {
+        "patient_id": "str",
+        "clinician_id": "str",
+        "eligible": "float"
+      },
+      "sample": {
+        "patient_id": "p1",
+        "clinician_id": "cl1",
+        "eligible": 1.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "patient_id": [
+          "p1",
+          "p2",
+          "p3",
+          "p4",
+          "p5"
+        ],
+        "clinician_id": [
+          "cl1",
+          "cl2",
+          "cl3"
+        ]
+      }
+    },
+    "preference": {
+      "columns": {
+        "patient_id": "str",
+        "slot_id": "str",
+        "pref": "float"
+      },
+      "sample": {
+        "patient_id": "p1",
+        "slot_id": "sl1",
+        "pref": 5.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "patient_id": [
+          "p1",
+          "p2",
+          "p3",
+          "p4",
+          "p5"
+        ],
+        "slot_id": [
+          "sl1",
+          "sl2",
+          "sl3",
+          "sl4"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "AppointmentScheduling",
+    "model_type": "Mixed Integer Program",
+    "sense": "maximize",
+    "sets": {
+      "Patients": {
+        "size": null,
+        "index_symbol": "p",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "patients",
+        "ordered": false
+      },
+      "Slots": {
+        "size": null,
+        "index_symbol": "sl",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "slots",
+        "ordered": false
+      },
+      "Clinicians": {
+        "size": null,
+        "index_symbol": "cl",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "clinicians",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "eligible": {
+        "domain": [
+          "Patients",
+          "Clinicians"
+        ],
+        "type": "float",
+        "source": "eligible.csv",
+        "column": "eligible",
+        "index_columns": [
+          "patient_id",
+          "clinician_id"
+        ],
+        "missing_default": "zero"
+      },
+      "pref": {
+        "domain": [
+          "Patients",
+          "Slots"
+        ],
+        "type": "float",
+        "source": "preference.csv",
+        "column": "pref",
+        "index_columns": [
+          "patient_id",
+          "slot_id"
+        ],
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "schedule": {
+        "description": "1 if patient p is scheduled in slot sl with clinician cl",
+        "label": "schedule_assignments",
+        "domain": [
+          "Patients",
+          "Slots",
+          "Clinicians"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false,
+        "domain_filter": "eligible"
+      }
+    },
+    "constraints": {
+      "patient_seen_once": {
+        "domain": [
+          "Patients"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Slots:sl",
+            "Clinicians:cl"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "schedule",
+            "indices": [
+              "p",
+              "sl",
+              "cl"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 1
+        }
+      },
+      "clinician_one_per_slot": {
+        "domain": [
+          "Slots",
+          "Clinicians"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Patients:p"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "schedule",
+            "indices": [
+              "p",
+              "sl",
+              "cl"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 1
+        }
+      }
+    },
+    "objective": {
+      "sense": "maximize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Patients:p",
+          "Slots:sl",
+          "Clinicians:cl"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "type": "parameter",
+            "name": "pref",
+            "indices": [
+              "p",
+              "sl"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "schedule",
+            "indices": [
+              "p",
+              "sl",
+              "cl"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

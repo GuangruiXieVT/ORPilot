@@ -1,0 +1,16 @@
+product_id,period_id,demand
+milk,mon,20.0
+milk,tue,25.0
+milk,wed,15.0
+milk,thu,30.0
+milk,fri,20.0
+bread,mon,30.0
+bread,tue,20.0
+bread,wed,35.0
+bread,thu,25.0
+bread,fri,30.0
+eggs,mon,15.0
+eggs,tue,20.0
+eggs,wed,15.0
+eggs,thu,25.0
+eggs,fri,20.0

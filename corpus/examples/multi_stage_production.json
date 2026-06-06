@@ -1,0 +1,414 @@
+{
+  "problem": {
+    "title": "Multi-Stage Production Planning",
+    "description": "A factory processes raw materials through 3 sequential production stages. The output fraction of each stage (yield rate) limits how much can flow into the next stage. Each stage has a capacity limit. Maximize total revenue from final-stage output.",
+    "problem_type": "linear_program",
+    "objective": "maximize",
+    "objective_description": "Total revenue from stage s3 output across all products",
+    "constraints": [
+      {
+        "description": "Stage 1 input is limited by raw material supply"
+      },
+      {
+        "description": "Stage capacity limits total throughput per stage"
+      },
+      {
+        "description": "Stage 2 input is limited by stage 1 yield times stage 1 output"
+      },
+      {
+        "description": "Stage 3 input is limited by stage 2 yield times stage 2 output"
+      }
+    ],
+    "decision_variables": [
+      "process[p,s]: units processed for product p at stage s (continuous >= 0)"
+    ],
+    "parameters": [
+      "yield_rate[p,s]: output fraction at each stage",
+      "stage_cap[s]: maximum total throughput per stage",
+      "raw_supply[p]: available raw material for product p",
+      "output_value[p]: revenue per unit of final stage output"
+    ],
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "yields": "yields.csv",
+      "stages": "stages.csv",
+      "raw": "raw.csv",
+      "values": "values.csv"
+    }
+  },
+  "ir_patterns": [
+    "LP",
+    "sequential stage constraints",
+    "hardcoded stage member references",
+    "yield flow balance"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "products",
+        "element": "A"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "products",
+          "stages"
+        ],
+        "element": [
+          "A",
+          "B",
+          "C",
+          "s1",
+          "s2",
+          "s3"
+        ]
+      }
+    },
+    "yields": {
+      "columns": {
+        "product_id": "str",
+        "stage_id": "str",
+        "yield_rate": "float"
+      },
+      "sample": {
+        "product_id": "A",
+        "stage_id": "s1",
+        "yield_rate": 0.9
+      },
+      "optional": false,
+      "distinct_values": {
+        "product_id": [
+          "A",
+          "B",
+          "C"
+        ],
+        "stage_id": [
+          "s1",
+          "s2",
+          "s3"
+        ]
+      }
+    },
+    "stages": {
+      "columns": {
+        "stage_id": "str",
+        "stage_cap": "float"
+      },
+      "sample": {
+        "stage_id": "s1",
+        "stage_cap": 500.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "stage_id": [
+          "s1",
+          "s2",
+          "s3"
+        ]
+      }
+    },
+    "raw": {
+      "columns": {
+        "product_id": "str",
+        "raw_supply": "float"
+      },
+      "sample": {
+        "product_id": "A",
+        "raw_supply": 300.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "product_id": [
+          "A",
+          "B",
+          "C"
+        ]
+      }
+    },
+    "values": {
+      "columns": {
+        "product_id": "str",
+        "output_value": "float"
+      },
+      "sample": {
+        "product_id": "A",
+        "output_value": 50.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "product_id": [
+          "A",
+          "B",
+          "C"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "MultiStageProduction",
+    "model_type": "Linear Program",
+    "sense": "maximize",
+    "sets": {
+      "Products": {
+        "size": null,
+        "index_symbol": "p",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "products",
+        "ordered": false
+      },
+      "Stages": {
+        "size": null,
+        "index_symbol": "s",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "stages",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "yield_rate": {
+        "domain": [
+          "Products",
+          "Stages"
+        ],
+        "type": "float",
+        "source": "yields.csv",
+        "column": "yield_rate",
+        "index_columns": [
+          "product_id",
+          "stage_id"
+        ],
+        "missing_default": "zero"
+      },
+      "stage_cap": {
+        "domain": [
+          "Stages"
+        ],
+        "type": "float",
+        "source": "stages.csv",
+        "column": "stage_cap",
+        "index_columns": [
+          "stage_id"
+        ],
+        "missing_default": "inf"
+      },
+      "raw_supply": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "raw.csv",
+        "column": "raw_supply",
+        "index_columns": [
+          "product_id"
+        ],
+        "missing_default": "zero"
+      },
+      "output_value": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "values.csv",
+        "column": "output_value",
+        "index_columns": [
+          "product_id"
+        ],
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "process": {
+        "description": "Units processed for product p at stage s",
+        "label": "stage_processing",
+        "domain": [
+          "Products",
+          "Stages"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "raw_input_limit": {
+        "domain": [
+          "Products"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "process",
+            "indices": [
+              "p",
+              "s1"
+            ]
+          },
+          "right": {
+            "type": "parameter",
+            "name": "raw_supply",
+            "indices": [
+              "p"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "stage_capacity": {
+        "domain": [
+          "Stages"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Products:p"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "process",
+              "indices": [
+                "p",
+                "s"
+              ]
+            }
+          },
+          "right": {
+            "type": "parameter",
+            "name": "stage_cap",
+            "indices": [
+              "s"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "yield_s1_to_s2": {
+        "domain": [
+          "Products"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "process",
+            "indices": [
+              "p",
+              "s2"
+            ]
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "yield_rate",
+              "indices": [
+                "p",
+                "s1"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "process",
+              "indices": [
+                "p",
+                "s1"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "yield_s2_to_s3": {
+        "domain": [
+          "Products"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "process",
+            "indices": [
+              "p",
+              "s3"
+            ]
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "yield_rate",
+              "indices": [
+                "p",
+                "s2"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "process",
+              "indices": [
+                "p",
+                "s2"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "maximize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Products:p"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "type": "parameter",
+            "name": "output_value",
+            "indices": [
+              "p"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "process",
+            "indices": [
+              "p",
+              "s3"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

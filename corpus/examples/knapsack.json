@@ -1,0 +1,243 @@
+{
+  "problem": {
+    "title": "Hiker's Backpack Knapsack",
+    "description": "A hiker is planning a multi-day wilderness trip and must pack a backpack. There is a list of candidate items to bring, each with a known weight and a utility value that reflects how useful it would be on the trip. The backpack has a fixed weight limit — carrying too much is not possible. Each item is either packed or left behind; no partial items are allowed. Determine which items to include in the backpack to maximize total utility without exceeding the weight capacity.",
+    "problem_type": "integer_programming",
+    "objective": "maximize",
+    "objective_description": "Total utility value of all items selected for the backpack",
+    "constraints": [
+      {
+        "description": "The total weight of all selected items must not exceed the backpack's weight capacity"
+      }
+    ],
+    "decision_variables": [
+      "select[i]: 1 if item i is packed in the backpack, 0 otherwise (binary)"
+    ],
+    "parameters": [
+      "value[i]: utility value of item i if included",
+      "weight[i]: weight of item i",
+      "capacity: maximum total weight the backpack can carry"
+    ],
+    "additional_notes": "",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "items": "items.csv",
+      "capacity": "capacity.csv"
+    }
+  },
+  "ir_patterns": [
+    "binary variable",
+    "scalar parameter",
+    "big-M linking"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "items",
+        "element": "tent"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "items"
+        ],
+        "element": [
+          "tent",
+          "sleeping_bag",
+          "stove",
+          "food",
+          "water_filter",
+          "first_aid",
+          "map",
+          "rain_jacket"
+        ]
+      }
+    },
+    "items": {
+      "columns": {
+        "id": "str",
+        "value": "float",
+        "weight": "float"
+      },
+      "sample": {
+        "id": "tent",
+        "value": 8.0,
+        "weight": 3.5
+      },
+      "optional": false,
+      "distinct_values": {
+        "id": [
+          "tent",
+          "sleeping_bag",
+          "stove",
+          "food",
+          "water_filter",
+          "first_aid",
+          "map",
+          "rain_jacket"
+        ],
+        "value": [
+          "3.0",
+          "5.0",
+          "6.0",
+          "7.0",
+          "8.0",
+          "9.0",
+          "10.0"
+        ],
+        "weight": [
+          "0.2",
+          "0.5",
+          "1.0",
+          "1.5",
+          "2.0",
+          "2.5",
+          "3.0",
+          "3.5"
+        ]
+      }
+    },
+    "capacity": {
+      "columns": {
+        "capacity": "float"
+      },
+      "sample": {
+        "capacity": 15.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "capacity": [
+          "15.0"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "Knapsack",
+    "model_type": "Mixed Integer Program",
+    "sense": "maximize",
+    "sets": {
+      "Items": {
+        "size": null,
+        "index_symbol": "i",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "items",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "value": {
+        "domain": [
+          "Items"
+        ],
+        "type": "float",
+        "source": "items.csv",
+        "column": "value",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "zero"
+      },
+      "weight": {
+        "domain": [
+          "Items"
+        ],
+        "type": "float",
+        "source": "items.csv",
+        "column": "weight",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "zero"
+      },
+      "capacity": {
+        "domain": [],
+        "type": "float",
+        "source": "capacity.csv",
+        "column": "capacity",
+        "index_columns": null,
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "select": {
+        "description": "1 if item i is selected for the backpack, 0 otherwise",
+        "label": "selected_items",
+        "domain": [
+          "Items"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "weight_limit": {
+        "domain": [],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Items:i"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "weight",
+              "indices": [
+                "i"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "select",
+              "indices": [
+                "i"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "parameter",
+          "name": "capacity",
+          "indices": []
+        }
+      }
+    },
+    "objective": {
+      "sense": "maximize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Items:i"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "type": "parameter",
+            "name": "value",
+            "indices": [
+              "i"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "select",
+            "indices": [
+              "i"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

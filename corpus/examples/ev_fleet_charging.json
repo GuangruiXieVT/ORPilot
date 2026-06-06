@@ -1,0 +1,520 @@
+{
+  "problem": {
+    "title": "EV Fleet Charging Scheduling",
+    "description": "A fleet operator schedules overnight charging for 8 electric vehicles across 6 time slots at a depot with 3 charging stations. Each vehicle needs a minimum charge and has a battery capacity. Grid power limits total simultaneous charging. Minimize total charging cost (prices vary by slot).",
+    "problem_type": "mixed_integer_program",
+    "objective": "minimize",
+    "objective_description": "Total charging cost across all vehicles, slots, and stations",
+    "constraints": [
+      {
+        "description": "Each vehicle uses at most one station per slot"
+      },
+      {
+        "description": "Charge rate is bounded by max station rate when connected"
+      },
+      {
+        "description": "Each station serves at most one vehicle per slot"
+      },
+      {
+        "description": "Each vehicle reaches its minimum charge requirement"
+      },
+      {
+        "description": "Total charging does not exceed battery capacity"
+      },
+      {
+        "description": "Total power across all vehicles and stations does not exceed grid limit per slot"
+      }
+    ],
+    "decision_variables": [
+      "charge_rate[v,s,st]: kW charged per slot (continuous >= 0)",
+      "connected[v,s,st]: 1 if vehicle v uses station st in slot s (binary)"
+    ],
+    "parameters": [
+      "price[s]: cost per kWh by slot",
+      "min_charge[v]: minimum total kWh required",
+      "max_battery[v]: battery capacity in kWh",
+      "max_rate[st]: max kW per station",
+      "grid_limit: total grid power limit in kW"
+    ],
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "prices": "prices.csv",
+      "vehicles": "vehicles.csv",
+      "stations": "stations.csv",
+      "params": "params.csv"
+    }
+  },
+  "ir_patterns": [
+    "binary variable",
+    "big-M linking",
+    "scalar parameter",
+    "3D variable"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "vehicles",
+        "element": "v1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "vehicles",
+          "slots",
+          "stations"
+        ],
+        "element": [
+          "v1",
+          "v2",
+          "v3",
+          "v4",
+          "v5",
+          "v6",
+          "v7",
+          "v8",
+          "s1",
+          "s2",
+          "s3",
+          "s4",
+          "s5",
+          "s6",
+          "st1",
+          "st2",
+          "st3"
+        ]
+      }
+    },
+    "prices": {
+      "columns": {
+        "slot_id": "str",
+        "price": "float"
+      },
+      "sample": {
+        "slot_id": "s1",
+        "price": 0.08
+      },
+      "optional": false,
+      "distinct_values": {
+        "slot_id": [
+          "s1",
+          "s2",
+          "s3",
+          "s4",
+          "s5",
+          "s6"
+        ]
+      }
+    },
+    "vehicles": {
+      "columns": {
+        "vehicle_id": "str",
+        "min_charge": "float",
+        "max_battery": "float"
+      },
+      "sample": {
+        "vehicle_id": "v1",
+        "min_charge": 20.0,
+        "max_battery": 60.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "vehicle_id": [
+          "v1",
+          "v2",
+          "v3",
+          "v4",
+          "v5",
+          "v6",
+          "v7",
+          "v8"
+        ]
+      }
+    },
+    "stations": {
+      "columns": {
+        "station_id": "str",
+        "max_rate": "float"
+      },
+      "sample": {
+        "station_id": "st1",
+        "max_rate": 10.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "station_id": [
+          "st1",
+          "st2",
+          "st3"
+        ]
+      }
+    },
+    "params": {
+      "columns": {
+        "grid_limit": "float"
+      },
+      "sample": {
+        "grid_limit": 30.0
+      },
+      "optional": false,
+      "distinct_values": {}
+    }
+  },
+  "ir": {
+    "problem_class": "EVChargingScheduling",
+    "model_type": "Mixed Integer Program",
+    "sense": "minimize",
+    "sets": {
+      "Vehicles": {
+        "size": null,
+        "index_symbol": "v",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "vehicles",
+        "ordered": false
+      },
+      "Slots": {
+        "size": null,
+        "index_symbol": "s",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "slots",
+        "ordered": false
+      },
+      "Stations": {
+        "size": null,
+        "index_symbol": "st",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "stations",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "price": {
+        "domain": [
+          "Slots"
+        ],
+        "type": "float",
+        "source": "prices.csv",
+        "column": "price",
+        "index_columns": [
+          "slot_id"
+        ],
+        "missing_default": "zero"
+      },
+      "min_charge": {
+        "domain": [
+          "Vehicles"
+        ],
+        "type": "float",
+        "source": "vehicles.csv",
+        "column": "min_charge",
+        "index_columns": [
+          "vehicle_id"
+        ],
+        "missing_default": "zero"
+      },
+      "max_battery": {
+        "domain": [
+          "Vehicles"
+        ],
+        "type": "float",
+        "source": "vehicles.csv",
+        "column": "max_battery",
+        "index_columns": [
+          "vehicle_id"
+        ],
+        "missing_default": "inf"
+      },
+      "max_rate": {
+        "domain": [
+          "Stations"
+        ],
+        "type": "float",
+        "source": "stations.csv",
+        "column": "max_rate",
+        "index_columns": [
+          "station_id"
+        ],
+        "missing_default": "zero"
+      },
+      "grid_limit": {
+        "domain": [],
+        "type": "float",
+        "source": "params.csv",
+        "column": "grid_limit",
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "charge_rate": {
+        "description": "kW charged for vehicle v in slot s at station st",
+        "label": "vehicle_charge_rates",
+        "domain": [
+          "Vehicles",
+          "Slots",
+          "Stations"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "connected": {
+        "description": "1 if vehicle v is connected to station st in slot s",
+        "label": "vehicle_station_connections",
+        "domain": [
+          "Vehicles",
+          "Slots",
+          "Stations"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "one_station_per_vehicle_slot": {
+        "domain": [
+          "Vehicles",
+          "Slots"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Stations:st"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "connected",
+            "indices": [
+              "v",
+              "s",
+              "st"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 1
+        }
+      },
+      "rate_if_connected": {
+        "domain": [
+          "Vehicles",
+          "Slots",
+          "Stations"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "charge_rate",
+            "indices": [
+              "v",
+              "s",
+              "st"
+            ]
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "max_rate",
+              "indices": [
+                "st"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "connected",
+              "indices": [
+                "v",
+                "s",
+                "st"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "station_one_vehicle": {
+        "domain": [
+          "Slots",
+          "Stations"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Vehicles:v"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "connected",
+            "indices": [
+              "v",
+              "s",
+              "st"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 1
+        }
+      },
+      "min_charge_met": {
+        "domain": [
+          "Vehicles"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "parameter",
+            "name": "min_charge",
+            "indices": [
+              "v"
+            ]
+          },
+          "right": {
+            "operation": "indexed_sum",
+            "over": [
+              "Slots:s",
+              "Stations:st"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "charge_rate",
+              "indices": [
+                "v",
+                "s",
+                "st"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "battery_limit": {
+        "domain": [
+          "Vehicles"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Slots:s",
+              "Stations:st"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "charge_rate",
+              "indices": [
+                "v",
+                "s",
+                "st"
+              ]
+            }
+          },
+          "right": {
+            "type": "parameter",
+            "name": "max_battery",
+            "indices": [
+              "v"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "grid_power": {
+        "domain": [
+          "Slots"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Vehicles:v",
+              "Stations:st"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "charge_rate",
+              "indices": [
+                "v",
+                "s",
+                "st"
+              ]
+            }
+          },
+          "right": {
+            "type": "parameter",
+            "name": "grid_limit",
+            "indices": []
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Vehicles:v",
+          "Slots:s",
+          "Stations:st"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "type": "parameter",
+            "name": "price",
+            "indices": [
+              "s"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "charge_rate",
+            "indices": [
+              "v",
+              "s",
+              "st"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,369 @@
+{
+  "problem": {
+    "title": "Preventive Machine Maintenance Scheduling",
+    "description": "A factory has five machines that require periodic preventive maintenance over an eight-period planning horizon. Each maintenance event has a known cost that varies by machine and period (reflecting labor and parts availability). Each machine must receive at least a minimum number of maintenance sessions and at most a maximum number during the horizon (reflecting reliability requirements and maintenance contracts). In any given period, the on-site maintenance workshop can handle at most a limited number of machines simultaneously. Determine which machines to maintain in each period to minimize total maintenance cost while satisfying all frequency and workshop-capacity constraints.",
+    "problem_type": "integer_programming",
+    "objective": "minimize",
+    "objective_description": "Total maintenance cost across all selected machine-period assignments",
+    "constraints": [
+      {
+        "description": "Each machine must receive at least min_maintenance maintenance sessions over the planning horizon"
+      },
+      {
+        "description": "Each machine must receive at most max_maintenance maintenance sessions over the planning horizon"
+      },
+      {
+        "description": "The total number of machines maintained in any period must not exceed the workshop capacity"
+      }
+    ],
+    "decision_variables": [
+      "maintain[m,p]: 1 if machine m is maintained in period p, 0 otherwise (binary)"
+    ],
+    "parameters": [
+      "maintenance_cost[m,p]: cost of maintaining machine m in period p",
+      "min_maintenance[m]: minimum number of maintenance sessions required for machine m",
+      "max_maintenance[m]: maximum number of maintenance sessions allowed for machine m",
+      "workshop_capacity[p]: maximum number of machines that can be maintained simultaneously in period p"
+    ],
+    "additional_notes": "The min/max maintenance frequency constraints ensure each machine receives appropriate preventive care without over-scheduling. Workshop capacity prevents resource conflicts.",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "machines": "machines.csv",
+      "maintenance_costs": "maintenance_costs.csv",
+      "workshop_capacity": "workshop_capacity.csv"
+    }
+  },
+  "ir_patterns": [
+    "binary variable"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "machines",
+        "element": "m1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "machines",
+          "periods"
+        ],
+        "element": [
+          "m1",
+          "m2",
+          "m3",
+          "m4",
+          "m5",
+          "p1",
+          "p2",
+          "p3",
+          "p4",
+          "p5",
+          "p6",
+          "p7",
+          "p8"
+        ]
+      }
+    },
+    "machines": {
+      "columns": {
+        "machine_id": "str",
+        "min_maintenance": "int",
+        "max_maintenance": "int"
+      },
+      "sample": {
+        "machine_id": "m1",
+        "min_maintenance": 2,
+        "max_maintenance": 4
+      },
+      "optional": false,
+      "distinct_values": {
+        "machine_id": [
+          "m1",
+          "m2",
+          "m3",
+          "m4",
+          "m5"
+        ],
+        "min_maintenance": [
+          "1",
+          "2",
+          "3"
+        ],
+        "max_maintenance": [
+          "3",
+          "4",
+          "5",
+          "6"
+        ]
+      }
+    },
+    "maintenance_costs": {
+      "columns": {
+        "machine_id": "str",
+        "period_id": "str",
+        "cost": "float"
+      },
+      "sample": {
+        "machine_id": "m1",
+        "period_id": "p1",
+        "cost": 120.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "machine_id": [
+          "m1",
+          "m2",
+          "m3",
+          "m4",
+          "m5"
+        ],
+        "period_id": [
+          "p1",
+          "p2",
+          "p3",
+          "p4",
+          "p5",
+          "p6",
+          "p7",
+          "p8"
+        ]
+      }
+    },
+    "workshop_capacity": {
+      "columns": {
+        "period_id": "str",
+        "capacity": "int"
+      },
+      "sample": {
+        "period_id": "p1",
+        "capacity": 3
+      },
+      "optional": false,
+      "distinct_values": {
+        "period_id": [
+          "p1",
+          "p2",
+          "p3",
+          "p4",
+          "p5",
+          "p6",
+          "p7",
+          "p8"
+        ],
+        "capacity": [
+          "2",
+          "3"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "SchedulingProblem",
+    "model_type": "Mixed Integer Program",
+    "sense": "minimize",
+    "sets": {
+      "Machines": {
+        "size": null,
+        "index_symbol": "m",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "machines",
+        "ordered": false
+      },
+      "Periods": {
+        "size": null,
+        "index_symbol": "p",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "periods",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "maintenance_cost": {
+        "domain": [
+          "Machines",
+          "Periods"
+        ],
+        "type": "float",
+        "source": "maintenance_costs.csv",
+        "column": "cost",
+        "index_columns": [
+          "machine_id",
+          "period_id"
+        ],
+        "missing_default": "inf"
+      },
+      "min_maintenance": {
+        "domain": [
+          "Machines"
+        ],
+        "type": "float",
+        "source": "machines.csv",
+        "column": "min_maintenance",
+        "index_columns": [
+          "machine_id"
+        ],
+        "missing_default": "zero"
+      },
+      "max_maintenance": {
+        "domain": [
+          "Machines"
+        ],
+        "type": "float",
+        "source": "machines.csv",
+        "column": "max_maintenance",
+        "index_columns": [
+          "machine_id"
+        ],
+        "missing_default": "inf"
+      },
+      "workshop_capacity": {
+        "domain": [
+          "Periods"
+        ],
+        "type": "float",
+        "source": "workshop_capacity.csv",
+        "column": "capacity",
+        "index_columns": [
+          "period_id"
+        ],
+        "missing_default": "inf"
+      }
+    },
+    "variables": {
+      "maintain": {
+        "description": "1 if machine m is maintained in period p, 0 otherwise",
+        "label": "maintenance",
+        "domain": [
+          "Machines",
+          "Periods"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "min_maintenance_freq": {
+        "domain": [
+          "Machines"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Periods:p"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "maintain",
+            "indices": [
+              "m",
+              "p"
+            ]
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "parameter",
+          "name": "min_maintenance",
+          "indices": [
+            "m"
+          ]
+        }
+      },
+      "max_maintenance_freq": {
+        "domain": [
+          "Machines"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Periods:p"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "maintain",
+            "indices": [
+              "m",
+              "p"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "parameter",
+          "name": "max_maintenance",
+          "indices": [
+            "m"
+          ]
+        }
+      },
+      "workshop_cap": {
+        "domain": [
+          "Periods"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Machines:m"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "maintain",
+            "indices": [
+              "m",
+              "p"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "parameter",
+          "name": "workshop_capacity",
+          "indices": [
+            "p"
+          ]
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Machines:m",
+          "Periods:p"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "type": "parameter",
+            "name": "maintenance_cost",
+            "indices": [
+              "m",
+              "p"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "maintain",
+            "indices": [
+              "m",
+              "p"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

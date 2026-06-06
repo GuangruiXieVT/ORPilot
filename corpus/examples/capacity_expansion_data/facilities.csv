@@ -1,0 +1,3 @@
+id,initial_cap,expansion_size,expansion_cost,prod_cost
+plant_1,100,50,400,8
+plant_2,60,80,300,5

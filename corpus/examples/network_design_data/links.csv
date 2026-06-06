@@ -1,0 +1,8 @@
+from_node,to_node,fixed_cost,flow_cost,link_cap
+A,C,100,2,60
+A,D,80,3,50
+B,C,90,2,40
+B,D,70,2,50
+C,E,60,1,80
+D,E,50,1,70
+C,D,40,1,30

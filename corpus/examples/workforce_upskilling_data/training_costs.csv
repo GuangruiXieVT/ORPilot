@@ -1,0 +1,16 @@
+worker_id,skill_id,training_cost
+w1,sk1,100
+w1,sk2,150
+w1,sk3,120
+w2,sk1,110
+w2,sk2,130
+w2,sk3,140
+w3,sk1,90
+w3,sk2,160
+w3,sk3,110
+w4,sk1,120
+w4,sk2,140
+w4,sk3,100
+w5,sk1,130
+w5,sk2,120
+w5,sk3,150

@@ -1,0 +1,450 @@
+{
+  "problem": {
+    "title": "Cross-Docking Distribution Network",
+    "description": "A distributor ships products from several plants to customers via distribution centers (DCs). Unlike a standard warehouse, each DC operates as a cross-dock: all units received must be immediately re-shipped to customers in the same period — no inventory is held at the DC. Plants have limited supply capacity. Customer demand must be met exactly. Determine the shipment volumes on each plant-to-DC and DC-to-customer lane to minimize total shipping cost.",
+    "problem_type": "linear_programming",
+    "objective": "minimize",
+    "objective_description": "Total shipping cost = sum of per-unit costs on plant-to-DC and DC-to-customer lanes",
+    "constraints": [
+      {
+        "description": "Cross-dock balance: total inbound flow to each DC equals total outbound flow (no storage)"
+      },
+      {
+        "description": "Plant capacity: total outbound shipments from each plant cannot exceed its supply capacity"
+      },
+      {
+        "description": "Demand coverage: total inbound shipments to each customer must exactly meet that customer's demand"
+      }
+    ],
+    "decision_variables": [
+      "ship_in[p,d]: units shipped from plant p to DC d (continuous, non-negative)",
+      "ship_out[d,c]: units shipped from DC d to customer c (continuous, non-negative)"
+    ],
+    "parameters": [
+      "plant_cap[p]: maximum units that can be shipped out from plant p",
+      "demand[c]: demand at customer c",
+      "cost_in[p,d]: cost per unit shipped from plant p to DC d",
+      "cost_out[d,c]: cost per unit shipped from DC d to customer c"
+    ],
+    "additional_notes": "The cross-dock balance constraint (inflow = outflow at each DC) is the key feature distinguishing this from a standard two-echelon transportation model. It eliminates inventory holding decisions at the DC tier, pushing all stocking decisions to the plant or customer level.",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "plants": "plants.csv",
+      "customers": "customers.csv",
+      "lane_in": "lane_in.csv",
+      "lane_out": "lane_out.csv"
+    }
+  },
+  "ir_patterns": [],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "plants",
+        "element": "p1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "plants",
+          "dcs",
+          "customers"
+        ],
+        "element": [
+          "p1",
+          "p2",
+          "p3",
+          "dc_1",
+          "dc_2",
+          "c1",
+          "c2",
+          "c3",
+          "c4"
+        ]
+      }
+    },
+    "plants": {
+      "columns": {
+        "id": "str",
+        "plant_cap": "float"
+      },
+      "sample": {
+        "id": "p1",
+        "plant_cap": 200.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "id": [
+          "p1",
+          "p2",
+          "p3"
+        ],
+        "plant_cap": [
+          "150.0",
+          "180.0",
+          "200.0"
+        ]
+      }
+    },
+    "customers": {
+      "columns": {
+        "id": "str",
+        "demand": "float"
+      },
+      "sample": {
+        "id": "c1",
+        "demand": 80.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "id": [
+          "c1",
+          "c2",
+          "c3",
+          "c4"
+        ],
+        "demand": [
+          "70.0",
+          "80.0",
+          "90.0",
+          "100.0"
+        ]
+      }
+    },
+    "lane_in": {
+      "columns": {
+        "plant_id": "str",
+        "dc_id": "str",
+        "cost_in": "float"
+      },
+      "sample": {
+        "plant_id": "p1",
+        "dc_id": "dc_1",
+        "cost_in": 2.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "plant_id": [
+          "p1",
+          "p2",
+          "p3"
+        ],
+        "dc_id": [
+          "dc_1",
+          "dc_2"
+        ],
+        "cost_in": [
+          "1.0",
+          "2.0",
+          "3.0",
+          "4.0"
+        ]
+      }
+    },
+    "lane_out": {
+      "columns": {
+        "dc_id": "str",
+        "cust_id": "str",
+        "cost_out": "float"
+      },
+      "sample": {
+        "dc_id": "dc_1",
+        "cust_id": "c1",
+        "cost_out": 3.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "dc_id": [
+          "dc_1",
+          "dc_2"
+        ],
+        "cust_id": [
+          "c1",
+          "c2",
+          "c3",
+          "c4"
+        ],
+        "cost_out": [
+          "2.0",
+          "3.0",
+          "4.0",
+          "5.0"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "CrossDockingNetwork",
+    "model_type": "Linear Program",
+    "sense": "minimize",
+    "sets": {
+      "Plants": {
+        "size": null,
+        "index_symbol": "p",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "plants",
+        "ordered": false
+      },
+      "DCs": {
+        "size": null,
+        "index_symbol": "d",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "dcs",
+        "ordered": false
+      },
+      "Customers": {
+        "size": null,
+        "index_symbol": "c",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "customers",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "plant_cap": {
+        "domain": [
+          "Plants"
+        ],
+        "type": "float",
+        "source": "plants.csv",
+        "column": "plant_cap",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "zero"
+      },
+      "demand": {
+        "domain": [
+          "Customers"
+        ],
+        "type": "float",
+        "source": "customers.csv",
+        "column": "demand",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "zero"
+      },
+      "cost_in": {
+        "domain": [
+          "Plants",
+          "DCs"
+        ],
+        "type": "float",
+        "source": "lane_in.csv",
+        "column": "cost_in",
+        "index_columns": [
+          "plant_id",
+          "dc_id"
+        ],
+        "missing_default": "inf"
+      },
+      "cost_out": {
+        "domain": [
+          "DCs",
+          "Customers"
+        ],
+        "type": "float",
+        "source": "lane_out.csv",
+        "column": "cost_out",
+        "index_columns": [
+          "dc_id",
+          "cust_id"
+        ],
+        "missing_default": "inf"
+      }
+    },
+    "variables": {
+      "ship_in": {
+        "description": "Units shipped from plant p to DC d",
+        "label": "inbound_shipments",
+        "domain": [
+          "Plants",
+          "DCs"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "ship_out": {
+        "description": "Units shipped from DC d to customer c",
+        "label": "outbound_shipments",
+        "domain": [
+          "DCs",
+          "Customers"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "cross_dock_balance": {
+        "domain": [
+          "DCs"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Plants:p"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "ship_in",
+              "indices": [
+                "p",
+                "d"
+              ]
+            }
+          },
+          "right": {
+            "operation": "indexed_sum",
+            "over": [
+              "Customers:c"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "ship_out",
+              "indices": [
+                "d",
+                "c"
+              ]
+            }
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "plant_capacity": {
+        "domain": [
+          "Plants"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "DCs:d"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "ship_in",
+            "indices": [
+              "p",
+              "d"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "parameter",
+          "name": "plant_cap",
+          "indices": [
+            "p"
+          ]
+        }
+      },
+      "demand_coverage": {
+        "domain": [
+          "Customers"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "DCs:d"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "ship_out",
+            "indices": [
+              "d",
+              "c"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "parameter",
+          "name": "demand",
+          "indices": [
+            "c"
+          ]
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "sum",
+        "left": {
+          "operation": "indexed_sum",
+          "over": [
+            "Plants:p",
+            "DCs:d"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "cost_in",
+              "indices": [
+                "p",
+                "d"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "ship_in",
+              "indices": [
+                "p",
+                "d"
+              ]
+            }
+          }
+        },
+        "right": {
+          "operation": "indexed_sum",
+          "over": [
+            "DCs:d",
+            "Customers:c"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "cost_out",
+              "indices": [
+                "d",
+                "c"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "ship_out",
+              "indices": [
+                "d",
+                "c"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

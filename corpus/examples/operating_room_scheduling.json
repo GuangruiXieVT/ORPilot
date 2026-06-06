@@ -1,0 +1,430 @@
+{
+  "problem": {
+    "title": "Operating Room Scheduling",
+    "description": "A hospital schedules surgeries to operating rooms and surgeons. Each surgery can only be performed by eligible surgeons (sparse). Each surgery takes a known number of time blocks. ORs and surgeons have capacity limits. Surgeries are scheduled at most once (some may not be performed if capacity is insufficient). Maximize total priority-weighted surgeries performed.",
+    "problem_type": "mixed_integer",
+    "objective": "maximize",
+    "objective_description": "Total priority = sum over all assignments of priority[surgery] * assign[surgery, or, surgeon]",
+    "constraints": [
+      {
+        "description": "Each surgery is performed at most once (across all ORs and surgeons)"
+      },
+      {
+        "description": "OR capacity: total duration of assigned surgeries per OR cannot exceed OR capacity"
+      },
+      {
+        "description": "Surgeon workload: total duration of assigned surgeries per surgeon cannot exceed surgeon capacity"
+      }
+    ],
+    "decision_variables": [
+      "assign[Surgeries, ORs, Surgeons]: 1 if surgery s is assigned to OR o with surgeon sg (binary, sparse by eligibility)"
+    ],
+    "parameters": [
+      "eligible[Surgeries, Surgeons]: 1 if surgeon sg is eligible for surgery s (sparse)",
+      "duration[Surgeries]: time blocks required by surgery s",
+      "or_capacity[ORs]: total time blocks available in OR o",
+      "surgeon_capacity[Surgeons]: total time blocks surgeon sg can work",
+      "priority[Surgeries]: urgency score of surgery s"
+    ],
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "eligibility": "eligibility.csv",
+      "surgeries": "surgeries.csv",
+      "ors": "ors.csv",
+      "surgeons": "surgeons.csv"
+    }
+  },
+  "ir_patterns": [
+    "binary variable",
+    "domain filter",
+    "3D variable",
+    "multiply parameter in sum",
+    "maximize priority"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "surgeries",
+        "element": "s1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "surgeries",
+          "ors",
+          "surgeons"
+        ],
+        "element": [
+          "s1",
+          "s2",
+          "s3",
+          "s4",
+          "s5",
+          "s6",
+          "or1",
+          "or2",
+          "or3",
+          "sg1",
+          "sg2",
+          "sg3"
+        ]
+      }
+    },
+    "eligibility": {
+      "columns": {
+        "surgery_id": "str",
+        "surgeon_id": "str",
+        "eligible": "float"
+      },
+      "sample": {
+        "surgery_id": "s1",
+        "surgeon_id": "sg1",
+        "eligible": 1.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "surgery_id": [
+          "s1",
+          "s2",
+          "s3",
+          "s4",
+          "s5",
+          "s6"
+        ],
+        "surgeon_id": [
+          "sg1",
+          "sg2",
+          "sg3"
+        ]
+      }
+    },
+    "surgeries": {
+      "columns": {
+        "surgery_id": "str",
+        "duration": "float",
+        "priority": "float"
+      },
+      "sample": {
+        "surgery_id": "s1",
+        "duration": 3.0,
+        "priority": 5.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "surgery_id": [
+          "s1",
+          "s2",
+          "s3",
+          "s4",
+          "s5",
+          "s6"
+        ]
+      }
+    },
+    "ors": {
+      "columns": {
+        "or_id": "str",
+        "or_capacity": "float"
+      },
+      "sample": {
+        "or_id": "or1",
+        "or_capacity": 8.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "or_id": [
+          "or1",
+          "or2",
+          "or3"
+        ]
+      }
+    },
+    "surgeons": {
+      "columns": {
+        "surgeon_id": "str",
+        "surgeon_capacity": "float"
+      },
+      "sample": {
+        "surgeon_id": "sg1",
+        "surgeon_capacity": 10.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "surgeon_id": [
+          "sg1",
+          "sg2",
+          "sg3"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "OperatingRoomScheduling",
+    "model_type": "Mixed Integer Program",
+    "sense": "maximize",
+    "sets": {
+      "Surgeries": {
+        "size": null,
+        "index_symbol": "s",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "surgeries",
+        "ordered": false
+      },
+      "ORs": {
+        "size": null,
+        "index_symbol": "o",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "ors",
+        "ordered": false
+      },
+      "Surgeons": {
+        "size": null,
+        "index_symbol": "sg",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "surgeons",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "eligible": {
+        "domain": [
+          "Surgeries",
+          "Surgeons"
+        ],
+        "type": "float",
+        "source": "eligibility.csv",
+        "column": "eligible",
+        "index_columns": [
+          "surgery_id",
+          "surgeon_id"
+        ],
+        "missing_default": "zero"
+      },
+      "duration": {
+        "domain": [
+          "Surgeries"
+        ],
+        "type": "float",
+        "source": "surgeries.csv",
+        "column": "duration",
+        "index_columns": [
+          "surgery_id"
+        ],
+        "missing_default": "inf"
+      },
+      "or_capacity": {
+        "domain": [
+          "ORs"
+        ],
+        "type": "float",
+        "source": "ors.csv",
+        "column": "or_capacity",
+        "index_columns": [
+          "or_id"
+        ],
+        "missing_default": "inf"
+      },
+      "surgeon_capacity": {
+        "domain": [
+          "Surgeons"
+        ],
+        "type": "float",
+        "source": "surgeons.csv",
+        "column": "surgeon_capacity",
+        "index_columns": [
+          "surgeon_id"
+        ],
+        "missing_default": "inf"
+      },
+      "priority": {
+        "domain": [
+          "Surgeries"
+        ],
+        "type": "float",
+        "source": "surgeries.csv",
+        "column": "priority",
+        "index_columns": [
+          "surgery_id"
+        ],
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "assign": {
+        "description": "1 if surgery s is assigned to OR o with surgeon sg",
+        "label": "surgery_assignments",
+        "domain": [
+          "Surgeries",
+          "ORs",
+          "Surgeons"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false,
+        "domain_filter": "eligible"
+      }
+    },
+    "constraints": {
+      "surgery_once": {
+        "domain": [
+          "Surgeries"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "ORs:o",
+            "Surgeons:sg"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "assign",
+            "indices": [
+              "s",
+              "o",
+              "sg"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 1
+        }
+      },
+      "or_cap_limit": {
+        "domain": [
+          "ORs"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Surgeries:s",
+              "Surgeons:sg"
+            ],
+            "body": {
+              "operation": "multiply",
+              "left": {
+                "type": "parameter",
+                "name": "duration",
+                "indices": [
+                  "s"
+                ]
+              },
+              "right": {
+                "type": "variable",
+                "name": "assign",
+                "indices": [
+                  "s",
+                  "o",
+                  "sg"
+                ]
+              }
+            }
+          },
+          "right": {
+            "type": "parameter",
+            "name": "or_capacity",
+            "indices": [
+              "o"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "surgeon_workload": {
+        "domain": [
+          "Surgeons"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Surgeries:s",
+              "ORs:o"
+            ],
+            "body": {
+              "operation": "multiply",
+              "left": {
+                "type": "parameter",
+                "name": "duration",
+                "indices": [
+                  "s"
+                ]
+              },
+              "right": {
+                "type": "variable",
+                "name": "assign",
+                "indices": [
+                  "s",
+                  "o",
+                  "sg"
+                ]
+              }
+            }
+          },
+          "right": {
+            "type": "parameter",
+            "name": "surgeon_capacity",
+            "indices": [
+              "sg"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "maximize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Surgeries:s",
+          "ORs:o",
+          "Surgeons:sg"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "type": "parameter",
+            "name": "priority",
+            "indices": [
+              "s"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "assign",
+            "indices": [
+              "s",
+              "o",
+              "sg"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

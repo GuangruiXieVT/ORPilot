@@ -1,0 +1,278 @@
+{
+  "problem": {
+    "title": "Parcel Bin Packing",
+    "description": "A shipping company must pack a set of parcels into standard-size boxes for delivery. Each parcel has a known size (volume). All boxes have the same fixed capacity. The company wants to use as few boxes as possible to minimize shipping overhead. Each parcel must be assigned to exactly one box, and no box may be loaded beyond its capacity. A box is considered used if at least one parcel is assigned to it. Determine which parcels go into which box to minimize the total number of boxes used while ensuring every parcel is packed.",
+    "problem_type": "integer_programming",
+    "objective": "minimize",
+    "objective_description": "Total number of boxes used across all bin assignments",
+    "constraints": [
+      {
+        "description": "Each parcel must be assigned to exactly one box"
+      },
+      {
+        "description": "The total size of all parcels assigned to a box must not exceed the box's capacity, and the box must be marked as used if any parcel is assigned to it (bin activation linking)"
+      }
+    ],
+    "decision_variables": [
+      "assign[i,b]: 1 if parcel i is packed into box b, 0 otherwise (binary)",
+      "use_bin[b]: 1 if box b is used, 0 otherwise (binary)"
+    ],
+    "parameters": [
+      "item_size[i]: volume/size of parcel i",
+      "bin_capacity: maximum volume capacity of each box (all boxes are identical)"
+    ],
+    "additional_notes": "",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "items": "items.csv",
+      "bin_spec": "bin_spec.csv"
+    }
+  },
+  "ir_patterns": [
+    "binary variable",
+    "scalar parameter",
+    "big-M linking"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "items",
+        "element": "pkg_1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "items",
+          "bins"
+        ],
+        "element": [
+          "pkg_1",
+          "pkg_2",
+          "pkg_3",
+          "pkg_4",
+          "pkg_5",
+          "pkg_6",
+          "pkg_7",
+          "pkg_8",
+          "bin_1",
+          "bin_2",
+          "bin_3",
+          "bin_4",
+          "bin_5"
+        ]
+      }
+    },
+    "items": {
+      "columns": {
+        "id": "str",
+        "size": "float"
+      },
+      "sample": {
+        "id": "pkg_1",
+        "size": 4.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "id": [
+          "pkg_1",
+          "pkg_2",
+          "pkg_3",
+          "pkg_4",
+          "pkg_5",
+          "pkg_6",
+          "pkg_7",
+          "pkg_8"
+        ],
+        "size": [
+          "1.5",
+          "2.0",
+          "2.5",
+          "3.0",
+          "3.5",
+          "4.0",
+          "4.5",
+          "5.0"
+        ]
+      }
+    },
+    "bin_spec": {
+      "columns": {
+        "capacity": "float"
+      },
+      "sample": {
+        "capacity": 10.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "capacity": [
+          "10.0"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "BinPacking",
+    "model_type": "Mixed Integer Program",
+    "sense": "minimize",
+    "sets": {
+      "Items": {
+        "size": null,
+        "index_symbol": "i",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "items",
+        "ordered": false
+      },
+      "Bins": {
+        "size": null,
+        "index_symbol": "b",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "bins",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "item_size": {
+        "domain": [
+          "Items"
+        ],
+        "type": "float",
+        "source": "items.csv",
+        "column": "size",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "zero"
+      },
+      "bin_capacity": {
+        "domain": [],
+        "type": "float",
+        "source": "bin_spec.csv",
+        "column": "capacity",
+        "index_columns": null,
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "assign": {
+        "description": "1 if parcel i is packed into box b, 0 otherwise",
+        "label": "item_bin_assignments",
+        "domain": [
+          "Items",
+          "Bins"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "use_bin": {
+        "description": "1 if box b is used, 0 otherwise",
+        "label": "bins_used",
+        "domain": [
+          "Bins"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "each_item_packed": {
+        "domain": [
+          "Items"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Bins:b"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "assign",
+            "indices": [
+              "i",
+              "b"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 1
+        }
+      },
+      "bin_capacity_limit": {
+        "domain": [
+          "Bins"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Items:i"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "item_size",
+              "indices": [
+                "i"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "assign",
+              "indices": [
+                "i",
+                "b"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "operation": "multiply",
+          "left": {
+            "type": "parameter",
+            "name": "bin_capacity",
+            "indices": []
+          },
+          "right": {
+            "type": "variable",
+            "name": "use_bin",
+            "indices": [
+              "b"
+            ]
+          }
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Bins:b"
+        ],
+        "body": {
+          "type": "variable",
+          "name": "use_bin",
+          "indices": [
+            "b"
+          ]
+        }
+      }
+    }
+  }
+}

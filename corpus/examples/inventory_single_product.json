@@ -1,0 +1,374 @@
+{
+  "problem": {
+    "title": "Single-Product Multi-Period Inventory Planning",
+    "description": "A retailer stocks a single product over a planning horizon of several periods. At the start of each period the retailer may place an order to replenish stock, subject to a maximum order size per period. Known demand in each period must be fully met from available inventory. Unsold stock carries over to the next period as ending inventory, incurring a per-unit holding cost. Each unit ordered incurs a per-unit ordering cost. There is a known initial inventory level at the start of the planning horizon. Determine the order quantities in each period to minimize total ordering plus holding costs while meeting all period demands. The inventory balance equation links inventory levels across adjacent periods via a temporal lag.",
+    "problem_type": "linear_programming",
+    "objective": "minimize",
+    "objective_description": "Total cost = sum of per-unit ordering costs times units ordered plus per-unit holding costs times ending inventory, summed across all periods",
+    "constraints": [
+      {
+        "description": "In the first period, ending inventory equals initial inventory plus the order quantity minus demand (inventory balance initialization)"
+      },
+      {
+        "description": "In each subsequent period, ending inventory equals previous period's ending inventory plus the order quantity minus demand (temporal lag inventory balance)"
+      },
+      {
+        "description": "Order quantity in each period must not exceed the maximum order size"
+      }
+    ],
+    "decision_variables": [
+      "order[t]: units ordered at the start of period t (continuous, non-negative)",
+      "inventory[t]: units of inventory held at the end of period t (continuous, non-negative)"
+    ],
+    "parameters": [
+      "demand[t]: known demand for the product in period t",
+      "order_cost: per-unit ordering cost (same for all periods)",
+      "holding_cost: per-unit holding cost for inventory carried between periods (same for all periods)",
+      "initial_inventory: units of inventory on hand at the start of the planning horizon",
+      "max_order: maximum units that can be ordered in any single period"
+    ],
+    "additional_notes": "The inventory balance constraint uses a temporal lag (inventory[t-1]) to link adjacent periods. The initialization constraint handles the first period separately using initial_inventory.",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "periods": "periods.csv",
+      "cost_params": "cost_params.csv"
+    }
+  },
+  "ir_patterns": [
+    "ordered set",
+    "temporal lag",
+    "init constraint",
+    "scalar parameter"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "periods",
+        "element": "p1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "periods"
+        ],
+        "element": [
+          "p1",
+          "p2",
+          "p3",
+          "p4",
+          "p5",
+          "p6"
+        ]
+      }
+    },
+    "periods": {
+      "columns": {
+        "id": "str",
+        "demand": "float"
+      },
+      "sample": {
+        "id": "p1",
+        "demand": 40.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "id": [
+          "p1",
+          "p2",
+          "p3",
+          "p4",
+          "p5",
+          "p6"
+        ],
+        "demand": [
+          "30.0",
+          "35.0",
+          "40.0",
+          "45.0",
+          "50.0",
+          "55.0"
+        ]
+      }
+    },
+    "cost_params": {
+      "columns": {
+        "order_cost": "float",
+        "holding_cost": "float",
+        "initial_inventory": "float",
+        "max_order": "float"
+      },
+      "sample": {
+        "order_cost": 2.0,
+        "holding_cost": 0.5,
+        "initial_inventory": 20.0,
+        "max_order": 100.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "order_cost": [
+          "2.0"
+        ],
+        "holding_cost": [
+          "0.5"
+        ],
+        "initial_inventory": [
+          "20.0"
+        ],
+        "max_order": [
+          "100.0"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "SingleProductInventory",
+    "model_type": "Linear Program",
+    "sense": "minimize",
+    "sets": {
+      "Periods": {
+        "size": null,
+        "index_symbol": "t",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "periods",
+        "ordered": true
+      }
+    },
+    "parameters": {
+      "demand": {
+        "domain": [
+          "Periods"
+        ],
+        "type": "float",
+        "source": "periods.csv",
+        "column": "demand",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "zero"
+      },
+      "order_cost": {
+        "domain": [],
+        "type": "float",
+        "source": "cost_params.csv",
+        "column": "order_cost",
+        "index_columns": null,
+        "missing_default": "zero"
+      },
+      "holding_cost": {
+        "domain": [],
+        "type": "float",
+        "source": "cost_params.csv",
+        "column": "holding_cost",
+        "index_columns": null,
+        "missing_default": "zero"
+      },
+      "initial_inventory": {
+        "domain": [],
+        "type": "float",
+        "source": "cost_params.csv",
+        "column": "initial_inventory",
+        "index_columns": null,
+        "missing_default": "zero"
+      },
+      "max_order": {
+        "domain": [],
+        "type": "float",
+        "source": "cost_params.csv",
+        "column": "max_order",
+        "index_columns": null,
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "order": {
+        "description": "Units ordered at the start of period t",
+        "label": "order_quantities",
+        "domain": [
+          "Periods"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "inventory": {
+        "description": "Units of inventory held at the end of period t",
+        "label": "inventory_levels",
+        "domain": [
+          "Periods"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "inv_balance_init": {
+        "domain": [],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "type": "parameter",
+              "name": "initial_inventory",
+              "indices": []
+            },
+            "right": {
+              "type": "variable",
+              "name": "order",
+              "indices": [
+                "Periods[0]"
+              ]
+            }
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "type": "parameter",
+              "name": "demand",
+              "indices": [
+                "Periods[0]"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "inventory",
+              "indices": [
+                "Periods[0]"
+              ]
+            }
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "inv_balance": {
+        "domain": [
+          "Periods"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "inventory",
+              "indices": [
+                "t"
+              ],
+              "lag": -1
+            },
+            "right": {
+              "type": "variable",
+              "name": "order",
+              "indices": [
+                "t"
+              ]
+            }
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "type": "parameter",
+              "name": "demand",
+              "indices": [
+                "t"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "inventory",
+              "indices": [
+                "t"
+              ]
+            }
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "order_limit": {
+        "domain": [
+          "Periods"
+        ],
+        "expression": {
+          "type": "variable",
+          "name": "order",
+          "indices": [
+            "t"
+          ]
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "parameter",
+          "name": "max_order",
+          "indices": []
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "sum",
+        "left": {
+          "operation": "indexed_sum",
+          "over": [
+            "Periods:t"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "order_cost",
+              "indices": []
+            },
+            "right": {
+              "type": "variable",
+              "name": "order",
+              "indices": [
+                "t"
+              ]
+            }
+          }
+        },
+        "right": {
+          "operation": "indexed_sum",
+          "over": [
+            "Periods:t"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "holding_cost",
+              "indices": []
+            },
+            "right": {
+              "type": "variable",
+              "name": "inventory",
+              "indices": [
+                "t"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,11 @@
+id,min_workers
+shift_mon_am,2
+shift_mon_pm,3
+shift_tue_am,4
+shift_tue_pm,2
+shift_wed_am,3
+shift_wed_pm,4
+shift_thu_am,2
+shift_thu_pm,3
+shift_fri_am,4
+shift_fri_pm,2

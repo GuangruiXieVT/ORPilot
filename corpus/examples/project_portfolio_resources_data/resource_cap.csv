@@ -1,0 +1,9 @@
+period_id,resource_id,resource_cap
+y1,r1,8
+y1,r2,6
+y2,r1,10
+y2,r2,8
+y3,r1,9
+y3,r2,7
+y4,r1,11
+y4,r2,9

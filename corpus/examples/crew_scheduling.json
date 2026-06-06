@@ -1,0 +1,289 @@
+{
+  "problem": {
+    "title": "Airline Crew Scheduling",
+    "description": "An airline must assign crews to flights. Each flight must be covered by at least one crew. Each crew can only fly on routes they are certified for (sparse eligibility). Each crew has a maximum number of flights per week. Minimize total assignment cost.",
+    "problem_type": "mixed_integer",
+    "objective": "minimize",
+    "objective_description": "Total cost of crew-to-flight assignments",
+    "constraints": [
+      {
+        "description": "Each flight must be covered by at least one crew"
+      },
+      {
+        "description": "Each crew's total assignments must not exceed their weekly flight limit"
+      }
+    ],
+    "decision_variables": [
+      "assign[Crews, Flights]: 1 if crew c is assigned to flight f (binary, sparse eligibility)"
+    ],
+    "parameters": [
+      "assignment_cost[Crews, Flights]: cost to assign crew c to flight f (sparse)",
+      "max_flights[Crews]: maximum number of flights crew c can fly per week"
+    ],
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "crew_params": "crew_params.csv",
+      "assignment_cost": "assignment_cost.csv"
+    }
+  },
+  "ir_patterns": [
+    "binary variable",
+    "domain filter",
+    "sparse assignment"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "crews",
+        "element": "c1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "crews",
+          "flights"
+        ],
+        "element": [
+          "c1",
+          "c2",
+          "c3",
+          "c4",
+          "c5",
+          "f1",
+          "f2",
+          "f3",
+          "f4",
+          "f5",
+          "f6"
+        ]
+      }
+    },
+    "crew_params": {
+      "columns": {
+        "crew_id": "str",
+        "max_flights": "float"
+      },
+      "sample": {
+        "crew_id": "c1",
+        "max_flights": 3.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "crew_id": [
+          "c1",
+          "c2",
+          "c3",
+          "c4",
+          "c5"
+        ],
+        "max_flights": [
+          "3.0",
+          "4.0"
+        ]
+      }
+    },
+    "assignment_cost": {
+      "columns": {
+        "crew_id": "str",
+        "flight_id": "str",
+        "cost": "float"
+      },
+      "sample": {
+        "crew_id": "c1",
+        "flight_id": "f1",
+        "cost": 100.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "crew_id": [
+          "c1",
+          "c2",
+          "c3",
+          "c4",
+          "c5"
+        ],
+        "flight_id": [
+          "f1",
+          "f2",
+          "f3",
+          "f4",
+          "f5",
+          "f6"
+        ],
+        "cost": [
+          "90.0",
+          "95.0",
+          "100.0",
+          "105.0",
+          "110.0",
+          "115.0",
+          "120.0",
+          "125.0",
+          "130.0"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "CrewScheduling",
+    "model_type": "Mixed Integer Program",
+    "sense": "minimize",
+    "sets": {
+      "Crews": {
+        "size": null,
+        "index_symbol": "c",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "crews",
+        "ordered": false
+      },
+      "Flights": {
+        "size": null,
+        "index_symbol": "f",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "flights",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "assignment_cost": {
+        "domain": [
+          "Crews",
+          "Flights"
+        ],
+        "type": "float",
+        "source": "assignment_cost.csv",
+        "column": "cost",
+        "index_columns": [
+          "crew_id",
+          "flight_id"
+        ],
+        "missing_default": "inf"
+      },
+      "max_flights": {
+        "domain": [
+          "Crews"
+        ],
+        "type": "float",
+        "source": "crew_params.csv",
+        "column": "max_flights",
+        "index_columns": [
+          "crew_id"
+        ],
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "assign": {
+        "description": "1 if crew c is assigned to flight f",
+        "label": "crew_assignments",
+        "domain": [
+          "Crews",
+          "Flights"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false,
+        "domain_filter": "assignment_cost"
+      }
+    },
+    "constraints": {
+      "flight_covered": {
+        "domain": [
+          "Flights"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Crews:c"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "assign",
+            "indices": [
+              "c",
+              "f"
+            ]
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "constant",
+          "value": 1
+        }
+      },
+      "crew_limit": {
+        "domain": [
+          "Crews"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Flights:f"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "assign",
+              "indices": [
+                "c",
+                "f"
+              ]
+            }
+          },
+          "right": {
+            "type": "parameter",
+            "name": "max_flights",
+            "indices": [
+              "c"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Crews:c",
+          "Flights:f"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "type": "parameter",
+            "name": "assignment_cost",
+            "indices": [
+              "c",
+              "f"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "assign",
+            "indices": [
+              "c",
+              "f"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

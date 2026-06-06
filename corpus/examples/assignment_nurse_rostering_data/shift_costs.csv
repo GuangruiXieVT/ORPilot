@@ -1,0 +1,16 @@
+nurse_id,shift_id,cost
+n1,morning,20.0
+n1,afternoon,18.0
+n1,night,30.0
+n2,morning,22.0
+n2,afternoon,20.0
+n2,night,32.0
+n3,morning,19.0
+n3,afternoon,17.0
+n3,night,28.0
+n4,morning,21.0
+n4,afternoon,19.0
+n4,night,31.0
+n5,morning,20.0
+n5,afternoon,18.0
+n5,night,29.0

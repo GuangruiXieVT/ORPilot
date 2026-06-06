@@ -1,0 +1,8 @@
+fare_class_id,flight_id,uses
+f1,fl1,1
+f1,fl2,1
+f2,fl1,1
+f3,fl2,1
+f4,fl2,1
+f4,fl3,1
+f5,fl3,1

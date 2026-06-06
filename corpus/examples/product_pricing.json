@@ -1,0 +1,335 @@
+{
+  "problem": {
+    "title": "Product Pricing Tier Selection",
+    "description": "A company selects a price tier for each product-segment combination. Each tier specifies unit revenue and demand volume. Higher prices reduce volume. A capacity constraint limits total volume per product across all segments. Maximize total revenue (revenue × volume) for selected tiers.",
+    "problem_type": "integer_programming",
+    "objective": "maximize",
+    "objective_description": "Total revenue from selected price tier-product-segment combinations",
+    "constraints": [
+      {
+        "description": "Exactly one price tier selected per product-segment combination"
+      },
+      {
+        "description": "Total volume across all segments does not exceed product capacity"
+      }
+    ],
+    "decision_variables": [
+      "select[p,sg,t]: 1 if price tier t is chosen for product p in segment sg (binary)"
+    ],
+    "parameters": [
+      "unit_revenue[p,sg,t]: revenue per unit at this tier",
+      "demand_vol[p,sg,t]: units sold at this tier",
+      "max_volume[p]: maximum total volume across all segments"
+    ],
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "pricing": "pricing.csv",
+      "capacity": "capacity.csv"
+    }
+  },
+  "ir_patterns": [
+    "binary variable",
+    "3D parameter",
+    "multiply of two parameters in objective",
+    "capacity constraint"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "products",
+        "element": "pr1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "products",
+          "segments",
+          "tiers"
+        ],
+        "element": [
+          "pr1",
+          "pr2",
+          "pr3",
+          "seg1",
+          "seg2",
+          "seg3",
+          "t1",
+          "t2",
+          "t3"
+        ]
+      }
+    },
+    "pricing": {
+      "columns": {
+        "product_id": "str",
+        "segment_id": "str",
+        "tier_id": "str",
+        "unit_revenue": "float",
+        "demand_vol": "float"
+      },
+      "sample": {
+        "product_id": "pr1",
+        "segment_id": "seg1",
+        "tier_id": "t1",
+        "unit_revenue": 50.0,
+        "demand_vol": 100.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "product_id": [
+          "pr1",
+          "pr2",
+          "pr3"
+        ],
+        "segment_id": [
+          "seg1",
+          "seg2",
+          "seg3"
+        ],
+        "tier_id": [
+          "t1",
+          "t2",
+          "t3"
+        ]
+      }
+    },
+    "capacity": {
+      "columns": {
+        "product_id": "str",
+        "max_volume": "float"
+      },
+      "sample": {
+        "product_id": "pr1",
+        "max_volume": 500.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "product_id": [
+          "pr1",
+          "pr2",
+          "pr3"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "ProductPricing",
+    "model_type": "Mixed Integer Program",
+    "sense": "maximize",
+    "sets": {
+      "Products": {
+        "size": null,
+        "index_symbol": "p",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "products",
+        "ordered": false
+      },
+      "Segments": {
+        "size": null,
+        "index_symbol": "sg",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "segments",
+        "ordered": false
+      },
+      "Tiers": {
+        "size": null,
+        "index_symbol": "t",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "tiers",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "unit_revenue": {
+        "domain": [
+          "Products",
+          "Segments",
+          "Tiers"
+        ],
+        "type": "float",
+        "source": "pricing.csv",
+        "column": "unit_revenue",
+        "index_columns": [
+          "product_id",
+          "segment_id",
+          "tier_id"
+        ],
+        "missing_default": "zero"
+      },
+      "demand_vol": {
+        "domain": [
+          "Products",
+          "Segments",
+          "Tiers"
+        ],
+        "type": "float",
+        "source": "pricing.csv",
+        "column": "demand_vol",
+        "index_columns": [
+          "product_id",
+          "segment_id",
+          "tier_id"
+        ],
+        "missing_default": "zero"
+      },
+      "max_volume": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "capacity.csv",
+        "column": "max_volume",
+        "index_columns": [
+          "product_id"
+        ],
+        "missing_default": "inf"
+      }
+    },
+    "variables": {
+      "select": {
+        "description": "1 if price tier t is selected for product p in segment sg",
+        "label": "tier_selections",
+        "domain": [
+          "Products",
+          "Segments",
+          "Tiers"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "one_tier_per_segment": {
+        "domain": [
+          "Products",
+          "Segments"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Tiers:t"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "select",
+            "indices": [
+              "p",
+              "sg",
+              "t"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 1
+        }
+      },
+      "volume_limit": {
+        "domain": [
+          "Products"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Segments:sg",
+              "Tiers:t"
+            ],
+            "body": {
+              "operation": "multiply",
+              "left": {
+                "type": "parameter",
+                "name": "demand_vol",
+                "indices": [
+                  "p",
+                  "sg",
+                  "t"
+                ]
+              },
+              "right": {
+                "type": "variable",
+                "name": "select",
+                "indices": [
+                  "p",
+                  "sg",
+                  "t"
+                ]
+              }
+            }
+          },
+          "right": {
+            "type": "parameter",
+            "name": "max_volume",
+            "indices": [
+              "p"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "maximize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Products:p",
+          "Segments:sg",
+          "Tiers:t"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "unit_revenue",
+              "indices": [
+                "p",
+                "sg",
+                "t"
+              ]
+            },
+            "right": {
+              "type": "parameter",
+              "name": "demand_vol",
+              "indices": [
+                "p",
+                "sg",
+                "t"
+              ]
+            }
+          },
+          "right": {
+            "type": "variable",
+            "name": "select",
+            "indices": [
+              "p",
+              "sg",
+              "t"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

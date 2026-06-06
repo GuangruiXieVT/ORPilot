@@ -41,9 +41,26 @@ Example: table `"initial_inventory"` with sample `{{"location_id":"PS_001","prod
 
 Always derive column names by inspecting the schema, not by pattern-matching the table name.
 
+## Detecting sparsity from csv_schemas (critical)
+
+Before writing variable creation or constraint loops, check whether each multi-dimensional parameter table is sparse:
+
+```
+full_product = product of len(distinct_values[col]) for each index column
+sparse = (row_count < full_product)
+```
+
+Example: `transport_cost` has index columns `from_site`, `to_dc`.
+`distinct_values["from_site"]` has 3 values, `distinct_values["to_dc"]` has 4 values.
+`full_product = 3 × 4 = 12`.
+If `row_count = 8` → sparse → use the sparse network pattern below.
+If `row_count = 12` → dense → safe to iterate all combinations.
+
+Never assume sparsity from the table name alone — always verify with `row_count`.
+
 ## Sparse network tables (critical — avoid combinatorial explosion)
 
-When a parameter table encodes costs or capacities for connections between two sets (e.g. `transport_cost`, `arc_cost`, `distance`, `lane_capacity`), **its rows define the only valid (source, destination) pairs**. Do NOT create variables or iterate over all combinations of the two sets — only over the pairs that appear in the table.
+When `row_count < full_product` for a cost/arc table, **its rows define the only valid (source, destination) pairs**. Do NOT create variables or iterate over all combinations of the two sets — only over the pairs that appear in the table.
 
 ## Iterating sparse variable dicts in sum expressions (critical — avoid KeyError)
 

@@ -1,0 +1,9 @@
+from_node,to_node,capacity
+A,B,100
+A,C,80
+B,C,60
+B,D,70
+C,D,90
+C,E,50
+D,E,80
+E,A,40

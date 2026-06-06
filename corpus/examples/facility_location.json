@@ -1,0 +1,436 @@
+{
+  "problem": {
+    "title": "Capacitated Facility Location",
+    "description": "A retailer is deciding which distribution facilities to open in order to serve a set of customers. There are several candidate facility locations, each with a known fixed opening cost and a maximum throughput capacity. For each facility-customer pair there is a known per-unit shipping cost. Each customer has a known demand that must be fully served. A facility can only ship to customers if it is open, and its total shipments across all customers cannot exceed its throughput capacity. An open facility may serve any customer, but a closed facility may ship nothing. Choose which facilities to open and how much to ship from each to each customer to minimize total fixed opening costs plus variable shipping costs.",
+    "problem_type": "mixed_integer",
+    "objective": "minimize",
+    "objective_description": "Total cost = fixed opening costs for opened facilities plus per-unit shipping costs times quantities shipped, summed over all facility-customer pairs",
+    "constraints": [
+      {
+        "description": "For each customer, total shipments received from all facilities must exactly equal the customer's demand"
+      },
+      {
+        "description": "For each facility, total shipments to all customers must not exceed the facility's throughput capacity if it is open, or zero if it is closed (big-M linking)"
+      },
+      {
+        "description": "For each facility-customer pair, the amount shipped cannot exceed the customer's demand times whether the facility is open (prevents any flow from a closed facility)"
+      }
+    ],
+    "decision_variables": [
+      "open_fac[f]: 1 if facility f is opened, 0 otherwise (binary)",
+      "assign[f,c]: units shipped from facility f to customer c (continuous, non-negative)"
+    ],
+    "parameters": [
+      "fixed_cost[f]: one-time fixed cost to open facility f",
+      "facility_capacity[f]: maximum total units facility f can ship across all customers",
+      "serve_cost[f,c]: per-unit shipping cost from facility f to customer c",
+      "demand[c]: units demanded by customer c that must be exactly fulfilled"
+    ],
+    "additional_notes": "",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "facilities": "facilities.csv",
+      "customers": "customers.csv",
+      "serve_costs": "serve_costs.csv"
+    }
+  },
+  "ir_patterns": [
+    "binary variable",
+    "domain filter",
+    "big-M linking"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "facilities",
+        "element": "f1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "facilities",
+          "customers"
+        ],
+        "element": [
+          "f1",
+          "f2",
+          "f3",
+          "c1",
+          "c2",
+          "c3",
+          "c4",
+          "c5"
+        ]
+      }
+    },
+    "facilities": {
+      "columns": {
+        "id": "str",
+        "fixed_cost": "float",
+        "capacity": "float"
+      },
+      "sample": {
+        "id": "f1",
+        "fixed_cost": 500.0,
+        "capacity": 300.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "id": [
+          "f1",
+          "f2",
+          "f3"
+        ],
+        "fixed_cost": [
+          "400.0",
+          "500.0",
+          "600.0"
+        ],
+        "capacity": [
+          "250.0",
+          "300.0",
+          "350.0"
+        ]
+      }
+    },
+    "customers": {
+      "columns": {
+        "id": "str",
+        "demand": "float"
+      },
+      "sample": {
+        "id": "c1",
+        "demand": 80.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "id": [
+          "c1",
+          "c2",
+          "c3",
+          "c4",
+          "c5"
+        ],
+        "demand": [
+          "50.0",
+          "60.0",
+          "70.0",
+          "80.0",
+          "90.0"
+        ]
+      }
+    },
+    "serve_costs": {
+      "columns": {
+        "facility_id": "str",
+        "customer_id": "str",
+        "cost_per_unit": "float"
+      },
+      "sample": {
+        "facility_id": "f1",
+        "customer_id": "c1",
+        "cost_per_unit": 3.5
+      },
+      "optional": false,
+      "distinct_values": {
+        "facility_id": [
+          "f1",
+          "f2",
+          "f3"
+        ],
+        "customer_id": [
+          "c1",
+          "c2",
+          "c3",
+          "c4",
+          "c5"
+        ],
+        "cost_per_unit": [
+          "2.0",
+          "2.5",
+          "3.0",
+          "3.5",
+          "4.0",
+          "4.5",
+          "5.0"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "FacilityLocation",
+    "model_type": "Mixed Integer Program",
+    "sense": "minimize",
+    "sets": {
+      "Facilities": {
+        "size": null,
+        "index_symbol": "f",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "facilities",
+        "ordered": false
+      },
+      "Customers": {
+        "size": null,
+        "index_symbol": "c",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "customers",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "fixed_cost": {
+        "domain": [
+          "Facilities"
+        ],
+        "type": "float",
+        "source": "facilities.csv",
+        "column": "fixed_cost",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "inf"
+      },
+      "serve_cost": {
+        "domain": [
+          "Facilities",
+          "Customers"
+        ],
+        "type": "float",
+        "source": "serve_costs.csv",
+        "column": "cost_per_unit",
+        "index_columns": [
+          "facility_id",
+          "customer_id"
+        ],
+        "missing_default": "inf"
+      },
+      "demand": {
+        "domain": [
+          "Customers"
+        ],
+        "type": "float",
+        "source": "customers.csv",
+        "column": "demand",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "zero"
+      },
+      "facility_capacity": {
+        "domain": [
+          "Facilities"
+        ],
+        "type": "float",
+        "source": "facilities.csv",
+        "column": "capacity",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "inf"
+      }
+    },
+    "variables": {
+      "open_fac": {
+        "description": "1 if facility f is opened, 0 otherwise",
+        "label": "open_facilities",
+        "domain": [
+          "Facilities"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "assign": {
+        "description": "Units shipped from facility f to customer c",
+        "label": "facility_customer_shipments",
+        "domain": [
+          "Facilities",
+          "Customers"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false,
+        "domain_filter": "serve_cost"
+      }
+    },
+    "constraints": {
+      "demand_met": {
+        "domain": [
+          "Customers"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Facilities:f"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "assign",
+            "indices": [
+              "f",
+              "c"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "parameter",
+          "name": "demand",
+          "indices": [
+            "c"
+          ]
+        }
+      },
+      "facility_throughput": {
+        "domain": [
+          "Facilities"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Customers:c"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "assign",
+              "indices": [
+                "f",
+                "c"
+              ]
+            }
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "facility_capacity",
+              "indices": [
+                "f"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "open_fac",
+              "indices": [
+                "f"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "link_to_open": {
+        "domain": [
+          "Facilities",
+          "Customers"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "assign",
+            "indices": [
+              "f",
+              "c"
+            ]
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "demand",
+              "indices": [
+                "c"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "open_fac",
+              "indices": [
+                "f"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "sum",
+        "left": {
+          "operation": "indexed_sum",
+          "over": [
+            "Facilities:f"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "fixed_cost",
+              "indices": [
+                "f"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "open_fac",
+              "indices": [
+                "f"
+              ]
+            }
+          }
+        },
+        "right": {
+          "operation": "indexed_sum",
+          "over": [
+            "Facilities:f",
+            "Customers:c"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "serve_cost",
+              "indices": [
+                "f",
+                "c"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "assign",
+              "indices": [
+                "f",
+                "c"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

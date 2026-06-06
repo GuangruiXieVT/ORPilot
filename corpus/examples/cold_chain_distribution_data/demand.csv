@@ -1,0 +1,16 @@
+store_id,product_id,demand
+st1,pr1,30
+st1,pr2,25
+st1,pr3,20
+st2,pr1,25
+st2,pr2,30
+st2,pr3,25
+st3,pr1,20
+st3,pr2,25
+st3,pr3,30
+st4,pr1,35
+st4,pr2,20
+st4,pr3,25
+st5,pr1,30
+st5,pr2,30
+st5,pr3,20

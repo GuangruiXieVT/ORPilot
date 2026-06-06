@@ -1,0 +1,371 @@
+{
+  "problem": {
+    "title": "Bandwidth Allocation for Network Sessions",
+    "description": "A network operator allocates bandwidth to 4 competing sessions on a shared network with 5 links. Each session has a minimum and maximum bandwidth requirement and traverses a fixed set of links (routing matrix). Each link has a capacity that limits the total bandwidth of all sessions using it. Maximize total allocated bandwidth.",
+    "problem_type": "linear_programming",
+    "objective": "maximize",
+    "objective_description": "Total allocated bandwidth = sum of bandwidth[s] over all sessions",
+    "constraints": [
+      {
+        "description": "Minimum bandwidth: each session receives at least its minimum required rate"
+      },
+      {
+        "description": "Maximum bandwidth: each session receives at most its maximum useful rate"
+      },
+      {
+        "description": "Link capacity: total bandwidth of all sessions using each link must not exceed the link's capacity"
+      }
+    ],
+    "decision_variables": [
+      "bandwidth[s]: bandwidth allocated to session s in Mbps (continuous, non-negative)"
+    ],
+    "parameters": [
+      "min_rate[s]: minimum required bandwidth for session s",
+      "max_rate[s]: maximum useful bandwidth for session s",
+      "link_cap[l]: total capacity of link l",
+      "uses_link[s,l]: 1 if session s traverses link l, 0 otherwise (routing matrix)"
+    ],
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "sessions": "sessions.csv",
+      "links": "links.csv",
+      "uses_link": "uses_link.csv"
+    }
+  },
+  "ir_patterns": [
+    "sparse filter",
+    "scalar parameter"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "sessions",
+        "element": "s1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "sessions",
+          "links"
+        ],
+        "element": [
+          "s1",
+          "s2",
+          "s3",
+          "s4",
+          "l1",
+          "l2",
+          "l3",
+          "l4",
+          "l5"
+        ]
+      },
+      "row_count": 9
+    },
+    "sessions": {
+      "columns": {
+        "session_id": "str",
+        "min_rate": "float",
+        "max_rate": "float"
+      },
+      "sample": {
+        "session_id": "s1",
+        "min_rate": 10.0,
+        "max_rate": 50.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "session_id": [
+          "s1",
+          "s2",
+          "s3",
+          "s4"
+        ],
+        "min_rate": [
+          "5.0",
+          "10.0",
+          "15.0",
+          "20.0"
+        ],
+        "max_rate": [
+          "30.0",
+          "40.0",
+          "50.0",
+          "60.0"
+        ]
+      },
+      "row_count": 4
+    },
+    "links": {
+      "columns": {
+        "link_id": "str",
+        "link_cap": "float"
+      },
+      "sample": {
+        "link_id": "l1",
+        "link_cap": 80.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "link_id": [
+          "l1",
+          "l2",
+          "l3",
+          "l4",
+          "l5"
+        ],
+        "link_cap": [
+          "45.0",
+          "50.0",
+          "60.0",
+          "70.0",
+          "80.0"
+        ]
+      },
+      "row_count": 5
+    },
+    "uses_link": {
+      "columns": {
+        "session_id": "str",
+        "link_id": "str",
+        "uses": "float"
+      },
+      "sample": {
+        "session_id": "s1",
+        "link_id": "l1",
+        "uses": 1.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "session_id": [
+          "s1",
+          "s2",
+          "s3",
+          "s4"
+        ],
+        "link_id": [
+          "l1",
+          "l2",
+          "l3",
+          "l4",
+          "l5"
+        ],
+        "uses": [
+          "1.0"
+        ]
+      },
+      "row_count": 12
+    }
+  },
+  "ir": {
+    "problem_class": "BandwidthAllocation",
+    "model_type": "Linear Program",
+    "sense": "maximize",
+    "sets": {
+      "Sessions": {
+        "size": null,
+        "index_symbol": "s",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "sessions",
+        "ordered": false
+      },
+      "Links": {
+        "size": null,
+        "index_symbol": "l",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "links",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "min_rate": {
+        "domain": [
+          "Sessions"
+        ],
+        "type": "float",
+        "source": "sessions.csv",
+        "column": "min_rate",
+        "index_columns": [
+          "session_id"
+        ],
+        "missing_default": "zero"
+      },
+      "max_rate": {
+        "domain": [
+          "Sessions"
+        ],
+        "type": "float",
+        "source": "sessions.csv",
+        "column": "max_rate",
+        "index_columns": [
+          "session_id"
+        ],
+        "missing_default": "inf"
+      },
+      "link_cap": {
+        "domain": [
+          "Links"
+        ],
+        "type": "float",
+        "source": "links.csv",
+        "column": "link_cap",
+        "index_columns": [
+          "link_id"
+        ],
+        "missing_default": "inf"
+      },
+      "uses_link": {
+        "domain": [
+          "Sessions",
+          "Links"
+        ],
+        "type": "float",
+        "source": "uses_link.csv",
+        "column": "uses",
+        "index_columns": [
+          "session_id",
+          "link_id"
+        ],
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "bandwidth": {
+        "description": "Bandwidth allocated to session s in Mbps",
+        "label": "bandwidth_allocations",
+        "domain": [
+          "Sessions"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "min_bw": {
+        "domain": [
+          "Sessions"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "bandwidth",
+            "indices": [
+              "s"
+            ]
+          },
+          "right": {
+            "type": "parameter",
+            "name": "min_rate",
+            "indices": [
+              "s"
+            ]
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "max_bw": {
+        "domain": [
+          "Sessions"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "bandwidth",
+            "indices": [
+              "s"
+            ]
+          },
+          "right": {
+            "type": "parameter",
+            "name": "max_rate",
+            "indices": [
+              "s"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "link_capacity_limit": {
+        "domain": [
+          "Links"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Sessions:s"
+            ],
+            "body": {
+              "operation": "multiply",
+              "left": {
+                "type": "parameter",
+                "name": "uses_link",
+                "indices": [
+                  "s",
+                  "l"
+                ]
+              },
+              "right": {
+                "type": "variable",
+                "name": "bandwidth",
+                "indices": [
+                  "s"
+                ]
+              }
+            }
+          },
+          "right": {
+            "type": "parameter",
+            "name": "link_cap",
+            "indices": [
+              "l"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "maximize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Sessions:s"
+        ],
+        "body": {
+          "type": "variable",
+          "name": "bandwidth",
+          "indices": [
+            "s"
+          ]
+        }
+      }
+    }
+  }
+}

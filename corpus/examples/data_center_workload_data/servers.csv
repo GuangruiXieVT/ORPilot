@@ -1,0 +1,5 @@
+server_id,cpu_cap,mem_cap,server_cost
+sv1,16,32,100
+sv2,12,24,80
+sv3,20,48,120
+sv4,8,16,60

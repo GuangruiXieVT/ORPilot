@@ -1,0 +1,3 @@
+warehouse1_id,warehouse2_id,min_pct
+wh1,wh2,0.4
+wh2,wh3,0.55

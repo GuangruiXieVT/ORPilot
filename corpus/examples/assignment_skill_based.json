@@ -1,0 +1,287 @@
+{
+  "problem": {
+    "title": "Skill-Based Worker-Task Assignment",
+    "description": "A project manager must assign eight workers to ten tasks. Workers have different skill sets, so only certain worker-task combinations are eligible (a worker can only perform tasks they are qualified for). Each eligible assignment has a known cost reflecting training requirements, efficiency, and worker preference. Each task must be assigned to exactly one eligible worker. Each worker may handle at most a maximum number of tasks. Find the minimum-cost assignment of workers to tasks that covers all tasks while respecting eligibility and workload constraints.",
+    "problem_type": "integer_programming",
+    "objective": "minimize",
+    "objective_description": "Total assignment cost across all worker-task pairs assigned",
+    "constraints": [
+      {
+        "description": "Each task must be assigned to exactly one eligible worker"
+      },
+      {
+        "description": "Each worker may be assigned to at most their maximum allowed number of tasks"
+      }
+    ],
+    "decision_variables": [
+      "assign[w,t]: 1 if worker w is assigned to task t (only for eligible pairs), 0 otherwise (binary)"
+    ],
+    "parameters": [
+      "assignment_cost[w,t]: cost of assigning worker w to task t (only defined for eligible pairs)",
+      "max_tasks[w]: maximum number of tasks that worker w can handle"
+    ],
+    "additional_notes": "The assign variable uses domain filtering — only eligible (worker, task) pairs are included in the model. Ineligible assignments are structurally excluded, not just penalized.",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "eligible_pairs": "eligible_pairs.csv",
+      "workers": "workers.csv"
+    }
+  },
+  "ir_patterns": [
+    "binary variable",
+    "domain filter"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "workers",
+        "element": "w1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "workers",
+          "tasks"
+        ],
+        "element": [
+          "w1",
+          "w2",
+          "w3",
+          "w4",
+          "w5",
+          "w6",
+          "w7",
+          "w8",
+          "t1",
+          "t2",
+          "t3",
+          "t4",
+          "t5",
+          "t6",
+          "t7",
+          "t8",
+          "t9",
+          "t10"
+        ]
+      }
+    },
+    "eligible_pairs": {
+      "columns": {
+        "worker_id": "str",
+        "task_id": "str",
+        "assignment_cost": "float"
+      },
+      "sample": {
+        "worker_id": "w1",
+        "task_id": "t1",
+        "assignment_cost": 15.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "worker_id": [
+          "w1",
+          "w2",
+          "w3",
+          "w4",
+          "w5",
+          "w6",
+          "w7",
+          "w8"
+        ],
+        "task_id": [
+          "t1",
+          "t2",
+          "t3",
+          "t4",
+          "t5",
+          "t6",
+          "t7",
+          "t8",
+          "t9",
+          "t10"
+        ]
+      }
+    },
+    "workers": {
+      "columns": {
+        "worker_id": "str",
+        "max_tasks": "int"
+      },
+      "sample": {
+        "worker_id": "w1",
+        "max_tasks": 2
+      },
+      "optional": false,
+      "distinct_values": {
+        "worker_id": [
+          "w1",
+          "w2",
+          "w3",
+          "w4",
+          "w5",
+          "w6",
+          "w7",
+          "w8"
+        ],
+        "max_tasks": [
+          "2"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "AssignmentProblem",
+    "model_type": "Mixed Integer Program",
+    "sense": "minimize",
+    "sets": {
+      "Workers": {
+        "size": null,
+        "index_symbol": "w",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "workers",
+        "ordered": false
+      },
+      "Tasks": {
+        "size": null,
+        "index_symbol": "t",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "tasks",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "assignment_cost": {
+        "domain": [
+          "Workers",
+          "Tasks"
+        ],
+        "type": "float",
+        "source": "eligible_pairs.csv",
+        "column": "assignment_cost",
+        "index_columns": [
+          "worker_id",
+          "task_id"
+        ],
+        "missing_default": "inf"
+      },
+      "max_tasks": {
+        "domain": [
+          "Workers"
+        ],
+        "type": "float",
+        "source": "workers.csv",
+        "column": "max_tasks",
+        "index_columns": [
+          "worker_id"
+        ],
+        "missing_default": "inf"
+      }
+    },
+    "variables": {
+      "assign": {
+        "description": "1 if worker w is assigned to task t (eligible pairs only), 0 otherwise",
+        "label": "assignments",
+        "domain": [
+          "Workers",
+          "Tasks"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false,
+        "domain_filter": "assignment_cost"
+      }
+    },
+    "constraints": {
+      "task_covered": {
+        "domain": [
+          "Tasks"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Workers:w"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "assign",
+            "indices": [
+              "w",
+              "t"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 1
+        }
+      },
+      "worker_load": {
+        "domain": [
+          "Workers"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Tasks:t"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "assign",
+            "indices": [
+              "w",
+              "t"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "parameter",
+          "name": "max_tasks",
+          "indices": [
+            "w"
+          ]
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Workers:w",
+          "Tasks:t"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "type": "parameter",
+            "name": "assignment_cost",
+            "indices": [
+              "w",
+              "t"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "assign",
+            "indices": [
+              "w",
+              "t"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

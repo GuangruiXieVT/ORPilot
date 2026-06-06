@@ -1,0 +1,393 @@
+{
+  "problem": {
+    "title": "Fixed-Charge Network Design",
+    "description": "A telecom operator decides which links to build in a potential 5-node network topology and how to route aggregated traffic. Each potential link has a fixed construction cost, a per-unit traffic cost, and a capacity limit. Traffic must flow from sources (A: +50, B: +30) to the sink (E: -80). Transit nodes (C, D) have zero net demand. Minimize total fixed plus variable costs.",
+    "problem_type": "mixed_integer_programming",
+    "objective": "minimize",
+    "objective_description": "Total cost = sum of fixed_cost[i,j]*build[i,j] + flow_cost[i,j]*flow[i,j] over all potential links",
+    "constraints": [
+      {
+        "description": "Flow conservation: outflow minus inflow at each node equals net demand"
+      },
+      {
+        "description": "Capacity-big-M link: flow on each built link cannot exceed link capacity (if not built, flow must be zero)"
+      }
+    ],
+    "decision_variables": [
+      "build[i,j]: 1 if link (i,j) is built, 0 otherwise (binary, only for potential links)",
+      "flow[i,j]: traffic flow on link (i,j) (continuous, non-negative, only for potential links)"
+    ],
+    "parameters": [
+      "link_fixed_cost[i,j]: fixed construction cost for link (i,j)",
+      "link_flow_cost[i,j]: per-unit traffic cost on link (i,j)",
+      "link_cap[i,j]: capacity of link (i,j) if built",
+      "net_demand[i]: net supply at node i (positive = source, negative = sink, 0 = transit)"
+    ],
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "links": "links.csv",
+      "net_demand": "net_demand.csv"
+    }
+  },
+  "ir_patterns": [
+    "binary variable",
+    "domain filter",
+    "sparse filter",
+    "big-M linking",
+    "duplicate set"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "nodes",
+        "element": "A"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "nodes"
+        ],
+        "element": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "E"
+        ]
+      },
+      "row_count": 5
+    },
+    "links": {
+      "columns": {
+        "from_node": "str",
+        "to_node": "str",
+        "fixed_cost": "float",
+        "flow_cost": "float",
+        "link_cap": "float"
+      },
+      "sample": {
+        "from_node": "A",
+        "to_node": "C",
+        "fixed_cost": 100.0,
+        "flow_cost": 2.0,
+        "link_cap": 60.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "from_node": [
+          "A",
+          "B",
+          "C",
+          "D"
+        ],
+        "to_node": [
+          "C",
+          "D",
+          "E"
+        ],
+        "fixed_cost": [
+          "40.0",
+          "50.0",
+          "60.0",
+          "70.0",
+          "80.0",
+          "90.0",
+          "100.0"
+        ],
+        "flow_cost": [
+          "1.0",
+          "2.0",
+          "3.0"
+        ],
+        "link_cap": [
+          "30.0",
+          "40.0",
+          "50.0",
+          "60.0",
+          "70.0",
+          "80.0"
+        ]
+      },
+      "row_count": 7
+    },
+    "net_demand": {
+      "columns": {
+        "node_id": "str",
+        "demand": "float"
+      },
+      "sample": {
+        "node_id": "A",
+        "demand": 50.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "node_id": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "E"
+        ],
+        "demand": [
+          "-80.0",
+          "0.0",
+          "30.0",
+          "50.0"
+        ]
+      },
+      "row_count": 5
+    }
+  },
+  "ir": {
+    "problem_class": "FixedChargeNetworkDesign",
+    "model_type": "Mixed Integer Program",
+    "sense": "minimize",
+    "sets": {
+      "Nodes": {
+        "size": null,
+        "index_symbol": "i",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "nodes",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "link_fixed_cost": {
+        "domain": [
+          "Nodes",
+          "Nodes"
+        ],
+        "type": "float",
+        "source": "links.csv",
+        "column": "fixed_cost",
+        "index_columns": [
+          "from_node",
+          "to_node"
+        ],
+        "missing_default": "inf"
+      },
+      "link_flow_cost": {
+        "domain": [
+          "Nodes",
+          "Nodes"
+        ],
+        "type": "float",
+        "source": "links.csv",
+        "column": "flow_cost",
+        "index_columns": [
+          "from_node",
+          "to_node"
+        ],
+        "missing_default": "inf"
+      },
+      "link_cap": {
+        "domain": [
+          "Nodes",
+          "Nodes"
+        ],
+        "type": "float",
+        "source": "links.csv",
+        "column": "link_cap",
+        "index_columns": [
+          "from_node",
+          "to_node"
+        ],
+        "missing_default": "zero"
+      },
+      "net_demand": {
+        "domain": [
+          "Nodes"
+        ],
+        "type": "float",
+        "source": "net_demand.csv",
+        "column": "demand",
+        "index_columns": [
+          "node_id"
+        ],
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "build": {
+        "description": "1 if link (i,j) is built",
+        "label": "build_decisions",
+        "domain": [
+          "Nodes",
+          "Nodes"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false,
+        "domain_filter": "link_fixed_cost"
+      },
+      "flow": {
+        "description": "Traffic flow on link (i,j)",
+        "label": "link_flows",
+        "domain": [
+          "Nodes",
+          "Nodes"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false,
+        "domain_filter": "link_fixed_cost"
+      }
+    },
+    "constraints": {
+      "flow_conservation": {
+        "domain": [
+          "Nodes"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Nodes:j"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "flow",
+              "indices": [
+                "i",
+                "j"
+              ]
+            }
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "operation": "indexed_sum",
+              "over": [
+                "Nodes:j"
+              ],
+              "body": {
+                "type": "variable",
+                "name": "flow",
+                "indices": [
+                  "j",
+                  "i"
+                ]
+              }
+            },
+            "right": {
+              "type": "parameter",
+              "name": "net_demand",
+              "indices": [
+                "i"
+              ]
+            }
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "capacity_link": {
+        "domain": [
+          "Nodes",
+          "Nodes"
+        ],
+        "sparse_filter": "link_fixed_cost",
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "flow",
+            "indices": [
+              "i1",
+              "i2"
+            ]
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "link_cap",
+              "indices": [
+                "i1",
+                "i2"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "build",
+              "indices": [
+                "i1",
+                "i2"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Nodes:i1",
+          "Nodes:i2"
+        ],
+        "body": {
+          "operation": "sum",
+          "left": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "link_fixed_cost",
+              "indices": [
+                "i1",
+                "i2"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "build",
+              "indices": [
+                "i1",
+                "i2"
+              ]
+            }
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "link_flow_cost",
+              "indices": [
+                "i1",
+                "i2"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "flow",
+              "indices": [
+                "i1",
+                "i2"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

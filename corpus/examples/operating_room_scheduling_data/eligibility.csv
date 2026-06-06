@@ -1,0 +1,12 @@
+surgery_id,surgeon_id,eligible
+s1,sg1,1
+s1,sg2,1
+s2,sg1,1
+s2,sg3,1
+s3,sg2,1
+s3,sg3,1
+s4,sg1,1
+s4,sg2,1
+s5,sg2,1
+s5,sg3,1
+s6,sg1,1

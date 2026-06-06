@@ -1,0 +1,13 @@
+skill_id,quarter_id,skill_demand
+sk1,q1,1
+sk1,q2,2
+sk1,q3,3
+sk1,q4,3
+sk2,q1,1
+sk2,q2,1
+sk2,q3,2
+sk2,q4,3
+sk3,q1,0
+sk3,q2,1
+sk3,q3,2
+sk3,q4,2

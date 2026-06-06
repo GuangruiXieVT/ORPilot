@@ -1,0 +1,8 @@
+warehouse_id,retailer_id,fixed_cost,shipment_size
+w1,r1,30.0,25.0
+w1,r2,35.0,30.0
+w2,r2,25.0,30.0
+w2,r3,40.0,25.0
+w2,r4,30.0,25.0
+w3,r3,35.0,25.0
+w3,r4,30.0,25.0

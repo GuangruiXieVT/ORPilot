@@ -1,0 +1,206 @@
+{
+  "problem": {
+    "title": "Emergency Response Station Siting",
+    "description": "A city emergency management agency must site a minimum number of emergency response stations to ensure every residential neighborhood is covered. There are several candidate locations for new stations. For each candidate location it is known in advance which neighborhoods it can reach within the required response time — this is given as a binary coverage matrix. A neighborhood is considered covered if at least one open station can reach it within the time limit. Choose the minimum number of stations to open (and which locations to use) such that every neighborhood has at least one station covering it.",
+    "problem_type": "integer_programming",
+    "objective": "minimize",
+    "objective_description": "Total number of emergency response stations opened across all candidate locations",
+    "constraints": [
+      {
+        "description": "For each neighborhood, the sum of coverage indicators over all open stations must be at least 1 (every neighborhood must be covered by at least one station)"
+      }
+    ],
+    "decision_variables": [
+      "open_station[c]: 1 if a station is opened at candidate location c, 0 otherwise (binary)"
+    ],
+    "parameters": [
+      "covers[c,n]: 1 if candidate location c can cover neighborhood n within the required response time, 0 otherwise"
+    ],
+    "additional_notes": "",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "coverage": "coverage.csv"
+    }
+  },
+  "ir_patterns": [
+    "binary variable",
+    "big-M linking"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "candidates",
+        "element": "loc_1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "candidates",
+          "neighborhoods"
+        ],
+        "element": [
+          "loc_1",
+          "loc_2",
+          "loc_3",
+          "loc_4",
+          "loc_5",
+          "nbhd_1",
+          "nbhd_2",
+          "nbhd_3",
+          "nbhd_4",
+          "nbhd_5",
+          "nbhd_6",
+          "nbhd_7",
+          "nbhd_8"
+        ]
+      }
+    },
+    "coverage": {
+      "columns": {
+        "candidate_id": "str",
+        "neighborhood_id": "str",
+        "covers": "int"
+      },
+      "sample": {
+        "candidate_id": "loc_1",
+        "neighborhood_id": "nbhd_1",
+        "covers": 1
+      },
+      "optional": false,
+      "distinct_values": {
+        "candidate_id": [
+          "loc_1",
+          "loc_2",
+          "loc_3",
+          "loc_4",
+          "loc_5"
+        ],
+        "neighborhood_id": [
+          "nbhd_1",
+          "nbhd_2",
+          "nbhd_3",
+          "nbhd_4",
+          "nbhd_5",
+          "nbhd_6",
+          "nbhd_7",
+          "nbhd_8"
+        ],
+        "covers": [
+          "0",
+          "1"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "SetCovering",
+    "model_type": "Mixed Integer Program",
+    "sense": "minimize",
+    "sets": {
+      "Candidates": {
+        "size": null,
+        "index_symbol": "c",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "candidates",
+        "ordered": false
+      },
+      "Neighborhoods": {
+        "size": null,
+        "index_symbol": "n",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "neighborhoods",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "covers": {
+        "domain": [
+          "Candidates",
+          "Neighborhoods"
+        ],
+        "type": "float",
+        "source": "coverage.csv",
+        "column": "covers",
+        "index_columns": [
+          "candidate_id",
+          "neighborhood_id"
+        ],
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "open_station": {
+        "description": "1 if a station is opened at candidate location c, 0 otherwise",
+        "label": "opened_stations",
+        "domain": [
+          "Candidates"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "coverage_requirement": {
+        "domain": [
+          "Neighborhoods"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Candidates:c"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "covers",
+              "indices": [
+                "c",
+                "n"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "open_station",
+              "indices": [
+                "c"
+              ]
+            }
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "constant",
+          "value": 1
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Candidates:c"
+        ],
+        "body": {
+          "type": "variable",
+          "name": "open_station",
+          "indices": [
+            "c"
+          ]
+        }
+      }
+    }
+  }
+}

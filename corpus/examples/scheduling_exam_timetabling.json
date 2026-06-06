@@ -1,0 +1,332 @@
+{
+  "problem": {
+    "title": "Exam Timetabling with Eligible Slots",
+    "description": "A university must schedule seven exams across five available timeslots. Due to room availability, instructor constraints, and equipment requirements, not every exam can be scheduled in every timeslot — only certain (exam, timeslot) combinations are eligible. Each eligible assignment has a preference score reflecting room quality, student convenience, and instructor preference. Each exam must be scheduled in exactly one eligible timeslot. Each timeslot has a maximum student capacity (sum of enrolled students across all exams assigned to that slot must not exceed capacity). Maximize the total preference score across all scheduled exam-timeslot assignments.",
+    "problem_type": "integer_programming",
+    "objective": "maximize",
+    "objective_description": "Total preference score across all scheduled exam-timeslot assignments",
+    "constraints": [
+      {
+        "description": "Each exam must be scheduled in exactly one eligible timeslot"
+      },
+      {
+        "description": "For each timeslot, the total number of students from all assigned exams must not exceed the timeslot's maximum capacity"
+      }
+    ],
+    "decision_variables": [
+      "schedule[e,ts]: 1 if exam e is assigned to timeslot ts (only for eligible pairs), 0 otherwise (binary)"
+    ],
+    "parameters": [
+      "preference_score[e,ts]: desirability score for scheduling exam e in timeslot ts (only defined for eligible pairs)",
+      "student_count[e]: number of students enrolled in exam e",
+      "max_students[ts]: maximum number of students that can be accommodated in timeslot ts"
+    ],
+    "additional_notes": "The schedule variable is only defined for eligible (exam, timeslot) pairs as specified in eligible_slots.csv. Infeasible pairs are excluded from the model entirely using domain filtering.",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "eligible_slots": "eligible_slots.csv",
+      "exams": "exams.csv",
+      "timeslots": "timeslots.csv"
+    }
+  },
+  "ir_patterns": [
+    "binary variable",
+    "domain filter",
+    "big-M linking"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "exams",
+        "element": "e1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "exams",
+          "timeslots"
+        ],
+        "element": [
+          "e1",
+          "e2",
+          "e3",
+          "e4",
+          "e5",
+          "e6",
+          "e7",
+          "ts1",
+          "ts2",
+          "ts3",
+          "ts4",
+          "ts5"
+        ]
+      }
+    },
+    "eligible_slots": {
+      "columns": {
+        "exam_id": "str",
+        "timeslot_id": "str",
+        "preference_score": "float"
+      },
+      "sample": {
+        "exam_id": "e1",
+        "timeslot_id": "ts1",
+        "preference_score": 10.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "exam_id": [
+          "e1",
+          "e2",
+          "e3",
+          "e4",
+          "e5",
+          "e6",
+          "e7"
+        ],
+        "timeslot_id": [
+          "ts1",
+          "ts2",
+          "ts3",
+          "ts4",
+          "ts5"
+        ]
+      }
+    },
+    "exams": {
+      "columns": {
+        "exam_id": "str",
+        "student_count": "int"
+      },
+      "sample": {
+        "exam_id": "e1",
+        "student_count": 30
+      },
+      "optional": false,
+      "distinct_values": {
+        "exam_id": [
+          "e1",
+          "e2",
+          "e3",
+          "e4",
+          "e5",
+          "e6",
+          "e7"
+        ],
+        "student_count": [
+          "20",
+          "25",
+          "28",
+          "30",
+          "32",
+          "35",
+          "40"
+        ]
+      }
+    },
+    "timeslots": {
+      "columns": {
+        "timeslot_id": "str",
+        "max_students": "int"
+      },
+      "sample": {
+        "timeslot_id": "ts1",
+        "max_students": 80
+      },
+      "optional": false,
+      "distinct_values": {
+        "timeslot_id": [
+          "ts1",
+          "ts2",
+          "ts3",
+          "ts4",
+          "ts5"
+        ],
+        "max_students": [
+          "70",
+          "80",
+          "85",
+          "90",
+          "100"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "SchedulingProblem",
+    "model_type": "Mixed Integer Program",
+    "sense": "maximize",
+    "sets": {
+      "Exams": {
+        "size": null,
+        "index_symbol": "e",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "exams",
+        "ordered": false
+      },
+      "Timeslots": {
+        "size": null,
+        "index_symbol": "ts",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "timeslots",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "preference_score": {
+        "domain": [
+          "Exams",
+          "Timeslots"
+        ],
+        "type": "float",
+        "source": "eligible_slots.csv",
+        "column": "preference_score",
+        "index_columns": [
+          "exam_id",
+          "timeslot_id"
+        ],
+        "missing_default": "zero"
+      },
+      "student_count": {
+        "domain": [
+          "Exams"
+        ],
+        "type": "float",
+        "source": "exams.csv",
+        "column": "student_count",
+        "index_columns": [
+          "exam_id"
+        ],
+        "missing_default": "zero"
+      },
+      "max_students": {
+        "domain": [
+          "Timeslots"
+        ],
+        "type": "float",
+        "source": "timeslots.csv",
+        "column": "max_students",
+        "index_columns": [
+          "timeslot_id"
+        ],
+        "missing_default": "inf"
+      }
+    },
+    "variables": {
+      "schedule": {
+        "description": "1 if exam e is scheduled in timeslot ts, 0 otherwise (only for eligible pairs)",
+        "label": "exam_schedule",
+        "domain": [
+          "Exams",
+          "Timeslots"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false,
+        "domain_filter": "preference_score"
+      }
+    },
+    "constraints": {
+      "each_exam_once": {
+        "domain": [
+          "Exams"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Timeslots:ts"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "schedule",
+            "indices": [
+              "e",
+              "ts"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 1
+        }
+      },
+      "timeslot_capacity": {
+        "domain": [
+          "Timeslots"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Exams:e"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "student_count",
+              "indices": [
+                "e"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "schedule",
+              "indices": [
+                "e",
+                "ts"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "parameter",
+          "name": "max_students",
+          "indices": [
+            "ts"
+          ]
+        }
+      }
+    },
+    "objective": {
+      "sense": "maximize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Exams:e",
+          "Timeslots:ts"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "type": "parameter",
+            "name": "preference_score",
+            "indices": [
+              "e",
+              "ts"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "schedule",
+            "indices": [
+              "e",
+              "ts"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

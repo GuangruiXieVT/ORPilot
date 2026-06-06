@@ -1,0 +1,568 @@
+{
+  "problem": {
+    "title": "Capacitated Lot Sizing Problem (CLSP)",
+    "description": "A manufacturer produces several products on a shared machine over a multi-period planning horizon. In each period, a product can only be produced if the machine is set up for it, incurring a fixed setup cost. Variable production cost and per-unit holding cost also apply. The machine has a limited total capacity per period shared across all products. Known demand must be met each period from available inventory. Determine which products to set up and how much to produce each period to minimize total setup, production, and holding costs.",
+    "problem_type": "mixed_integer_programming",
+    "objective": "minimize",
+    "objective_description": "Total cost = sum of setup costs (when machine is set up for a product) plus variable production costs plus inventory holding costs, over all products and periods",
+    "constraints": [
+      {
+        "description": "Inventory balance initialization: first-period ending inventory equals initial inventory plus production minus demand"
+      },
+      {
+        "description": "Inventory balance: ending inventory equals previous inventory plus production minus demand (temporal lag)"
+      },
+      {
+        "description": "Setup link: production quantity is zero unless the machine is set up (big-M linking constraint)"
+      },
+      {
+        "description": "Machine capacity: total production across all products in a period must not exceed the machine capacity"
+      }
+    ],
+    "decision_variables": [
+      "produce[p,t]: units of product p produced in period t (continuous, non-negative)",
+      "setup[p,t]: 1 if product p is set up on the machine in period t, else 0 (binary)",
+      "inventory[p,t]: units of product p in inventory at the end of period t (continuous, non-negative)"
+    ],
+    "parameters": [
+      "demand[p,t]: known demand for product p in period t",
+      "setup_cost[p]: fixed cost incurred when the machine is set up for product p",
+      "prod_cost[p]: variable production cost per unit of product p",
+      "holding_cost[p]: per-unit per-period holding cost for product p",
+      "initial_inv[p]: inventory on hand at the start of the planning horizon for product p",
+      "max_batch[p]: maximum units of product p producible per period (big-M for setup link)",
+      "machine_cap: total machine capacity (units) available per period, shared across all products"
+    ],
+    "additional_notes": "The setup_link constraint (produce[p,t] <= max_batch[p] * setup[p,t]) forces the binary setup variable to 1 before any production occurs. The inventory balance uses a temporal lag to link adjacent periods.",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "products": "products.csv",
+      "demand": "demand.csv",
+      "machine_params": "machine_params.csv"
+    }
+  },
+  "ir_patterns": [
+    "binary variable",
+    "ordered set",
+    "temporal lag",
+    "init constraint",
+    "scalar parameter",
+    "big-M linking"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "products",
+        "element": "prod_A"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "products",
+          "periods"
+        ],
+        "element": [
+          "prod_A",
+          "prod_B",
+          "prod_C",
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ]
+      }
+    },
+    "products": {
+      "columns": {
+        "id": "str",
+        "setup_cost": "float",
+        "prod_cost": "float",
+        "holding_cost": "float",
+        "initial_inv": "float",
+        "max_batch": "float"
+      },
+      "sample": {
+        "id": "prod_A",
+        "setup_cost": 500.0,
+        "prod_cost": 10.0,
+        "holding_cost": 2.0,
+        "initial_inv": 20.0,
+        "max_batch": 100.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "id": [
+          "prod_A",
+          "prod_B",
+          "prod_C"
+        ],
+        "setup_cost": [
+          "400.0",
+          "500.0",
+          "700.0"
+        ],
+        "prod_cost": [
+          "8.0",
+          "10.0",
+          "15.0"
+        ],
+        "holding_cost": [
+          "1.5",
+          "2.0",
+          "3.0"
+        ],
+        "initial_inv": [
+          "0.0",
+          "10.0",
+          "20.0"
+        ],
+        "max_batch": [
+          "100.0",
+          "120.0",
+          "150.0"
+        ]
+      }
+    },
+    "demand": {
+      "columns": {
+        "product_id": "str",
+        "period_id": "str",
+        "demand": "float"
+      },
+      "sample": {
+        "product_id": "prod_A",
+        "period_id": "t1",
+        "demand": 40.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "product_id": [
+          "prod_A",
+          "prod_B",
+          "prod_C"
+        ],
+        "period_id": [
+          "t1",
+          "t2",
+          "t3",
+          "t4"
+        ],
+        "demand": [
+          "20.0",
+          "30.0",
+          "40.0",
+          "50.0",
+          "60.0"
+        ]
+      }
+    },
+    "machine_params": {
+      "columns": {
+        "machine_cap": "float"
+      },
+      "sample": {
+        "machine_cap": 200.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "machine_cap": [
+          "200.0"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "CapacitatedLotSizing",
+    "model_type": "Mixed Integer Program",
+    "sense": "minimize",
+    "sets": {
+      "Products": {
+        "size": null,
+        "index_symbol": "p",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "products",
+        "ordered": false
+      },
+      "Periods": {
+        "size": null,
+        "index_symbol": "t",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "periods",
+        "ordered": true
+      }
+    },
+    "parameters": {
+      "demand": {
+        "domain": [
+          "Products",
+          "Periods"
+        ],
+        "type": "float",
+        "source": "demand.csv",
+        "column": "demand",
+        "index_columns": [
+          "product_id",
+          "period_id"
+        ],
+        "missing_default": "zero"
+      },
+      "setup_cost": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "products.csv",
+        "column": "setup_cost",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "inf"
+      },
+      "prod_cost": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "products.csv",
+        "column": "prod_cost",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "inf"
+      },
+      "holding_cost": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "products.csv",
+        "column": "holding_cost",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "inf"
+      },
+      "initial_inv": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "products.csv",
+        "column": "initial_inv",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "zero"
+      },
+      "max_batch": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "products.csv",
+        "column": "max_batch",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "zero"
+      },
+      "machine_cap": {
+        "domain": [],
+        "type": "float",
+        "source": "machine_params.csv",
+        "column": "machine_cap",
+        "index_columns": null,
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "produce": {
+        "description": "Units of product p produced in period t",
+        "label": "production_quantities",
+        "domain": [
+          "Products",
+          "Periods"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "setup": {
+        "description": "1 if machine is set up for product p in period t",
+        "label": "setup_decisions",
+        "domain": [
+          "Products",
+          "Periods"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "inventory": {
+        "description": "Inventory of product p at end of period t",
+        "label": "inventory_levels",
+        "domain": [
+          "Products",
+          "Periods"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "inv_balance_init": {
+        "domain": [
+          "Products"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "type": "parameter",
+              "name": "initial_inv",
+              "indices": [
+                "p"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "produce",
+              "indices": [
+                "p",
+                "Periods[0]"
+              ]
+            }
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "type": "parameter",
+              "name": "demand",
+              "indices": [
+                "p",
+                "Periods[0]"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "inventory",
+              "indices": [
+                "p",
+                "Periods[0]"
+              ]
+            }
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "inv_balance": {
+        "domain": [
+          "Products",
+          "Periods"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "inventory",
+              "indices": [
+                "p",
+                "t"
+              ],
+              "lag": -1
+            },
+            "right": {
+              "type": "variable",
+              "name": "produce",
+              "indices": [
+                "p",
+                "t"
+              ]
+            }
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "type": "parameter",
+              "name": "demand",
+              "indices": [
+                "p",
+                "t"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "inventory",
+              "indices": [
+                "p",
+                "t"
+              ]
+            }
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "setup_link": {
+        "domain": [
+          "Products",
+          "Periods"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "produce",
+            "indices": [
+              "p",
+              "t"
+            ]
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "max_batch",
+              "indices": [
+                "p"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "setup",
+              "indices": [
+                "p",
+                "t"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "machine_capacity": {
+        "domain": [
+          "Periods"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Products:p"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "produce",
+            "indices": [
+              "p",
+              "t"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "parameter",
+          "name": "machine_cap",
+          "indices": []
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Products:p",
+          "Periods:t"
+        ],
+        "body": {
+          "operation": "sum",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "operation": "multiply",
+              "left": {
+                "type": "parameter",
+                "name": "setup_cost",
+                "indices": [
+                  "p"
+                ]
+              },
+              "right": {
+                "type": "variable",
+                "name": "setup",
+                "indices": [
+                  "p",
+                  "t"
+                ]
+              }
+            },
+            "right": {
+              "operation": "multiply",
+              "left": {
+                "type": "parameter",
+                "name": "prod_cost",
+                "indices": [
+                  "p"
+                ]
+              },
+              "right": {
+                "type": "variable",
+                "name": "produce",
+                "indices": [
+                  "p",
+                  "t"
+                ]
+              }
+            }
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "holding_cost",
+              "indices": [
+                "p"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "inventory",
+              "indices": [
+                "p",
+                "t"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

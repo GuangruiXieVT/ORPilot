@@ -1,0 +1,13 @@
+supplier_id,product_id,contract_cost
+s1,p1,1.0
+s1,p2,1.5
+s1,p3,2.0
+s2,p1,1.5
+s2,p2,1.0
+s2,p3,1.5
+s3,p1,2.0
+s3,p2,2.0
+s3,p3,1.0
+s4,p1,1.5
+s4,p2,1.5
+s4,p3,1.5

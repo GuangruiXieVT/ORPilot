@@ -13,6 +13,50 @@ from orpilot.workflow.state import WorkflowState
 
 _MAX_ITERATIONS = 12
 
+
+def _build_rag_context(problem, embed_api_key: str | None = None, embed_model: str | None = None) -> str:
+    """Return a formatted reference-examples block for the prompt, or empty string."""
+    try:
+        from orpilot.rag import get_retriever
+        from orpilot.rag.embedder import get_embedder
+    except ImportError:
+        return ""
+
+    retriever = get_retriever()
+    if retriever is None:
+        return ""
+
+    # Build query text from the problem description
+    p = problem
+    query_parts = []
+    if getattr(p, "title", None):
+        query_parts.append(f"Title: {p.title}")
+    if getattr(p, "description", None):
+        query_parts.append(f"Description: {p.description}")
+    if getattr(p, "objective", None):
+        query_parts.append(f"Objective: {p.objective}")
+    if getattr(p, "objective_description", None):
+        query_parts.append(f"Objective description: {p.objective_description}")
+    if getattr(p, "decision_variables", None):
+        query_parts.append("Decision variables: " + "; ".join(p.decision_variables))
+    if getattr(p, "parameters", None):
+        query_parts.append("Parameters: " + "; ".join(p.parameters))
+    if getattr(p, "constraints", None):
+        descs = [
+            c.get("description", str(c)) if isinstance(c, dict) else str(c)
+            for c in p.constraints
+        ]
+        query_parts.append("Constraints: " + "; ".join(descs))
+    query_text = "\n".join(query_parts)
+
+    from orpilot.rag.embedder import _DEFAULT_MODEL
+    embedder = get_embedder(model=embed_model or _DEFAULT_MODEL, api_key=embed_api_key)
+    examples = retriever.retrieve(query_text, embedder=embedder)
+    if examples:
+        titles = [ex.get("problem_title") or ex["name"] for ex in examples]
+        print(f"[RAG] Retrieved {len(examples)} examples: {', '.join(titles)}")
+    return retriever.format_for_prompt(examples)
+
 _TOOLS = [
     ToolDefinition(
         name="submit_ir",
@@ -157,7 +201,13 @@ def _build_csv_schemas(user_data) -> dict:
                     v = str(row[col]) if col in row else ""
                     seen[v] = None
                 distinct[col] = list(seen.keys())[:30]
-            csv_schemas[stem] = {"columns": col_names, "distinct_values": distinct}
+            csv_schemas[stem] = {
+                "columns": {c.name: c.dtype for c in spec.columns},
+                "sample": rows[0] if rows else {},
+                "optional": spec.optional,
+                "distinct_values": distinct,
+                "row_count": len(rows),
+            }
     return csv_schemas
 
 
@@ -239,6 +289,14 @@ def ir_builder_node(state: WorkflowState, llm: BaseLLM) -> WorkflowState:
 
     system = ir_builder_prompts.SYSTEM_PROMPT + "\n\n" + _TOOL_INSTRUCTIONS
 
+    # Retrieve similar examples on the first attempt only — prepend to user turn to
+    # keep the system prompt stable (better for Anthropic prompt caching).
+    embed_api_key = state.get("embed_api_key")
+    embed_model = state.get("embed_model")
+    rag_block = _build_rag_context(problem, embed_api_key=embed_api_key, embed_model=embed_model) if not error_context else ""
+    base_payload = json.dumps(user_payload)
+    user_prefix = rag_block + "\n\n" if rag_block else ""
+
     if error_context and existing_ir:
         code_block = f"\nCompiled code:\n```python\n{generated_code}\n```" if generated_code else ""
         messages = [
@@ -246,7 +304,7 @@ def ir_builder_node(state: WorkflowState, llm: BaseLLM) -> WorkflowState:
             {
                 "role": "user",
                 "content": (
-                    json.dumps(user_payload) + "\n\n"
+                    base_payload + "\n\n"
                     f"Your previous IR attempt:\n```json\n{json.dumps(existing_ir, indent=2)}\n```\n\n"
                     f"Running it produced this error:\n{error_context}{code_block}\n\n"
                     "Identify the root cause in the IR and call submit_ir with the corrected version."
@@ -259,7 +317,7 @@ def ir_builder_node(state: WorkflowState, llm: BaseLLM) -> WorkflowState:
             {
                 "role": "user",
                 "content": (
-                    json.dumps(user_payload) + "\n\n"
+                    base_payload + "\n\n"
                     f"Warning: parameter computation failed and some derived CSVs "
                     f"may not be available:\n{error_context}\n\n"
                     "If a required CSV is missing, set source to null."
@@ -269,7 +327,7 @@ def ir_builder_node(state: WorkflowState, llm: BaseLLM) -> WorkflowState:
     else:
         messages = [
             {"role": "system", "content": system},
-            {"role": "user", "content": json.dumps(user_payload)},
+            {"role": "user", "content": user_prefix + base_payload},
         ]
 
     ir_dict, unsupported, failure = _run_tool_loop(llm, messages, csv_schemas)

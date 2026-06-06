@@ -37,10 +37,20 @@ def direct_code_gen_node(state: WorkflowState, llm: BaseLLM) -> WorkflowState:
         for spec in user_data.csv_specs:
             stem = Path(spec.filename).stem
             rows = raw_tables.get(stem, [])
+            col_names = [c.name for c in spec.columns]
+            distinct: dict[str, list] = {}
+            for col in col_names:
+                seen: dict = {}
+                for row in rows:
+                    v = str(row[col]) if col in row else ""
+                    seen[v] = None
+                distinct[col] = list(seen.keys())[:30]
             csv_schemas[stem] = {
                 "columns": {c.name: c.dtype for c in spec.columns},
                 "sample": rows[0] if rows else {},
                 "optional": spec.optional,
+                "distinct_values": distinct,
+                "row_count": len(rows),
             }
 
     problem_dict = json.loads(problem.model_dump_json())

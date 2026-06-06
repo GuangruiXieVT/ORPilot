@@ -1,0 +1,7 @@
+warehouse_id,product_id,initial_inventory
+w1,prod_A,15.0
+w1,prod_B,12.0
+w2,prod_A,10.0
+w2,prod_B,8.0
+w3,prod_A,12.0
+w3,prod_B,10.0

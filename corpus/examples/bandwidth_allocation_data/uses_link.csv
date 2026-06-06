@@ -1,0 +1,13 @@
+session_id,link_id,uses
+s1,l1,1
+s1,l2,1
+s1,l4,1
+s2,l1,1
+s2,l3,1
+s2,l5,1
+s3,l2,1
+s3,l3,1
+s3,l4,1
+s4,l2,1
+s4,l4,1
+s4,l5,1

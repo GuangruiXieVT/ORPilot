@@ -1,0 +1,9 @@
+set_name,element
+workers,w1
+workers,w2
+workers,w3
+workers,w4
+tasks,t1
+tasks,t2
+tasks,t3
+tasks,t4

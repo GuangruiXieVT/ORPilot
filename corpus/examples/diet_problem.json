@@ -1,0 +1,382 @@
+{
+  "problem": {
+    "title": "Hospital Daily Meal Plan",
+    "description": "A hospital nutritionist must design a daily meal plan from a set of available food items. Each food item has a cost per serving and provides known amounts of several nutrients per serving. The meal plan must satisfy minimum and maximum daily intake requirements for each nutrient. Determine how many servings of each food item to include in the daily meal plan to minimize total cost while meeting all nutritional requirements.",
+    "problem_type": "linear_programming",
+    "objective": "minimize",
+    "objective_description": "Total cost of the daily meal plan across all food items and their serving quantities",
+    "constraints": [
+      {
+        "description": "The total amount of each nutrient provided by all food servings must meet the minimum daily intake requirement for that nutrient"
+      },
+      {
+        "description": "The total amount of each nutrient provided by all food servings must not exceed the maximum daily allowance for that nutrient"
+      }
+    ],
+    "decision_variables": [
+      "eat[f]: number of servings of food f to include in the daily meal plan (continuous, non-negative)"
+    ],
+    "parameters": [
+      "cost_per_serving[f]: cost per serving of food item f",
+      "nutrition[f, n]: amount of nutrient n provided by one serving of food item f",
+      "min_req[n]: minimum daily intake requirement for nutrient n",
+      "max_req[n]: maximum daily allowance for nutrient n"
+    ],
+    "additional_notes": "",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "foods": "foods.csv",
+      "nutrients": "nutrients.csv",
+      "nutrition": "nutrition.csv",
+      "nutrient_limits": "nutrient_limits.csv"
+    }
+  },
+  "ir_patterns": [],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "foods",
+        "element": "rice"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "foods",
+          "nutrients"
+        ],
+        "element": [
+          "rice",
+          "chicken",
+          "broccoli",
+          "milk",
+          "bread",
+          "calories",
+          "protein",
+          "fat",
+          "carbs"
+        ]
+      }
+    },
+    "foods": {
+      "columns": {
+        "id": "str",
+        "cost_per_serving": "float"
+      },
+      "sample": {
+        "id": "rice",
+        "cost_per_serving": 0.5
+      },
+      "optional": false,
+      "distinct_values": {
+        "id": [
+          "rice",
+          "chicken",
+          "broccoli",
+          "milk",
+          "bread"
+        ],
+        "cost_per_serving": [
+          "0.5",
+          "2.0",
+          "1.2",
+          "0.8",
+          "0.4"
+        ]
+      }
+    },
+    "nutrients": {
+      "columns": {
+        "id": "str"
+      },
+      "sample": {
+        "id": "calories"
+      },
+      "optional": false,
+      "distinct_values": {
+        "id": [
+          "calories",
+          "protein",
+          "fat",
+          "carbs"
+        ]
+      }
+    },
+    "nutrition": {
+      "columns": {
+        "food_id": "str",
+        "nutrient_id": "str",
+        "amount": "float"
+      },
+      "sample": {
+        "food_id": "rice",
+        "nutrient_id": "calories",
+        "amount": 200.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "food_id": [
+          "rice",
+          "chicken",
+          "broccoli",
+          "milk",
+          "bread"
+        ],
+        "nutrient_id": [
+          "calories",
+          "protein",
+          "fat",
+          "carbs"
+        ],
+        "amount": [
+          "200.0",
+          "165.0",
+          "55.0",
+          "149.0",
+          "79.0",
+          "4.0",
+          "31.0",
+          "8.0",
+          "3.0",
+          "0.5",
+          "4.0",
+          "1.0",
+          "44.0",
+          "0.0",
+          "11.0",
+          "12.0",
+          "15.0"
+        ]
+      }
+    },
+    "nutrient_limits": {
+      "columns": {
+        "nutrient_id": "str",
+        "min_amount": "float",
+        "max_amount": "float"
+      },
+      "sample": {
+        "nutrient_id": "calories",
+        "min_amount": 1800.0,
+        "max_amount": 2200.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "nutrient_id": [
+          "calories",
+          "protein",
+          "fat",
+          "carbs"
+        ],
+        "min_amount": [
+          "1800.0",
+          "50.0",
+          "40.0",
+          "225.0"
+        ],
+        "max_amount": [
+          "2200.0",
+          "200.0",
+          "75.0",
+          "325.0"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "DietProblem",
+    "model_type": "Linear Program",
+    "sense": "minimize",
+    "sets": {
+      "Foods": {
+        "size": null,
+        "index_symbol": "f",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "foods",
+        "ordered": false
+      },
+      "Nutrients": {
+        "size": null,
+        "index_symbol": "n",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "nutrients",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "cost": {
+        "domain": [
+          "Foods"
+        ],
+        "type": "float",
+        "source": "foods.csv",
+        "column": "cost_per_serving",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "inf"
+      },
+      "nutrition": {
+        "domain": [
+          "Foods",
+          "Nutrients"
+        ],
+        "type": "float",
+        "source": "nutrition.csv",
+        "column": "amount",
+        "index_columns": [
+          "food_id",
+          "nutrient_id"
+        ],
+        "missing_default": "zero"
+      },
+      "min_req": {
+        "domain": [
+          "Nutrients"
+        ],
+        "type": "float",
+        "source": "nutrient_limits.csv",
+        "column": "min_amount",
+        "index_columns": [
+          "nutrient_id"
+        ],
+        "missing_default": "zero"
+      },
+      "max_req": {
+        "domain": [
+          "Nutrients"
+        ],
+        "type": "float",
+        "source": "nutrient_limits.csv",
+        "column": "max_amount",
+        "index_columns": [
+          "nutrient_id"
+        ],
+        "missing_default": "inf"
+      }
+    },
+    "variables": {
+      "eat": {
+        "description": "Number of servings of food f to include in the daily diet",
+        "label": "food_servings",
+        "domain": [
+          "Foods"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "min_intake": {
+        "domain": [
+          "Nutrients"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Foods:f"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "nutrition",
+              "indices": [
+                "f",
+                "n"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "eat",
+              "indices": [
+                "f"
+              ]
+            }
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "parameter",
+          "name": "min_req",
+          "indices": [
+            "n"
+          ]
+        }
+      },
+      "max_intake": {
+        "domain": [
+          "Nutrients"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Foods:f"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "nutrition",
+              "indices": [
+                "f",
+                "n"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "eat",
+              "indices": [
+                "f"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "parameter",
+          "name": "max_req",
+          "indices": [
+            "n"
+          ]
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Foods:f"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "type": "parameter",
+            "name": "cost",
+            "indices": [
+              "f"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "eat",
+            "indices": [
+              "f"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

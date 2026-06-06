@@ -1,0 +1,7 @@
+plant_id,product_id,initial_inventory
+p1,prod_A,0.0
+p1,prod_B,0.0
+p2,prod_A,0.0
+p2,prod_B,0.0
+p3,prod_A,0.0
+p3,prod_B,0.0

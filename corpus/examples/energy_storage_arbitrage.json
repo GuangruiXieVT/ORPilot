@@ -1,0 +1,495 @@
+{
+  "problem": {
+    "title": "Battery Energy Storage Arbitrage",
+    "description": "A battery storage operator charges and discharges a battery over 12 hourly periods to profit from electricity price differences. Charging consumes energy at the spot price; discharging earns revenue at the spot price. The battery has a maximum state of charge (capacity), maximum charge/discharge rates, and a charging efficiency. Maximize net profit over the 12 periods.",
+    "problem_type": "linear_programming",
+    "objective": "maximize",
+    "objective_description": "Net revenue = sum over periods of (price * discharge - price * charge)",
+    "constraints": [
+      {
+        "description": "SOC update init: first-period SOC = initial_soc + efficiency*charge[h1] - discharge[h1]"
+      },
+      {
+        "description": "SOC update: SOC[t] = SOC[t-1] + efficiency*charge[t] - discharge[t] (temporal lag)"
+      },
+      {
+        "description": "Charge rate limit: charge[t] <= max_charge_rate"
+      },
+      {
+        "description": "Discharge rate limit: discharge[t] <= max_discharge_rate"
+      },
+      {
+        "description": "Capacity limit: SOC[t] <= capacity"
+      }
+    ],
+    "decision_variables": [
+      "charge[Periods]: MWh charged in period t (continuous, non-negative)",
+      "discharge[Periods]: MWh discharged in period t (continuous, non-negative)",
+      "soc[Periods]: state of charge at end of period t (continuous, non-negative)"
+    ],
+    "parameters": [
+      "price[Periods]: electricity spot price ($/MWh)",
+      "max_charge_rate: maximum charge rate per period (MWh)",
+      "max_discharge_rate: maximum discharge rate per period (MWh)",
+      "capacity: battery energy capacity (MWh)",
+      "efficiency: charging efficiency (fraction of energy stored)",
+      "initial_soc: state of charge at start of first period"
+    ],
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "price": "price.csv",
+      "params": "params.csv"
+    }
+  },
+  "ir_patterns": [
+    "ordered set",
+    "temporal lag",
+    "init constraint",
+    "scalar parameter",
+    "maximize revenue"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "periods",
+        "element": "h1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "periods"
+        ],
+        "element": [
+          "h1",
+          "h2",
+          "h3",
+          "h4",
+          "h5",
+          "h6",
+          "h7",
+          "h8",
+          "h9",
+          "h10",
+          "h11",
+          "h12"
+        ]
+      }
+    },
+    "price": {
+      "columns": {
+        "period_id": "str",
+        "price": "float"
+      },
+      "sample": {
+        "period_id": "h1",
+        "price": 30.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "period_id": [
+          "h1",
+          "h2",
+          "h3",
+          "h4",
+          "h5",
+          "h6",
+          "h7",
+          "h8",
+          "h9",
+          "h10",
+          "h11",
+          "h12"
+        ],
+        "price": [
+          "18.0",
+          "20.0",
+          "22.0",
+          "25.0",
+          "30.0",
+          "35.0",
+          "40.0",
+          "50.0",
+          "55.0",
+          "65.0",
+          "70.0"
+        ]
+      }
+    },
+    "params": {
+      "columns": {
+        "max_charge_rate": "float",
+        "max_discharge_rate": "float",
+        "capacity": "float",
+        "efficiency": "float",
+        "initial_soc": "float"
+      },
+      "sample": {
+        "max_charge_rate": 30.0,
+        "max_discharge_rate": 30.0,
+        "capacity": 100.0,
+        "efficiency": 0.9,
+        "initial_soc": 20.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "max_charge_rate": [
+          "30.0"
+        ],
+        "max_discharge_rate": [
+          "30.0"
+        ],
+        "capacity": [
+          "100.0"
+        ],
+        "efficiency": [
+          "0.9"
+        ],
+        "initial_soc": [
+          "20.0"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "EnergyStorageArbitrage",
+    "model_type": "Linear Program",
+    "sense": "maximize",
+    "sets": {
+      "Periods": {
+        "size": null,
+        "index_symbol": "t",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "periods",
+        "ordered": true
+      }
+    },
+    "parameters": {
+      "price": {
+        "domain": [
+          "Periods"
+        ],
+        "type": "float",
+        "source": "price.csv",
+        "column": "price",
+        "index_columns": [
+          "period_id"
+        ],
+        "missing_default": "zero"
+      },
+      "max_charge_rate": {
+        "domain": [],
+        "type": "float",
+        "source": "params.csv",
+        "column": "max_charge_rate",
+        "index_columns": null,
+        "missing_default": "zero"
+      },
+      "max_discharge_rate": {
+        "domain": [],
+        "type": "float",
+        "source": "params.csv",
+        "column": "max_discharge_rate",
+        "index_columns": null,
+        "missing_default": "zero"
+      },
+      "capacity": {
+        "domain": [],
+        "type": "float",
+        "source": "params.csv",
+        "column": "capacity",
+        "index_columns": null,
+        "missing_default": "zero"
+      },
+      "efficiency": {
+        "domain": [],
+        "type": "float",
+        "source": "params.csv",
+        "column": "efficiency",
+        "index_columns": null,
+        "missing_default": "zero"
+      },
+      "initial_soc": {
+        "domain": [],
+        "type": "float",
+        "source": "params.csv",
+        "column": "initial_soc",
+        "index_columns": null,
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "charge": {
+        "description": "MWh charged in period t",
+        "label": "charge_energy",
+        "domain": [
+          "Periods"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "discharge": {
+        "description": "MWh discharged in period t",
+        "label": "discharge_energy",
+        "domain": [
+          "Periods"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "soc": {
+        "description": "State of charge at end of period t (MWh)",
+        "label": "state_of_charge",
+        "domain": [
+          "Periods"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "soc_update_init": {
+        "domain": [],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "soc",
+            "indices": [
+              "Periods[0]"
+            ]
+          },
+          "right": {
+            "operation": "subtract",
+            "left": {
+              "operation": "sum",
+              "left": {
+                "type": "parameter",
+                "name": "initial_soc",
+                "indices": []
+              },
+              "right": {
+                "operation": "multiply",
+                "left": {
+                  "type": "parameter",
+                  "name": "efficiency",
+                  "indices": []
+                },
+                "right": {
+                  "type": "variable",
+                  "name": "charge",
+                  "indices": [
+                    "Periods[0]"
+                  ]
+                }
+              }
+            },
+            "right": {
+              "type": "variable",
+              "name": "discharge",
+              "indices": [
+                "Periods[0]"
+              ]
+            }
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "soc_update": {
+        "domain": [
+          "Periods"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "soc",
+            "indices": [
+              "t"
+            ]
+          },
+          "right": {
+            "operation": "subtract",
+            "left": {
+              "operation": "sum",
+              "left": {
+                "type": "variable",
+                "name": "soc",
+                "indices": [
+                  "t"
+                ],
+                "lag": -1
+              },
+              "right": {
+                "operation": "multiply",
+                "left": {
+                  "type": "parameter",
+                  "name": "efficiency",
+                  "indices": []
+                },
+                "right": {
+                  "type": "variable",
+                  "name": "charge",
+                  "indices": [
+                    "t"
+                  ]
+                }
+              }
+            },
+            "right": {
+              "type": "variable",
+              "name": "discharge",
+              "indices": [
+                "t"
+              ]
+            }
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "charge_limit": {
+        "domain": [
+          "Periods"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "charge",
+            "indices": [
+              "t"
+            ]
+          },
+          "right": {
+            "type": "parameter",
+            "name": "max_charge_rate",
+            "indices": []
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "discharge_limit": {
+        "domain": [
+          "Periods"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "discharge",
+            "indices": [
+              "t"
+            ]
+          },
+          "right": {
+            "type": "parameter",
+            "name": "max_discharge_rate",
+            "indices": []
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "soc_capacity": {
+        "domain": [
+          "Periods"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "soc",
+            "indices": [
+              "t"
+            ]
+          },
+          "right": {
+            "type": "parameter",
+            "name": "capacity",
+            "indices": []
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "maximize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Periods:t"
+        ],
+        "body": {
+          "operation": "subtract",
+          "left": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "price",
+              "indices": [
+                "t"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "discharge",
+              "indices": [
+                "t"
+              ]
+            }
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "price",
+              "indices": [
+                "t"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "charge",
+              "indices": [
+                "t"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

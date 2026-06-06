@@ -1,0 +1,304 @@
+{
+  "problem": {
+    "title": "Goal Programming — Production Target Deviation",
+    "description": "A manufacturer wants to produce as close to demand as possible for each product. Due to capacity limits, some products cannot meet demand. Deviation from demand is penalised: a unit shortfall (under-production) costs more than a unit surplus (over-production). Minimise the total weighted deviation from targets.",
+    "problem_type": "linear_programming",
+    "objective": "minimize",
+    "objective_description": "Total weighted deviation (over_penalty*surplus + under_penalty*shortfall) summed over products",
+    "constraints": [
+      {
+        "description": "Deviation balance: produce + shortfall - surplus = demand for each product"
+      },
+      {
+        "description": "Capacity: production cannot exceed max capacity"
+      }
+    ],
+    "decision_variables": [
+      "produce[Products]: units produced (continuous, non-negative)",
+      "surplus[Products]: over-production above demand (continuous, non-negative)",
+      "shortfall[Products]: under-production below demand (continuous, non-negative)"
+    ],
+    "parameters": [
+      "demand[Products]: target production quantity",
+      "max_capacity[Products]: production capacity upper bound",
+      "over_penalty[Products]: cost per unit of surplus",
+      "under_penalty[Products]: cost per unit of shortfall"
+    ],
+    "additional_notes": "prod_B (cap=60 < demand=80) and prod_C (cap=130 < demand=150) are capacity-constrained. Optimal: shortfall[B]=20, shortfall[C]=20, all other deviations zero. Objective = 8*20 + 6*20 = 280.",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "products": "products.csv"
+    }
+  },
+  "ir_patterns": [
+    "deviation variables"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "products",
+        "element": "prod_A"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "products"
+        ],
+        "element": [
+          "prod_A",
+          "prod_B",
+          "prod_C",
+          "prod_D"
+        ]
+      }
+    },
+    "products": {
+      "columns": {
+        "id": "str",
+        "demand": "float",
+        "max_capacity": "float",
+        "over_penalty": "float",
+        "under_penalty": "float"
+      },
+      "sample": {
+        "id": "prod_A",
+        "demand": 100.0,
+        "max_capacity": 120.0,
+        "over_penalty": 1.0,
+        "under_penalty": 5.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "id": [
+          "prod_A",
+          "prod_B",
+          "prod_C",
+          "prod_D"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "GoalProgramming",
+    "model_type": "Linear Program",
+    "sense": "minimize",
+    "sets": {
+      "Products": {
+        "size": null,
+        "index_symbol": "p",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "products",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "demand": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "products.csv",
+        "column": "demand",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "zero"
+      },
+      "max_capacity": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "products.csv",
+        "column": "max_capacity",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "inf"
+      },
+      "over_penalty": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "products.csv",
+        "column": "over_penalty",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "inf"
+      },
+      "under_penalty": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "products.csv",
+        "column": "under_penalty",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "inf"
+      }
+    },
+    "variables": {
+      "produce": {
+        "description": "Units produced for each product",
+        "label": "production_quantities",
+        "domain": [
+          "Products"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "surplus": {
+        "description": "Over-production above demand target",
+        "label": "surplus_quantities",
+        "domain": [
+          "Products"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "shortfall": {
+        "description": "Under-production below demand target",
+        "label": "shortfall_quantities",
+        "domain": [
+          "Products"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "deviation_balance": {
+        "domain": [
+          "Products"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "produce",
+              "indices": [
+                "p"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "shortfall",
+              "indices": [
+                "p"
+              ]
+            }
+          },
+          "right": {
+            "type": "variable",
+            "name": "surplus",
+            "indices": [
+              "p"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "parameter",
+          "name": "demand",
+          "indices": [
+            "p"
+          ]
+        }
+      },
+      "capacity_ub": {
+        "domain": [
+          "Products"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "parameter",
+            "name": "max_capacity",
+            "indices": [
+              "p"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "produce",
+            "indices": [
+              "p"
+            ]
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Products:p"
+        ],
+        "body": {
+          "operation": "sum",
+          "left": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "over_penalty",
+              "indices": [
+                "p"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "surplus",
+              "indices": [
+                "p"
+              ]
+            }
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "under_penalty",
+              "indices": [
+                "p"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "shortfall",
+              "indices": [
+                "p"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

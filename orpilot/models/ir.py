@@ -12,6 +12,10 @@ class IRSet(BaseModel):
     index_symbol: str
     source: str | None
     column: str | None
+    # Optional row filter for shared CSVs (e.g. sets.csv): keep only rows where
+    # row[filter_column] == filter_value. Used with sets.csv pattern.
+    filter_column: str | None = None
+    filter_value: str | None = None
     # Optional: derive set size from a scalar integer stored in a parameter CSV.
     # When set, the compiler emits list(range(int(data[size_source][0][size_column]))).
     size_source: str | None = None

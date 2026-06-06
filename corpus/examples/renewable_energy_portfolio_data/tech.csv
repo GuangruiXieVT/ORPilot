@@ -1,0 +1,4 @@
+tech_id,build_cost,operating_cost,capacity_factor,max_build_rate
+solar,1000,5,0.25,500
+wind,1200,8,0.35,400
+storage,800,2,0.90,200

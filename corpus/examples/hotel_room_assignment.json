@@ -1,0 +1,357 @@
+{
+  "problem": {
+    "title": "Hotel Room Assignment",
+    "description": "Assign hotel guests to rooms for a two-night weekend. Each room can host one guest per night. Guests only want certain room types (captured by rate table). Guests only stay on specific nights. Maximize total revenue.",
+    "problem_type": "integer_programming",
+    "objective": "maximize",
+    "objective_description": "Total revenue from guest-room-night assignments",
+    "constraints": [
+      {
+        "description": "Each room hosts at most one guest per night"
+      },
+      {
+        "description": "Each guest occupies at most one room per night (and only on nights they are staying)"
+      }
+    ],
+    "decision_variables": [
+      "assign[g,r,n]: 1 if guest g is in room r on night n (binary, only for preferred guest-room pairs)"
+    ],
+    "parameters": [
+      "rate[g,r]: nightly rate guest g pays for room r (sparse)",
+      "stay_nights[g,n]: 1 if guest g stays on night n",
+      "room_capacity[r]: max guests per room per night (all 1)"
+    ],
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "rates": "rates.csv",
+      "stay": "stay.csv",
+      "capacity": "capacity.csv"
+    }
+  },
+  "ir_patterns": [
+    "binary variable",
+    "domain filter",
+    "3D variable",
+    "revenue maximization"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "guests",
+        "element": "g1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "guests",
+          "rooms",
+          "nights"
+        ],
+        "element": [
+          "g1",
+          "g2",
+          "g3",
+          "g4",
+          "g5",
+          "g6",
+          "g7",
+          "g8",
+          "rm1",
+          "rm2",
+          "rm3",
+          "rm4",
+          "rm5",
+          "rm6",
+          "fri",
+          "sat"
+        ]
+      }
+    },
+    "rates": {
+      "columns": {
+        "guest_id": "str",
+        "room_id": "str",
+        "rate": "float"
+      },
+      "sample": {
+        "guest_id": "g1",
+        "room_id": "rm1",
+        "rate": 150.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "guest_id": [
+          "g1",
+          "g2",
+          "g3",
+          "g4",
+          "g5",
+          "g6",
+          "g7",
+          "g8"
+        ],
+        "room_id": [
+          "rm1",
+          "rm2",
+          "rm3",
+          "rm4",
+          "rm5",
+          "rm6"
+        ]
+      }
+    },
+    "stay": {
+      "columns": {
+        "guest_id": "str",
+        "night_id": "str",
+        "stay_nights": "float"
+      },
+      "sample": {
+        "guest_id": "g1",
+        "night_id": "fri",
+        "stay_nights": 1.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "guest_id": [
+          "g1",
+          "g2",
+          "g3",
+          "g4",
+          "g5",
+          "g6",
+          "g7",
+          "g8"
+        ],
+        "night_id": [
+          "fri",
+          "sat"
+        ]
+      }
+    },
+    "capacity": {
+      "columns": {
+        "room_id": "str",
+        "room_capacity": "float"
+      },
+      "sample": {
+        "room_id": "rm1",
+        "room_capacity": 1.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "room_id": [
+          "rm1",
+          "rm2",
+          "rm3",
+          "rm4",
+          "rm5",
+          "rm6"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "HotelRoomAssignment",
+    "model_type": "Mixed Integer Program",
+    "sense": "maximize",
+    "sets": {
+      "Guests": {
+        "size": null,
+        "index_symbol": "g",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "guests",
+        "ordered": false
+      },
+      "Rooms": {
+        "size": null,
+        "index_symbol": "r",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "rooms",
+        "ordered": false
+      },
+      "Nights": {
+        "size": null,
+        "index_symbol": "n",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "nights",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "rate": {
+        "domain": [
+          "Guests",
+          "Rooms"
+        ],
+        "type": "float",
+        "source": "rates.csv",
+        "column": "rate",
+        "index_columns": [
+          "guest_id",
+          "room_id"
+        ],
+        "missing_default": "zero"
+      },
+      "stay_nights": {
+        "domain": [
+          "Guests",
+          "Nights"
+        ],
+        "type": "float",
+        "source": "stay.csv",
+        "column": "stay_nights",
+        "index_columns": [
+          "guest_id",
+          "night_id"
+        ],
+        "missing_default": "zero"
+      },
+      "room_capacity": {
+        "domain": [
+          "Rooms"
+        ],
+        "type": "float",
+        "source": "capacity.csv",
+        "column": "room_capacity",
+        "index_columns": [
+          "room_id"
+        ],
+        "missing_default": "inf"
+      }
+    },
+    "variables": {
+      "assign": {
+        "description": "1 if guest g is assigned to room r on night n",
+        "label": "guest_room_night_assignments",
+        "domain": [
+          "Guests",
+          "Rooms",
+          "Nights"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false,
+        "domain_filter": "rate"
+      }
+    },
+    "constraints": {
+      "room_not_double_booked": {
+        "domain": [
+          "Rooms",
+          "Nights"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Guests:g"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "assign",
+              "indices": [
+                "g",
+                "r",
+                "n"
+              ]
+            }
+          },
+          "right": {
+            "type": "parameter",
+            "name": "room_capacity",
+            "indices": [
+              "r"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "guest_one_room_per_night": {
+        "domain": [
+          "Guests",
+          "Nights"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Rooms:r"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "assign",
+              "indices": [
+                "g",
+                "r",
+                "n"
+              ]
+            }
+          },
+          "right": {
+            "type": "parameter",
+            "name": "stay_nights",
+            "indices": [
+              "g",
+              "n"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "maximize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Guests:g",
+          "Rooms:r",
+          "Nights:n"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "type": "parameter",
+            "name": "rate",
+            "indices": [
+              "g",
+              "r"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "assign",
+            "indices": [
+              "g",
+              "r",
+              "n"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

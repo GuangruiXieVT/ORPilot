@@ -1,0 +1,350 @@
+{
+  "problem": {
+    "title": "Resource-Constrained Project Scheduling",
+    "description": "A construction project involves six activities, each requiring various amounts of three resources (labor, equipment, material). The project is planned over six weekly periods. Each activity must be executed in exactly one period, with eligible periods constrained by earliest and latest start times. Resource availability varies by period. In any period, the total resource consumption across all activities scheduled that period must not exceed the available capacity for each resource. Scheduling an activity in a later period typically costs more. Minimize total scheduling cost while satisfying all resource constraints and time windows.",
+    "problem_type": "integer_programming",
+    "objective": "minimize",
+    "objective_description": "Total cost of scheduling all activities across their assigned periods",
+    "constraints": [
+      {
+        "description": "Each activity must be scheduled in exactly one eligible period (within its time window)"
+      },
+      {
+        "description": "For each resource in each period, the total resource consumption across all activities scheduled in that period must not exceed the available capacity"
+      }
+    ],
+    "decision_variables": [
+      "start[a,w]: 1 if activity a is scheduled in period w (only for eligible period windows), 0 otherwise (binary)"
+    ],
+    "parameters": [
+      "schedule_cost[a,w]: cost of scheduling activity a in period w (only defined for eligible windows)",
+      "resource_req[a,r]: units of resource r required by activity a",
+      "resource_capacity[r,w]: available units of resource r in period w"
+    ],
+    "additional_notes": "The start variable is sparse: only (activity, period) pairs within the activity's time window are eligible. Resource requirements are also sparse (not every activity uses every resource). Both sparsities are handled via domain filtering.",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "schedule_cost": "schedule_cost.csv",
+      "resource_requirements": "resource_requirements.csv",
+      "resource_capacity": "resource_capacity.csv"
+    }
+  },
+  "ir_patterns": [
+    "binary variable",
+    "domain filter",
+    "big-M linking"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "activities",
+        "element": "a1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "activities",
+          "resources",
+          "periods"
+        ],
+        "element": [
+          "a1",
+          "a2",
+          "a3",
+          "a4",
+          "a5",
+          "a6",
+          "labor",
+          "equipment",
+          "material",
+          "w1",
+          "w2",
+          "w3",
+          "w4",
+          "w5",
+          "w6"
+        ]
+      }
+    },
+    "schedule_cost": {
+      "columns": {
+        "activity_id": "str",
+        "period_id": "str",
+        "cost": "float"
+      },
+      "sample": {
+        "activity_id": "a1",
+        "period_id": "w1",
+        "cost": 100.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "activity_id": [
+          "a1",
+          "a2",
+          "a3",
+          "a4",
+          "a5",
+          "a6"
+        ],
+        "period_id": [
+          "w1",
+          "w2",
+          "w3",
+          "w4",
+          "w5",
+          "w6"
+        ]
+      }
+    },
+    "resource_requirements": {
+      "columns": {
+        "activity_id": "str",
+        "resource_id": "str",
+        "units_required": "float"
+      },
+      "sample": {
+        "activity_id": "a1",
+        "resource_id": "labor",
+        "units_required": 3
+      },
+      "optional": false,
+      "distinct_values": {
+        "activity_id": [
+          "a1",
+          "a2",
+          "a3",
+          "a4",
+          "a5",
+          "a6"
+        ],
+        "resource_id": [
+          "labor",
+          "equipment",
+          "material"
+        ]
+      }
+    },
+    "resource_capacity": {
+      "columns": {
+        "resource_id": "str",
+        "period_id": "str",
+        "capacity": "float"
+      },
+      "sample": {
+        "resource_id": "labor",
+        "period_id": "w1",
+        "capacity": 8
+      },
+      "optional": false,
+      "distinct_values": {
+        "resource_id": [
+          "labor",
+          "equipment",
+          "material"
+        ],
+        "period_id": [
+          "w1",
+          "w2",
+          "w3",
+          "w4",
+          "w5",
+          "w6"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "SchedulingProblem",
+    "model_type": "Mixed Integer Program",
+    "sense": "minimize",
+    "sets": {
+      "Activities": {
+        "size": null,
+        "index_symbol": "a",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "activities",
+        "ordered": false
+      },
+      "Resources": {
+        "size": null,
+        "index_symbol": "r",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "resources",
+        "ordered": false
+      },
+      "Periods": {
+        "size": null,
+        "index_symbol": "w",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "periods",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "schedule_cost": {
+        "domain": [
+          "Activities",
+          "Periods"
+        ],
+        "type": "float",
+        "source": "schedule_cost.csv",
+        "column": "cost",
+        "index_columns": [
+          "activity_id",
+          "period_id"
+        ],
+        "missing_default": "inf"
+      },
+      "resource_req": {
+        "domain": [
+          "Activities",
+          "Resources"
+        ],
+        "type": "float",
+        "source": "resource_requirements.csv",
+        "column": "units_required",
+        "index_columns": [
+          "activity_id",
+          "resource_id"
+        ],
+        "missing_default": "zero"
+      },
+      "resource_capacity": {
+        "domain": [
+          "Resources",
+          "Periods"
+        ],
+        "type": "float",
+        "source": "resource_capacity.csv",
+        "column": "capacity",
+        "index_columns": [
+          "resource_id",
+          "period_id"
+        ],
+        "missing_default": "inf"
+      }
+    },
+    "variables": {
+      "start": {
+        "description": "1 if activity a is scheduled in period w (eligible windows only), 0 otherwise",
+        "label": "activity_schedule",
+        "domain": [
+          "Activities",
+          "Periods"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false,
+        "domain_filter": "schedule_cost"
+      }
+    },
+    "constraints": {
+      "each_activity_once": {
+        "domain": [
+          "Activities"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Periods:w"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "start",
+            "indices": [
+              "a",
+              "w"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 1
+        }
+      },
+      "resource_cap": {
+        "domain": [
+          "Resources",
+          "Periods"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Activities:a"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "resource_req",
+              "indices": [
+                "a",
+                "r"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "start",
+              "indices": [
+                "a",
+                "w"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "parameter",
+          "name": "resource_capacity",
+          "indices": [
+            "r",
+            "w"
+          ]
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Activities:a",
+          "Periods:w"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "type": "parameter",
+            "name": "schedule_cost",
+            "indices": [
+              "a",
+              "w"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "start",
+            "indices": [
+              "a",
+              "w"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,612 @@
+{
+  "problem": {
+    "title": "Three-Tier Distribution Network Flow",
+    "description": "A logistics company operates a three-tier distribution network: manufacturing plants ship goods to regional warehouses, which then forward them to end retailers. Each plant has a maximum supply capacity. Each retailer has a fixed demand that must be exactly met. Arcs between tiers have both a per-unit shipping cost and a throughput capacity limit. Not all plant-warehouse and warehouse-retailer pairs have established shipping lanes — only arcs present in the cost tables are valid. Flow must be conserved at each warehouse: total inflow from plants must equal total outflow to retailers. Find the minimum-cost flow plan that satisfies all retailer demands without violating any arc or plant capacity.",
+    "problem_type": "network_flow",
+    "objective": "minimize",
+    "objective_description": "Total shipping cost across all plant-to-warehouse and warehouse-to-retailer arcs, weighted by flow volume on each arc",
+    "constraints": [
+      {
+        "description": "Total flow shipped out of each plant across all outgoing arcs must not exceed that plant's supply capacity"
+      },
+      {
+        "description": "Total flow received by each retailer across all incoming arcs must exactly equal that retailer's demand"
+      },
+      {
+        "description": "For each warehouse, total flow arriving from all plants must equal total flow departing to all retailers (flow conservation)"
+      },
+      {
+        "description": "Flow on each plant-to-warehouse arc must not exceed that arc's capacity"
+      },
+      {
+        "description": "Flow on each warehouse-to-retailer arc must not exceed that arc's capacity"
+      }
+    ],
+    "decision_variables": [
+      "flow_pw[i,w]: units shipped from plant i to warehouse w (continuous, non-negative, defined only for valid arcs)",
+      "flow_wr[w,r]: units shipped from warehouse w to retailer r (continuous, non-negative, defined only for valid arcs)"
+    ],
+    "parameters": [
+      "supply[i]: maximum supply available at plant i",
+      "demand[r]: demand that must be exactly fulfilled at retailer r",
+      "cost_pw[i,w]: per-unit shipping cost from plant i to warehouse w (defined only for valid arcs)",
+      "cost_wr[w,r]: per-unit shipping cost from warehouse w to retailer r (defined only for valid arcs)",
+      "cap_pw[i,w]: maximum throughput capacity on the arc from plant i to warehouse w (defined only for valid arcs)",
+      "cap_wr[w,r]: maximum throughput capacity on the arc from warehouse w to retailer r (defined only for valid arcs)"
+    ],
+    "additional_notes": "Arc parameters are defined only for valid lanes. Missing entries imply no established arc between that pair.",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "plants": "plants.csv",
+      "retailers": "retailers.csv",
+      "arc_costs_pw": "arc_costs_pw.csv",
+      "arc_costs_wr": "arc_costs_wr.csv",
+      "arc_caps_pw": "arc_caps_pw.csv",
+      "arc_caps_wr": "arc_caps_wr.csv"
+    }
+  },
+  "ir_patterns": [
+    "domain filter",
+    "sparse filter"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "plants",
+        "element": "p1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "plants",
+          "warehouses",
+          "retailers"
+        ],
+        "element": [
+          "p1",
+          "p2",
+          "p3",
+          "w1",
+          "w2",
+          "w3",
+          "r1",
+          "r2",
+          "r3",
+          "r4"
+        ]
+      }
+    },
+    "plants": {
+      "columns": {
+        "id": "str",
+        "supply": "float"
+      },
+      "sample": {
+        "id": "p1",
+        "supply": 200.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "id": [
+          "p1",
+          "p2",
+          "p3"
+        ],
+        "supply": [
+          "150.0",
+          "180.0",
+          "200.0"
+        ]
+      }
+    },
+    "retailers": {
+      "columns": {
+        "id": "str",
+        "demand": "float"
+      },
+      "sample": {
+        "id": "r1",
+        "demand": 60.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "id": [
+          "r1",
+          "r2",
+          "r3",
+          "r4"
+        ],
+        "demand": [
+          "50.0",
+          "60.0",
+          "70.0",
+          "80.0"
+        ]
+      }
+    },
+    "arc_costs_pw": {
+      "columns": {
+        "plant_id": "str",
+        "warehouse_id": "str",
+        "cost_per_unit": "float"
+      },
+      "sample": {
+        "plant_id": "p1",
+        "warehouse_id": "w1",
+        "cost_per_unit": 2.5
+      },
+      "optional": false,
+      "distinct_values": {
+        "plant_id": [
+          "p1",
+          "p2",
+          "p3"
+        ],
+        "warehouse_id": [
+          "w1",
+          "w2",
+          "w3"
+        ],
+        "cost_per_unit": [
+          "1.5",
+          "2.0",
+          "2.5",
+          "3.0",
+          "3.5",
+          "4.0"
+        ]
+      }
+    },
+    "arc_costs_wr": {
+      "columns": {
+        "warehouse_id": "str",
+        "retailer_id": "str",
+        "cost_per_unit": "float"
+      },
+      "sample": {
+        "warehouse_id": "w1",
+        "retailer_id": "r1",
+        "cost_per_unit": 1.5
+      },
+      "optional": false,
+      "distinct_values": {
+        "warehouse_id": [
+          "w1",
+          "w2",
+          "w3"
+        ],
+        "retailer_id": [
+          "r1",
+          "r2",
+          "r3",
+          "r4"
+        ],
+        "cost_per_unit": [
+          "1.0",
+          "1.5",
+          "2.0",
+          "2.5",
+          "3.0"
+        ]
+      }
+    },
+    "arc_caps_pw": {
+      "columns": {
+        "plant_id": "str",
+        "warehouse_id": "str",
+        "capacity": "float"
+      },
+      "sample": {
+        "plant_id": "p1",
+        "warehouse_id": "w1",
+        "capacity": 120.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "plant_id": [
+          "p1",
+          "p2",
+          "p3"
+        ],
+        "warehouse_id": [
+          "w1",
+          "w2",
+          "w3"
+        ],
+        "capacity": [
+          "80.0",
+          "90.0",
+          "100.0",
+          "110.0",
+          "120.0"
+        ]
+      }
+    },
+    "arc_caps_wr": {
+      "columns": {
+        "warehouse_id": "str",
+        "retailer_id": "str",
+        "capacity": "float"
+      },
+      "sample": {
+        "warehouse_id": "w1",
+        "retailer_id": "r1",
+        "capacity": 80.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "warehouse_id": [
+          "w1",
+          "w2",
+          "w3"
+        ],
+        "retailer_id": [
+          "r1",
+          "r2",
+          "r3",
+          "r4"
+        ],
+        "capacity": [
+          "60.0",
+          "70.0",
+          "80.0",
+          "90.0",
+          "100.0"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "NetworkFlow",
+    "model_type": "Linear Program",
+    "sense": "minimize",
+    "sets": {
+      "Plants": {
+        "size": null,
+        "index_symbol": "i",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "plants",
+        "ordered": false
+      },
+      "Warehouses": {
+        "size": null,
+        "index_symbol": "w",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "warehouses",
+        "ordered": false
+      },
+      "Retailers": {
+        "size": null,
+        "index_symbol": "r",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "retailers",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "supply": {
+        "domain": [
+          "Plants"
+        ],
+        "type": "float",
+        "source": "plants.csv",
+        "column": "supply",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "zero"
+      },
+      "demand": {
+        "domain": [
+          "Retailers"
+        ],
+        "type": "float",
+        "source": "retailers.csv",
+        "column": "demand",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "zero"
+      },
+      "cost_pw": {
+        "domain": [
+          "Plants",
+          "Warehouses"
+        ],
+        "type": "float",
+        "source": "arc_costs_pw.csv",
+        "column": "cost_per_unit",
+        "index_columns": [
+          "plant_id",
+          "warehouse_id"
+        ],
+        "missing_default": "inf"
+      },
+      "cost_wr": {
+        "domain": [
+          "Warehouses",
+          "Retailers"
+        ],
+        "type": "float",
+        "source": "arc_costs_wr.csv",
+        "column": "cost_per_unit",
+        "index_columns": [
+          "warehouse_id",
+          "retailer_id"
+        ],
+        "missing_default": "inf"
+      },
+      "cap_pw": {
+        "domain": [
+          "Plants",
+          "Warehouses"
+        ],
+        "type": "float",
+        "source": "arc_caps_pw.csv",
+        "column": "capacity",
+        "index_columns": [
+          "plant_id",
+          "warehouse_id"
+        ],
+        "missing_default": "inf"
+      },
+      "cap_wr": {
+        "domain": [
+          "Warehouses",
+          "Retailers"
+        ],
+        "type": "float",
+        "source": "arc_caps_wr.csv",
+        "column": "capacity",
+        "index_columns": [
+          "warehouse_id",
+          "retailer_id"
+        ],
+        "missing_default": "inf"
+      }
+    },
+    "variables": {
+      "flow_pw": {
+        "description": "Units shipped from plant i to warehouse w",
+        "label": "plant_to_warehouse_flow",
+        "domain": [
+          "Plants",
+          "Warehouses"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false,
+        "domain_filter": "cost_pw"
+      },
+      "flow_wr": {
+        "description": "Units shipped from warehouse w to retailer r",
+        "label": "warehouse_to_retailer_flow",
+        "domain": [
+          "Warehouses",
+          "Retailers"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false,
+        "domain_filter": "cost_wr"
+      }
+    },
+    "constraints": {
+      "supply_limit": {
+        "domain": [
+          "Plants"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Warehouses:w"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "flow_pw",
+            "indices": [
+              "i",
+              "w"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "parameter",
+          "name": "supply",
+          "indices": [
+            "i"
+          ]
+        }
+      },
+      "demand_satisfaction": {
+        "domain": [
+          "Retailers"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Warehouses:w"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "flow_wr",
+            "indices": [
+              "w",
+              "r"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "parameter",
+          "name": "demand",
+          "indices": [
+            "r"
+          ]
+        }
+      },
+      "flow_balance": {
+        "domain": [
+          "Warehouses"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Plants:i"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "flow_pw",
+              "indices": [
+                "i",
+                "w"
+              ]
+            }
+          },
+          "right": {
+            "operation": "indexed_sum",
+            "over": [
+              "Retailers:r"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "flow_wr",
+              "indices": [
+                "w",
+                "r"
+              ]
+            }
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "arc_cap_pw": {
+        "domain": [
+          "Plants",
+          "Warehouses"
+        ],
+        "expression": {
+          "type": "variable",
+          "name": "flow_pw",
+          "indices": [
+            "i",
+            "w"
+          ]
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "parameter",
+          "name": "cap_pw",
+          "indices": [
+            "i",
+            "w"
+          ]
+        },
+        "sparse_filter": "cap_pw"
+      },
+      "arc_cap_wr": {
+        "domain": [
+          "Warehouses",
+          "Retailers"
+        ],
+        "expression": {
+          "type": "variable",
+          "name": "flow_wr",
+          "indices": [
+            "w",
+            "r"
+          ]
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "parameter",
+          "name": "cap_wr",
+          "indices": [
+            "w",
+            "r"
+          ]
+        },
+        "sparse_filter": "cap_wr"
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "sum",
+        "left": {
+          "operation": "indexed_sum",
+          "over": [
+            "Plants:i",
+            "Warehouses:w"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "cost_pw",
+              "indices": [
+                "i",
+                "w"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "flow_pw",
+              "indices": [
+                "i",
+                "w"
+              ]
+            }
+          }
+        },
+        "right": {
+          "operation": "indexed_sum",
+          "over": [
+            "Warehouses:w",
+            "Retailers:r"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "cost_wr",
+              "indices": [
+                "w",
+                "r"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "flow_wr",
+              "indices": [
+                "w",
+                "r"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

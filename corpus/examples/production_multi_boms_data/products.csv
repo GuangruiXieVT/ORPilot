@@ -1,0 +1,4 @@
+id,profit_per_unit,max_demand
+prod_X,20.0,80.0
+prod_Y,25.0,100.0
+prod_Z,30.0,120.0

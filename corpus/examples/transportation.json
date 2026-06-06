@@ -1,0 +1,404 @@
+{
+  "problem": {
+    "title": "Multi-Product Multi-Period Regional Distribution",
+    "description": "A regional distribution company ships two product types (Product A and Product B) from three warehouses to four retail customers over three time periods. Due to geographic constraints, only eight of the twelve possible warehouse-customer routes have established shipping lanes, and the same set of routes is used for all products and periods. Each route has a fixed per-unit shipping cost that does not vary by product or period. Each warehouse has a known supply capacity for each product in each period. Each customer has a fixed demand for each product in each period that must be exactly fulfilled. Determine how much of each product to ship along each available route in each period to fulfill all customer demands without exceeding warehouse supplies, at minimum total shipping cost.",
+    "problem_type": "transportation",
+    "objective": "minimize",
+    "objective_description": "Total shipping cost summed over all valid routes, products, and periods, weighted by the amount shipped",
+    "constraints": [
+      {
+        "description": "For each warehouse, product, and period, the total amount of that product shipped out across all valid routes must not exceed the warehouse's supply of that product in that period"
+      },
+      {
+        "description": "For each customer, product, and period, the total amount of that product shipped in from any warehouse via valid routes must exactly equal the customer's demand for that product in that period"
+      }
+    ],
+    "decision_variables": [
+      "ship[w,c,p,t]: amount of product p shipped from warehouse w to customer c in period t (continuous, non-negative, defined only for valid warehouse-customer routes)"
+    ],
+    "parameters": [
+      "transport_cost[w,c]: cost per unit shipped from warehouse w to customer c, shared across all products and periods (defined only for the subset of valid routes)",
+      "supply[w,p,t]: supply of product p available at warehouse w in period t",
+      "demand[c,p,t]: demand for product p required by customer c in period t, which must be exactly met"
+    ],
+    "additional_notes": "",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "transport_links": "transport_links.csv",
+      "supply_data": "supply_data.csv",
+      "demand_data": "demand_data.csv"
+    }
+  },
+  "ir_patterns": [
+    "domain filter"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "warehouses",
+        "element": "wh1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "warehouses",
+          "customers",
+          "products",
+          "periods"
+        ],
+        "element": [
+          "wh1",
+          "wh2",
+          "wh3",
+          "c1",
+          "c2",
+          "c3",
+          "c4",
+          "prod_A",
+          "prod_B",
+          "t1",
+          "t2",
+          "t3"
+        ]
+      }
+    },
+    "transport_links": {
+      "columns": {
+        "warehouse_id": "str",
+        "customer_id": "str",
+        "cost_per_unit": "float"
+      },
+      "sample": {
+        "warehouse_id": "wh1",
+        "customer_id": "c1",
+        "cost_per_unit": 3.5
+      },
+      "optional": false,
+      "distinct_values": {
+        "warehouse_id": [
+          "wh1",
+          "wh2",
+          "wh3"
+        ],
+        "customer_id": [
+          "c1",
+          "c2",
+          "c3",
+          "c4"
+        ],
+        "cost_per_unit": [
+          "2.5",
+          "3.0",
+          "3.5",
+          "4.0",
+          "5.0"
+        ]
+      }
+    },
+    "supply_data": {
+      "columns": {
+        "warehouse_id": "str",
+        "product_id": "str",
+        "period_id": "str",
+        "supply": "float"
+      },
+      "sample": {
+        "warehouse_id": "wh1",
+        "product_id": "prod_A",
+        "period_id": "t1",
+        "supply": 150.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "warehouse_id": [
+          "wh1",
+          "wh2",
+          "wh3"
+        ],
+        "product_id": [
+          "prod_A",
+          "prod_B"
+        ],
+        "period_id": [
+          "t1",
+          "t2",
+          "t3"
+        ],
+        "supply": [
+          "100.0",
+          "105.0",
+          "110.0",
+          "115.0",
+          "120.0",
+          "125.0",
+          "130.0",
+          "135.0",
+          "140.0",
+          "145.0",
+          "150.0",
+          "160.0"
+        ]
+      }
+    },
+    "demand_data": {
+      "columns": {
+        "customer_id": "str",
+        "product_id": "str",
+        "period_id": "str",
+        "demand": "float"
+      },
+      "sample": {
+        "customer_id": "c1",
+        "product_id": "prod_A",
+        "period_id": "t1",
+        "demand": 80.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "customer_id": [
+          "c1",
+          "c2",
+          "c3",
+          "c4"
+        ],
+        "product_id": [
+          "prod_A",
+          "prod_B"
+        ],
+        "period_id": [
+          "t1",
+          "t2",
+          "t3"
+        ],
+        "demand": [
+          "55.0",
+          "60.0",
+          "65.0",
+          "70.0",
+          "75.0",
+          "80.0",
+          "85.0",
+          "90.0",
+          "95.0",
+          "100.0",
+          "105.0",
+          "110.0"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "MultiProductMultiPeriodTransportation",
+    "model_type": "Linear Program",
+    "sense": "minimize",
+    "sets": {
+      "Warehouses": {
+        "size": null,
+        "index_symbol": "i",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "warehouses",
+        "ordered": false
+      },
+      "Customers": {
+        "size": null,
+        "index_symbol": "j",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "customers",
+        "ordered": false
+      },
+      "Products": {
+        "size": null,
+        "index_symbol": "p",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "products",
+        "ordered": false
+      },
+      "Periods": {
+        "size": null,
+        "index_symbol": "t",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "periods",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "transport_cost": {
+        "domain": [
+          "Warehouses",
+          "Customers"
+        ],
+        "type": "float",
+        "source": "transport_links.csv",
+        "column": "cost_per_unit",
+        "index_columns": [
+          "warehouse_id",
+          "customer_id"
+        ],
+        "missing_default": "inf"
+      },
+      "supply": {
+        "domain": [
+          "Warehouses",
+          "Products",
+          "Periods"
+        ],
+        "type": "float",
+        "source": "supply_data.csv",
+        "column": "supply",
+        "index_columns": [
+          "warehouse_id",
+          "product_id",
+          "period_id"
+        ],
+        "missing_default": "zero"
+      },
+      "demand": {
+        "domain": [
+          "Customers",
+          "Products",
+          "Periods"
+        ],
+        "type": "float",
+        "source": "demand_data.csv",
+        "column": "demand",
+        "index_columns": [
+          "customer_id",
+          "product_id",
+          "period_id"
+        ],
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "ship": {
+        "description": "Amount of product p shipped from warehouse i to customer j in period t along a valid route",
+        "label": "shipments",
+        "domain": [
+          "Warehouses",
+          "Customers",
+          "Products",
+          "Periods"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false,
+        "domain_filter": "transport_cost"
+      }
+    },
+    "constraints": {
+      "supply_limit": {
+        "domain": [
+          "Warehouses",
+          "Products",
+          "Periods"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Customers:j"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "ship",
+            "indices": [
+              "i",
+              "j",
+              "p",
+              "t"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "parameter",
+          "name": "supply",
+          "indices": [
+            "i",
+            "p",
+            "t"
+          ]
+        }
+      },
+      "demand_satisfaction": {
+        "domain": [
+          "Customers",
+          "Products",
+          "Periods"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Warehouses:i"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "ship",
+            "indices": [
+              "i",
+              "j",
+              "p",
+              "t"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "parameter",
+          "name": "demand",
+          "indices": [
+            "j",
+            "p",
+            "t"
+          ]
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Warehouses:i",
+          "Customers:j",
+          "Products:p",
+          "Periods:t"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "type": "parameter",
+            "name": "transport_cost",
+            "indices": [
+              "i",
+              "j"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "ship",
+            "indices": [
+              "i",
+              "j",
+              "p",
+              "t"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

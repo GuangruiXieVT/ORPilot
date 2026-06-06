@@ -1,0 +1,265 @@
+{
+  "problem": {
+    "title": "Team-to-Project Assignment for Maximum Value",
+    "description": "A consulting firm has four teams and six client projects. Each project must be assigned to at least one team (a project can be handled by multiple teams if needed). Each team can take on at most a maximum number of projects simultaneously. Different teams have different expertise and capabilities, so the value delivered by assigning a specific team to a specific project varies. The firm wants to maximize the total value delivered across all assignments.",
+    "problem_type": "integer_programming",
+    "objective": "maximize",
+    "objective_description": "Total value delivered across all team-project assignments",
+    "constraints": [
+      {
+        "description": "Each project must be assigned to at least one team"
+      },
+      {
+        "description": "Each team can be assigned to at most their maximum number of concurrent projects"
+      }
+    ],
+    "decision_variables": [
+      "active[tm,p]: 1 if team tm is assigned to project p, 0 otherwise (binary)"
+    ],
+    "parameters": [
+      "project_value[tm,p]: value delivered when team tm works on project p",
+      "max_projects[tm]: maximum number of projects team tm can handle simultaneously"
+    ],
+    "additional_notes": "Projects can be jointly handled by multiple teams (the constraint is ≥1, not =1). The total value counts every assigned team-project pair, encouraging broad coverage where beneficial.",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "project_values": "project_values.csv",
+      "teams": "teams.csv"
+    }
+  },
+  "ir_patterns": [
+    "binary variable"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "teams",
+        "element": "team_a"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "teams",
+          "projects"
+        ],
+        "element": [
+          "team_a",
+          "team_b",
+          "team_c",
+          "team_d",
+          "proj_1",
+          "proj_2",
+          "proj_3",
+          "proj_4",
+          "proj_5",
+          "proj_6"
+        ]
+      }
+    },
+    "project_values": {
+      "columns": {
+        "team_id": "str",
+        "project_id": "str",
+        "value": "float"
+      },
+      "sample": {
+        "team_id": "team_a",
+        "project_id": "proj_1",
+        "value": 85.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "team_id": [
+          "team_a",
+          "team_b",
+          "team_c",
+          "team_d"
+        ],
+        "project_id": [
+          "proj_1",
+          "proj_2",
+          "proj_3",
+          "proj_4",
+          "proj_5",
+          "proj_6"
+        ]
+      }
+    },
+    "teams": {
+      "columns": {
+        "team_id": "str",
+        "max_projects": "int"
+      },
+      "sample": {
+        "team_id": "team_a",
+        "max_projects": 2
+      },
+      "optional": false,
+      "distinct_values": {
+        "team_id": [
+          "team_a",
+          "team_b",
+          "team_c",
+          "team_d"
+        ],
+        "max_projects": [
+          "2"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "AssignmentProblem",
+    "model_type": "Mixed Integer Program",
+    "sense": "maximize",
+    "sets": {
+      "Teams": {
+        "size": null,
+        "index_symbol": "tm",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "teams",
+        "ordered": false
+      },
+      "Projects": {
+        "size": null,
+        "index_symbol": "p",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "projects",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "project_value": {
+        "domain": [
+          "Teams",
+          "Projects"
+        ],
+        "type": "float",
+        "source": "project_values.csv",
+        "column": "value",
+        "index_columns": [
+          "team_id",
+          "project_id"
+        ],
+        "missing_default": "zero"
+      },
+      "max_projects": {
+        "domain": [
+          "Teams"
+        ],
+        "type": "float",
+        "source": "teams.csv",
+        "column": "max_projects",
+        "index_columns": [
+          "team_id"
+        ],
+        "missing_default": "inf"
+      }
+    },
+    "variables": {
+      "active": {
+        "description": "1 if team tm is assigned to project p, 0 otherwise",
+        "label": "team_project_assignments",
+        "domain": [
+          "Teams",
+          "Projects"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "project_covered": {
+        "domain": [
+          "Projects"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Teams:tm"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "active",
+            "indices": [
+              "tm",
+              "p"
+            ]
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "constant",
+          "value": 1
+        }
+      },
+      "team_capacity": {
+        "domain": [
+          "Teams"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Projects:p"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "active",
+            "indices": [
+              "tm",
+              "p"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "parameter",
+          "name": "max_projects",
+          "indices": [
+            "tm"
+          ]
+        }
+      }
+    },
+    "objective": {
+      "sense": "maximize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Teams:tm",
+          "Projects:p"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "type": "parameter",
+            "name": "project_value",
+            "indices": [
+              "tm",
+              "p"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "active",
+            "indices": [
+              "tm",
+              "p"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

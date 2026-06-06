@@ -1,0 +1,4 @@
+product_id,prod_cost,hold_cost
+bread,3,0.5
+cake,5,0.8
+cookie,2,0.3

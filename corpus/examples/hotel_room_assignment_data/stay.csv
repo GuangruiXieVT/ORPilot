@@ -1,0 +1,17 @@
+guest_id,night_id,stay_nights
+g1,fri,1
+g1,sat,1
+g2,fri,1
+g2,sat,0
+g3,fri,0
+g3,sat,1
+g4,fri,1
+g4,sat,1
+g5,fri,1
+g5,sat,1
+g6,fri,0
+g6,sat,1
+g7,fri,1
+g7,sat,0
+g8,fri,1
+g8,sat,1

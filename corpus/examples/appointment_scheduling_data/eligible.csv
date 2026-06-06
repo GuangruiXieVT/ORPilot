@@ -1,0 +1,10 @@
+patient_id,clinician_id,eligible
+p1,cl1,1
+p1,cl2,1
+p2,cl1,1
+p2,cl3,1
+p3,cl2,1
+p3,cl3,1
+p4,cl1,1
+p4,cl2,1
+p5,cl3,1

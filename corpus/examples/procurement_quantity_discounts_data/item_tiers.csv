@@ -1,0 +1,13 @@
+item_id,tier_id,unit_cost,tier_lb,tier_ub
+item_A,small,10.0,1.0,99.0
+item_A,medium,8.0,100.0,299.0
+item_A,large,6.0,300.0,9999.0
+item_B,small,8.0,1.0,99.0
+item_B,medium,6.5,100.0,299.0
+item_B,large,5.0,300.0,9999.0
+item_C,small,12.0,1.0,99.0
+item_C,medium,10.0,100.0,299.0
+item_C,large,8.0,300.0,9999.0
+item_D,small,9.0,1.0,99.0
+item_D,medium,7.5,100.0,299.0
+item_D,large,6.0,300.0,9999.0

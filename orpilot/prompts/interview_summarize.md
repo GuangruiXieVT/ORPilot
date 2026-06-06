@@ -12,10 +12,10 @@ Provide:
 - description: full natural language description
 - problem_type: one of linear_programming, integer_programming, mixed_integer, transportation, assignment, scheduling, network_flow, other
 - objective: minimize or maximize
-- objective_description: what is being optimized
-- constraints: list of constraints (description + mathematical expression if clear)
+- objective_description: what is being optimized, in plain natural language only — do NOT write any mathematical expressions or formulas
+- constraints: list of constraints, each as a plain natural language description only — do NOT write mathematical expressions
 - decision_variables: list of variable descriptions
-- parameters: list of parameter descriptions, including their indices (e.g. "cost[i,j] = cost of shipping from i to j")
+- parameters: list of parameter descriptions, including their indices (e.g. "cost[i,j] = cost of shipping from i to j") — MUST be populated; never leave empty or null
 - additional_notes: anything else relevant
 
 CRITICAL RULE when writing constraints, decision_variables, and parameters:
