@@ -1,0 +1,14 @@
+course_id,room_id,eligibility
+cs101,r101,1
+cs101,r201,1
+cs101,r301,1
+cs201,r101,1
+cs201,r201,1
+cs201,r301,1
+cs301,r201,1
+cs301,r301,1
+cs401,r201,1
+cs401,r301,1
+cs501,r301,1
+cs601,r101,1
+cs601,r201,1

@@ -1,0 +1,361 @@
+{
+  "problem": {
+    "title": "Multi-Sourcing Procurement with Supplier Allocation Limits",
+    "description": "A buyer procures several items from multiple suppliers. Each supplier offers different unit costs per item and has a total supply capacity. Additionally, each supplier-item combination has a maximum allocation limit (e.g., due to supplier contracts or risk-spreading policies). All demand must be met exactly. Determine how much of each item to order from each supplier to minimize total procurement cost while respecting supplier capacities and per-source allocation limits.",
+    "problem_type": "linear_programming",
+    "objective": "minimize",
+    "objective_description": "Total procurement cost = sum of unit cost times order quantity over all supplier-item pairs",
+    "constraints": [
+      {
+        "description": "Demand coverage: total quantity ordered across all suppliers for each item must exactly meet demand"
+      },
+      {
+        "description": "Supplier capacity: total quantity supplied by each supplier across all items must not exceed that supplier's capacity"
+      },
+      {
+        "description": "Allocation limit: quantity ordered from a specific supplier for a specific item must not exceed the per-source maximum"
+      }
+    ],
+    "decision_variables": [
+      "order[s,i]: quantity of item i ordered from supplier s (continuous, non-negative)"
+    ],
+    "parameters": [
+      "demand[i]: total demand for item i",
+      "unit_cost[s,i]: cost per unit of item i sourced from supplier s",
+      "capacity[s]: maximum total units that supplier s can supply across all items",
+      "max_qty[s,i]: maximum quantity of item i that may be sourced from supplier s"
+    ],
+    "additional_notes": "Multi-sourcing distributes procurement risk across suppliers. The capacity and max_qty constraints together shape how demand is split: the optimizer selects cheapest feasible combinations.",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "items": "items.csv",
+      "suppliers": "suppliers.csv",
+      "supply_cost": "supply_cost.csv"
+    }
+  },
+  "ir_patterns": [],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "suppliers",
+        "element": "sup_1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "suppliers",
+          "items"
+        ],
+        "element": [
+          "sup_1",
+          "sup_2",
+          "sup_3",
+          "item_1",
+          "item_2",
+          "item_3",
+          "item_4"
+        ]
+      }
+    },
+    "items": {
+      "columns": {
+        "id": "str",
+        "demand": "float"
+      },
+      "sample": {
+        "id": "item_1",
+        "demand": 100.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "id": [
+          "item_1",
+          "item_2",
+          "item_3",
+          "item_4"
+        ],
+        "demand": [
+          "80.0",
+          "90.0",
+          "100.0",
+          "120.0"
+        ]
+      }
+    },
+    "suppliers": {
+      "columns": {
+        "id": "str",
+        "capacity": "float"
+      },
+      "sample": {
+        "id": "sup_1",
+        "capacity": 250.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "id": [
+          "sup_1",
+          "sup_2",
+          "sup_3"
+        ],
+        "capacity": [
+          "150.0",
+          "200.0",
+          "250.0"
+        ]
+      }
+    },
+    "supply_cost": {
+      "columns": {
+        "sup_id": "str",
+        "item_id": "str",
+        "unit_cost": "float",
+        "max_qty": "float"
+      },
+      "sample": {
+        "sup_id": "sup_1",
+        "item_id": "item_1",
+        "unit_cost": 10.0,
+        "max_qty": 100.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "sup_id": [
+          "sup_1",
+          "sup_2",
+          "sup_3"
+        ],
+        "item_id": [
+          "item_1",
+          "item_2",
+          "item_3",
+          "item_4"
+        ],
+        "unit_cost": [
+          "8.0",
+          "9.0",
+          "10.0",
+          "11.0",
+          "12.0",
+          "13.0",
+          "15.0"
+        ],
+        "max_qty": [
+          "40.0",
+          "50.0",
+          "60.0",
+          "80.0",
+          "90.0",
+          "100.0",
+          "120.0"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "MultiSourcingProcurement",
+    "model_type": "Linear Program",
+    "sense": "minimize",
+    "sets": {
+      "Suppliers": {
+        "size": null,
+        "index_symbol": "s",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "suppliers",
+        "ordered": false
+      },
+      "Items": {
+        "size": null,
+        "index_symbol": "i",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "items",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "demand": {
+        "domain": [
+          "Items"
+        ],
+        "type": "float",
+        "source": "items.csv",
+        "column": "demand",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "zero"
+      },
+      "unit_cost": {
+        "domain": [
+          "Suppliers",
+          "Items"
+        ],
+        "type": "float",
+        "source": "supply_cost.csv",
+        "column": "unit_cost",
+        "index_columns": [
+          "sup_id",
+          "item_id"
+        ],
+        "missing_default": "inf"
+      },
+      "capacity": {
+        "domain": [
+          "Suppliers"
+        ],
+        "type": "float",
+        "source": "suppliers.csv",
+        "column": "capacity",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "inf"
+      },
+      "max_qty": {
+        "domain": [
+          "Suppliers",
+          "Items"
+        ],
+        "type": "float",
+        "source": "supply_cost.csv",
+        "column": "max_qty",
+        "index_columns": [
+          "sup_id",
+          "item_id"
+        ],
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "order": {
+        "description": "Quantity of item i ordered from supplier s",
+        "label": "order_quantities",
+        "domain": [
+          "Suppliers",
+          "Items"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "demand_coverage": {
+        "domain": [
+          "Items"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Suppliers:s"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "order",
+            "indices": [
+              "s",
+              "i"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "parameter",
+          "name": "demand",
+          "indices": [
+            "i"
+          ]
+        }
+      },
+      "supplier_capacity": {
+        "domain": [
+          "Suppliers"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Items:i"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "order",
+            "indices": [
+              "s",
+              "i"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "parameter",
+          "name": "capacity",
+          "indices": [
+            "s"
+          ]
+        }
+      },
+      "max_allocation": {
+        "domain": [
+          "Suppliers",
+          "Items"
+        ],
+        "expression": {
+          "type": "variable",
+          "name": "order",
+          "indices": [
+            "s",
+            "i"
+          ]
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "parameter",
+          "name": "max_qty",
+          "indices": [
+            "s",
+            "i"
+          ]
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Suppliers:s",
+          "Items:i"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "type": "parameter",
+            "name": "unit_cost",
+            "indices": [
+              "s",
+              "i"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "order",
+            "indices": [
+              "s",
+              "i"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

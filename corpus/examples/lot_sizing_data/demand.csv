@@ -1,0 +1,13 @@
+product_id,period_id,demand
+prod_A,t1,40.0
+prod_A,t2,30.0
+prod_A,t3,50.0
+prod_A,t4,20.0
+prod_B,t1,50.0
+prod_B,t2,60.0
+prod_B,t3,40.0
+prod_B,t4,30.0
+prod_C,t1,20.0
+prod_C,t2,40.0
+prod_C,t3,30.0
+prod_C,t4,50.0

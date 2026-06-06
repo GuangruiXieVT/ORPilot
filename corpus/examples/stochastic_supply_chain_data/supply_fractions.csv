@@ -1,0 +1,10 @@
+supplier_id,scenario_id,supply_fraction
+sup1,sc1,1.0
+sup1,sc2,0.8
+sup1,sc3,0.6
+sup2,sc1,0.9
+sup2,sc2,1.0
+sup2,sc3,0.7
+sup3,sc1,0.7
+sup3,sc2,0.9
+sup3,sc3,1.0

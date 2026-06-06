@@ -1,0 +1,10 @@
+set_name,element
+nodes,A
+nodes,B
+nodes,C
+nodes,D
+nodes,E
+commodities,k1
+commodities,k2
+commodities,k3
+commodities,k4

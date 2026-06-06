@@ -1,0 +1,7 @@
+workload_id,cpu_req,mem_req
+w1,4,8
+w2,2,4
+w3,6,16
+w4,3,6
+w5,8,12
+w6,2,4

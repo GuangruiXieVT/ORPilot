@@ -1,0 +1,322 @@
+{
+  "problem": {
+    "title": "Vehicle-to-Route Assignment",
+    "description": "A logistics company must assign four vehicles to eight delivery routes. Each route has a known cargo load and distance. Each vehicle has a maximum cargo capacity and an operating cost per kilometer. Each route must be covered by exactly one vehicle. The total cargo load across all routes assigned to a vehicle must not exceed that vehicle's capacity. Multiple routes can be assigned to the same vehicle. Determine the minimum-cost assignment of vehicles to routes.",
+    "problem_type": "integer_programming",
+    "objective": "minimize",
+    "objective_description": "Total operating cost: sum of (cost_per_km × distance × assign) across all vehicle-route pairs",
+    "constraints": [
+      {
+        "description": "Each route must be assigned to exactly one vehicle"
+      },
+      {
+        "description": "The total cargo load assigned to each vehicle must not exceed its capacity"
+      }
+    ],
+    "decision_variables": [
+      "assign[v,r]: 1 if vehicle v is assigned to route r, 0 otherwise (binary)"
+    ],
+    "parameters": [
+      "route_load[r]: cargo load in tonnes for route r",
+      "distance_km[r]: distance in kilometers for route r",
+      "vehicle_capacity[v]: maximum cargo capacity in tonnes for vehicle v",
+      "cost_per_km[v]: operating cost per kilometer for vehicle v"
+    ],
+    "additional_notes": "The total trip cost for vehicle v on route r is cost_per_km[v] * distance_km[r]. The model minimizes total operating cost across all assigned routes.",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "routes": "routes.csv",
+      "vehicles": "vehicles.csv"
+    }
+  },
+  "ir_patterns": [
+    "binary variable",
+    "big-M linking"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "vehicles",
+        "element": "v1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "vehicles",
+          "routes"
+        ],
+        "element": [
+          "v1",
+          "v2",
+          "v3",
+          "v4",
+          "r1",
+          "r2",
+          "r3",
+          "r4",
+          "r5",
+          "r6",
+          "r7",
+          "r8"
+        ]
+      }
+    },
+    "routes": {
+      "columns": {
+        "route_id": "str",
+        "load": "float",
+        "distance_km": "float"
+      },
+      "sample": {
+        "route_id": "r1",
+        "load": 12.0,
+        "distance_km": 45.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "route_id": [
+          "r1",
+          "r2",
+          "r3",
+          "r4",
+          "r5",
+          "r6",
+          "r7",
+          "r8"
+        ],
+        "load": [
+          "8.0",
+          "10.0",
+          "12.0",
+          "15.0",
+          "16.0",
+          "18.0",
+          "20.0",
+          "22.0"
+        ]
+      }
+    },
+    "vehicles": {
+      "columns": {
+        "vehicle_id": "str",
+        "capacity": "float",
+        "cost_per_km": "float"
+      },
+      "sample": {
+        "vehicle_id": "v1",
+        "capacity": 40.0,
+        "cost_per_km": 2.5
+      },
+      "optional": false,
+      "distinct_values": {
+        "vehicle_id": [
+          "v1",
+          "v2",
+          "v3",
+          "v4"
+        ],
+        "capacity": [
+          "30.0",
+          "35.0",
+          "40.0",
+          "50.0"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "AssignmentProblem",
+    "model_type": "Mixed Integer Program",
+    "sense": "minimize",
+    "sets": {
+      "Vehicles": {
+        "size": null,
+        "index_symbol": "v",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "vehicles",
+        "ordered": false
+      },
+      "Routes": {
+        "size": null,
+        "index_symbol": "r",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "routes",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "route_load": {
+        "domain": [
+          "Routes"
+        ],
+        "type": "float",
+        "source": "routes.csv",
+        "column": "load",
+        "index_columns": [
+          "route_id"
+        ],
+        "missing_default": "zero"
+      },
+      "distance_km": {
+        "domain": [
+          "Routes"
+        ],
+        "type": "float",
+        "source": "routes.csv",
+        "column": "distance_km",
+        "index_columns": [
+          "route_id"
+        ],
+        "missing_default": "inf"
+      },
+      "vehicle_capacity": {
+        "domain": [
+          "Vehicles"
+        ],
+        "type": "float",
+        "source": "vehicles.csv",
+        "column": "capacity",
+        "index_columns": [
+          "vehicle_id"
+        ],
+        "missing_default": "inf"
+      },
+      "cost_per_km": {
+        "domain": [
+          "Vehicles"
+        ],
+        "type": "float",
+        "source": "vehicles.csv",
+        "column": "cost_per_km",
+        "index_columns": [
+          "vehicle_id"
+        ],
+        "missing_default": "inf"
+      }
+    },
+    "variables": {
+      "assign": {
+        "description": "1 if vehicle v is assigned to route r, 0 otherwise",
+        "label": "vehicle_routes",
+        "domain": [
+          "Vehicles",
+          "Routes"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "route_covered": {
+        "domain": [
+          "Routes"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Vehicles:v"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "assign",
+            "indices": [
+              "v",
+              "r"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 1
+        }
+      },
+      "vehicle_capacity_limit": {
+        "domain": [
+          "Vehicles"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Routes:r"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "route_load",
+              "indices": [
+                "r"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "assign",
+              "indices": [
+                "v",
+                "r"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "parameter",
+          "name": "vehicle_capacity",
+          "indices": [
+            "v"
+          ]
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Vehicles:v",
+          "Routes:r"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "cost_per_km",
+              "indices": [
+                "v"
+              ]
+            },
+            "right": {
+              "type": "parameter",
+              "name": "distance_km",
+              "indices": [
+                "r"
+              ]
+            }
+          },
+          "right": {
+            "type": "variable",
+            "name": "assign",
+            "indices": [
+              "v",
+              "r"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

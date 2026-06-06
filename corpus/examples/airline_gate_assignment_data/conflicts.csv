@@ -1,0 +1,9 @@
+flight_i,flight_j,overlaps
+fl1,fl2,1
+fl2,fl3,1
+fl3,fl4,1
+fl4,fl5,1
+fl5,fl6,1
+fl6,fl7,1
+fl7,fl8,1
+fl1,fl3,1

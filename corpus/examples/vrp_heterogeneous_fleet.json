@@ -1,0 +1,533 @@
+{
+  "problem": {
+    "title": "Capacitated VRP with Heterogeneous Fleet",
+    "description": "A delivery company routes a fleet of heterogeneous vehicles (different capacity and cost per km) from a depot to serve 4 customers. Each customer must be visited exactly once. Vehicles have different load capacities. Subtour elimination is enforced via MTZ constraints. Minimize total weighted travel distance (distance × cost_per_km per vehicle).",
+    "problem_type": "mixed_integer",
+    "objective": "minimize",
+    "objective_description": "Total cost = sum over all arcs and vehicles of distance * cost_per_km * arc activation",
+    "constraints": [
+      {
+        "description": "Each customer is visited exactly once across all vehicles"
+      },
+      {
+        "description": "Flow conservation: arcs entering a location equal arcs leaving for each vehicle"
+      },
+      {
+        "description": "Each vehicle departs the depot at most once"
+      },
+      {
+        "description": "Each vehicle returns to the depot at most once"
+      },
+      {
+        "description": "Vehicle capacity: total demand served by each vehicle cannot exceed its capacity"
+      },
+      {
+        "description": "MTZ subtour elimination: position constraints prevent subtours"
+      }
+    ],
+    "decision_variables": [
+      "arc[Locations, Locations, Vehicles]: 1 if vehicle v travels from location l1 to l2 (binary, exclude diagonal)",
+      "pos[Customers, Vehicles]: visit position of customer in vehicle route (integer, MTZ)"
+    ],
+    "parameters": [
+      "distance[Locations, Locations]: travel distance between locations",
+      "demand[Customers]: delivery demand of each customer",
+      "cap[Vehicles]: load capacity per vehicle",
+      "cost_per_km[Vehicles]: travel cost per distance unit per vehicle"
+    ],
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "distances": "distances.csv",
+      "customers": "customers.csv",
+      "vehicles": "vehicles.csv"
+    }
+  },
+  "ir_patterns": [
+    "binary variable",
+    "integer variable",
+    "exclude diagonal",
+    "upper bound set",
+    "set size expression",
+    "duplicate set",
+    "heterogeneous fleet"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "locations",
+        "element": "depot"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "locations",
+          "customers",
+          "vehicles"
+        ],
+        "element": [
+          "depot",
+          "c1",
+          "c2",
+          "c3",
+          "c4",
+          "v1",
+          "v2",
+          "v3",
+          "v4"
+        ]
+      }
+    },
+    "distances": {
+      "columns": {
+        "from_loc": "str",
+        "to_loc": "str",
+        "distance": "float"
+      },
+      "sample": {
+        "from_loc": "depot",
+        "to_loc": "c1",
+        "distance": 5.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "from_loc": [
+          "depot",
+          "c1",
+          "c2",
+          "c3",
+          "c4"
+        ],
+        "to_loc": [
+          "depot",
+          "c1",
+          "c2",
+          "c3",
+          "c4"
+        ]
+      }
+    },
+    "customers": {
+      "columns": {
+        "id": "str",
+        "demand": "float"
+      },
+      "sample": {
+        "id": "c1",
+        "demand": 10.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "id": [
+          "c1",
+          "c2",
+          "c3",
+          "c4"
+        ]
+      }
+    },
+    "vehicles": {
+      "columns": {
+        "id": "str",
+        "cap": "float",
+        "cost_per_km": "float"
+      },
+      "sample": {
+        "id": "v1",
+        "cap": 25.0,
+        "cost_per_km": 2.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "id": [
+          "v1",
+          "v2",
+          "v3",
+          "v4"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "VRPHeterogeneousFleet",
+    "model_type": "Mixed Integer Program",
+    "sense": "minimize",
+    "sets": {
+      "Locations": {
+        "size": null,
+        "index_symbol": "i",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "locations",
+        "ordered": false
+      },
+      "Customers": {
+        "size": null,
+        "index_symbol": "c",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "customers",
+        "ordered": false
+      },
+      "Vehicles": {
+        "size": null,
+        "index_symbol": "v",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "vehicles",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "distance": {
+        "domain": [
+          "Locations",
+          "Locations"
+        ],
+        "type": "float",
+        "source": "distances.csv",
+        "column": "distance",
+        "index_columns": [
+          "from_loc",
+          "to_loc"
+        ],
+        "missing_default": "inf"
+      },
+      "demand": {
+        "domain": [
+          "Customers"
+        ],
+        "type": "float",
+        "source": "customers.csv",
+        "column": "demand",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "zero"
+      },
+      "cap": {
+        "domain": [
+          "Vehicles"
+        ],
+        "type": "float",
+        "source": "vehicles.csv",
+        "column": "cap",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "inf"
+      },
+      "cost_per_km": {
+        "domain": [
+          "Vehicles"
+        ],
+        "type": "float",
+        "source": "vehicles.csv",
+        "column": "cost_per_km",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "inf"
+      }
+    },
+    "variables": {
+      "arc": {
+        "description": "1 if vehicle v travels directly from location l1 to location l2",
+        "label": "arc_activations",
+        "domain": [
+          "Locations",
+          "Locations",
+          "Vehicles"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": true
+      },
+      "pos": {
+        "description": "Visit position of customer c in vehicle v route (MTZ)",
+        "label": "visit_positions",
+        "domain": [
+          "Customers",
+          "Vehicles"
+        ],
+        "type": "integer",
+        "lower_bound": 1,
+        "upper_bound": null,
+        "upper_bound_set": "Customers",
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "customer_visit": {
+        "domain": [
+          "Customers"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Locations:l",
+            "Vehicles:v"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "arc",
+            "indices": [
+              "l",
+              "c",
+              "v"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 1
+        }
+      },
+      "flow_conservation": {
+        "domain": [
+          "Locations",
+          "Vehicles"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Locations:l"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "arc",
+              "indices": [
+                "l",
+                "i",
+                "v"
+              ]
+            }
+          },
+          "right": {
+            "operation": "indexed_sum",
+            "over": [
+              "Locations:ll"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "arc",
+              "indices": [
+                "i",
+                "ll",
+                "v"
+              ]
+            }
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "depot_departure": {
+        "domain": [
+          "Vehicles"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Locations:l"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "arc",
+            "indices": [
+              "Locations[0]",
+              "l",
+              "v"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 1
+        }
+      },
+      "depot_return": {
+        "domain": [
+          "Vehicles"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Locations:l"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "arc",
+            "indices": [
+              "l",
+              "Locations[0]",
+              "v"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 1
+        }
+      },
+      "vehicle_capacity": {
+        "domain": [
+          "Vehicles"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Customers:c"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "demand",
+              "indices": [
+                "c"
+              ]
+            },
+            "right": {
+              "operation": "indexed_sum",
+              "over": [
+                "Locations:l"
+              ],
+              "body": {
+                "type": "variable",
+                "name": "arc",
+                "indices": [
+                  "l",
+                  "c",
+                  "v"
+                ]
+              }
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "parameter",
+          "name": "cap",
+          "indices": [
+            "v"
+          ]
+        }
+      },
+      "mtz": {
+        "domain": [
+          "Customers",
+          "Customers",
+          "Vehicles"
+        ],
+        "expression": {
+          "operation": "sum",
+          "left": {
+            "operation": "subtract",
+            "left": {
+              "type": "variable",
+              "name": "pos",
+              "indices": [
+                "c1",
+                "v"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "pos",
+              "indices": [
+                "c2",
+                "v"
+              ]
+            }
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "set_size",
+              "set": "Customers"
+            },
+            "right": {
+              "type": "variable",
+              "name": "arc",
+              "indices": [
+                "c1",
+                "c2",
+                "v"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "operation": "subtract",
+          "left": {
+            "type": "set_size",
+            "set": "Customers"
+          },
+          "right": {
+            "type": "constant",
+            "value": 1
+          }
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Locations:l1",
+          "Locations:l2",
+          "Vehicles:v"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "distance",
+              "indices": [
+                "l1",
+                "l2"
+              ]
+            },
+            "right": {
+              "type": "parameter",
+              "name": "cost_per_km",
+              "indices": [
+                "v"
+              ]
+            }
+          },
+          "right": {
+            "type": "variable",
+            "name": "arc",
+            "indices": [
+              "l1",
+              "l2",
+              "v"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

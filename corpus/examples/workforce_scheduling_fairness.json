@@ -1,0 +1,567 @@
+{
+  "problem": {
+    "title": "Workforce Scheduling with Fairness",
+    "description": "Schedule nurses across shifts and days with fairness. Coverage requirements must be met. Each nurse works at most one shift per day. Total shifts are counted; deviation from the target is penalized. Preferences are honored where possible. Minimize fairness penalty minus preference score.",
+    "problem_type": "mixed_integer_program",
+    "objective": "minimize",
+    "objective_description": "Total deviation from target shifts minus total preference score",
+    "constraints": [
+      {
+        "description": "Minimum nurses per shift-day must be met"
+      },
+      {
+        "description": "Each nurse works at most one shift per day"
+      },
+      {
+        "description": "Total shifts for each nurse are counted"
+      },
+      {
+        "description": "Deviation variables capture excess/deficit from target"
+      }
+    ],
+    "decision_variables": [
+      "work[n,s,d]: 1 if nurse n works shift s on day d (binary)",
+      "total_shifts[n]: total shifts worked this week",
+      "excess[n]: shifts above target (continuous >= 0)",
+      "deficit[n]: shifts below target (continuous >= 0)"
+    ],
+    "parameters": [
+      "min_nurses[s,d]: minimum nurses needed per shift-day",
+      "max_per_day[n]: max shifts per nurse per day (all 1)",
+      "preference[n,s,d]: preference score (sparse)",
+      "target_shifts: target weekly shifts per nurse"
+    ],
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "coverage": "coverage.csv",
+      "nurses": "nurses.csv",
+      "preferences": "preferences.csv",
+      "params": "params.csv"
+    }
+  },
+  "ir_patterns": [
+    "binary variable",
+    "deviation variables",
+    "fairness penalty",
+    "sparse preference parameter"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "nurses",
+        "element": "n1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "nurses",
+          "shifts",
+          "days"
+        ],
+        "element": [
+          "n1",
+          "n2",
+          "n3",
+          "n4",
+          "n5",
+          "n6",
+          "n7",
+          "n8",
+          "morning",
+          "afternoon",
+          "night",
+          "mon",
+          "tue",
+          "wed",
+          "thu",
+          "fri",
+          "sat",
+          "sun"
+        ]
+      }
+    },
+    "coverage": {
+      "columns": {
+        "shift_id": "str",
+        "day_id": "str",
+        "min_nurses": "float"
+      },
+      "sample": {
+        "shift_id": "morning",
+        "day_id": "mon",
+        "min_nurses": 3.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "shift_id": [
+          "morning",
+          "afternoon",
+          "night"
+        ],
+        "day_id": [
+          "mon",
+          "tue",
+          "wed",
+          "thu",
+          "fri",
+          "sat",
+          "sun"
+        ]
+      }
+    },
+    "nurses": {
+      "columns": {
+        "nurse_id": "str",
+        "max_per_day": "float"
+      },
+      "sample": {
+        "nurse_id": "n1",
+        "max_per_day": 1.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "nurse_id": [
+          "n1",
+          "n2",
+          "n3",
+          "n4",
+          "n5",
+          "n6",
+          "n7",
+          "n8"
+        ]
+      }
+    },
+    "preferences": {
+      "columns": {
+        "nurse_id": "str",
+        "shift_id": "str",
+        "day_id": "str",
+        "preference": "float"
+      },
+      "sample": {
+        "nurse_id": "n1",
+        "shift_id": "morning",
+        "day_id": "mon",
+        "preference": 5.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "nurse_id": [
+          "n1",
+          "n2",
+          "n3",
+          "n4",
+          "n5",
+          "n6",
+          "n7",
+          "n8"
+        ],
+        "shift_id": [
+          "morning",
+          "afternoon",
+          "night"
+        ],
+        "day_id": [
+          "mon",
+          "tue",
+          "wed",
+          "thu",
+          "fri",
+          "sat",
+          "sun"
+        ]
+      }
+    },
+    "params": {
+      "columns": {
+        "target_shifts": "float"
+      },
+      "sample": {
+        "target_shifts": 4.0
+      },
+      "optional": false,
+      "distinct_values": {}
+    }
+  },
+  "ir": {
+    "problem_class": "WorkforceSchedulingFairness",
+    "model_type": "Mixed Integer Program",
+    "sense": "minimize",
+    "sets": {
+      "Nurses": {
+        "size": null,
+        "index_symbol": "n",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "nurses",
+        "ordered": false
+      },
+      "Shifts": {
+        "size": null,
+        "index_symbol": "s",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "shifts",
+        "ordered": false
+      },
+      "Days": {
+        "size": null,
+        "index_symbol": "d",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "days",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "min_nurses": {
+        "domain": [
+          "Shifts",
+          "Days"
+        ],
+        "type": "float",
+        "source": "coverage.csv",
+        "column": "min_nurses",
+        "index_columns": [
+          "shift_id",
+          "day_id"
+        ],
+        "missing_default": "zero"
+      },
+      "max_per_day": {
+        "domain": [
+          "Nurses"
+        ],
+        "type": "float",
+        "source": "nurses.csv",
+        "column": "max_per_day",
+        "index_columns": [
+          "nurse_id"
+        ],
+        "missing_default": "zero"
+      },
+      "preference": {
+        "domain": [
+          "Nurses",
+          "Shifts",
+          "Days"
+        ],
+        "type": "float",
+        "source": "preferences.csv",
+        "column": "preference",
+        "index_columns": [
+          "nurse_id",
+          "shift_id",
+          "day_id"
+        ],
+        "missing_default": "zero"
+      },
+      "target_shifts": {
+        "domain": [],
+        "type": "float",
+        "source": "params.csv",
+        "column": "target_shifts",
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "work": {
+        "description": "1 if nurse n works shift s on day d",
+        "label": "nurse_shift_schedule",
+        "domain": [
+          "Nurses",
+          "Shifts",
+          "Days"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "total_shifts": {
+        "description": "Total shifts worked by nurse n this week",
+        "label": "weekly_totals",
+        "domain": [
+          "Nurses"
+        ],
+        "type": "integer",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "excess": {
+        "description": "Shifts above target for nurse n",
+        "label": "excess_shifts",
+        "domain": [
+          "Nurses"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "deficit": {
+        "description": "Shifts below target for nurse n",
+        "label": "deficit_shifts",
+        "domain": [
+          "Nurses"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "coverage": {
+        "domain": [
+          "Shifts",
+          "Days"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Nurses:n"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "work",
+              "indices": [
+                "n",
+                "s",
+                "d"
+              ]
+            }
+          },
+          "right": {
+            "type": "parameter",
+            "name": "min_nurses",
+            "indices": [
+              "s",
+              "d"
+            ]
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "one_shift_per_day": {
+        "domain": [
+          "Nurses",
+          "Days"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Shifts:s"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "work",
+              "indices": [
+                "n",
+                "s",
+                "d"
+              ]
+            }
+          },
+          "right": {
+            "type": "parameter",
+            "name": "max_per_day",
+            "indices": [
+              "n"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "count_shifts": {
+        "domain": [
+          "Nurses"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "total_shifts",
+            "indices": [
+              "n"
+            ]
+          },
+          "right": {
+            "operation": "indexed_sum",
+            "over": [
+              "Shifts:s",
+              "Days:d"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "work",
+              "indices": [
+                "n",
+                "s",
+                "d"
+              ]
+            }
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "excess_calc": {
+        "domain": [
+          "Nurses"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "subtract",
+            "left": {
+              "type": "variable",
+              "name": "total_shifts",
+              "indices": [
+                "n"
+              ]
+            },
+            "right": {
+              "type": "parameter",
+              "name": "target_shifts",
+              "indices": []
+            }
+          },
+          "right": {
+            "type": "variable",
+            "name": "excess",
+            "indices": [
+              "n"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "deficit_calc": {
+        "domain": [
+          "Nurses"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "subtract",
+            "left": {
+              "type": "parameter",
+              "name": "target_shifts",
+              "indices": []
+            },
+            "right": {
+              "type": "variable",
+              "name": "total_shifts",
+              "indices": [
+                "n"
+              ]
+            }
+          },
+          "right": {
+            "type": "variable",
+            "name": "deficit",
+            "indices": [
+              "n"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "subtract",
+        "left": {
+          "operation": "indexed_sum",
+          "over": [
+            "Nurses:n"
+          ],
+          "body": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "excess",
+              "indices": [
+                "n"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "deficit",
+              "indices": [
+                "n"
+              ]
+            }
+          }
+        },
+        "right": {
+          "operation": "indexed_sum",
+          "over": [
+            "Nurses:n",
+            "Shifts:s",
+            "Days:d"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "preference",
+              "indices": [
+                "n",
+                "s",
+                "d"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "work",
+              "indices": [
+                "n",
+                "s",
+                "d"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

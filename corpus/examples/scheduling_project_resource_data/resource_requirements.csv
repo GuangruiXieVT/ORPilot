@@ -1,0 +1,14 @@
+activity_id,resource_id,units_required
+a1,labor,3
+a1,equipment,1
+a2,labor,4
+a2,material,2
+a3,labor,2
+a3,equipment,2
+a4,labor,5
+a4,material,3
+a5,labor,3
+a5,equipment,1
+a5,material,2
+a6,labor,4
+a6,equipment,2

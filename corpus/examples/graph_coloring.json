@@ -1,0 +1,212 @@
+{
+  "problem": {
+    "title": "Graph Coloring",
+    "description": "A graph consists of nodes connected by edges. The goal is to assign a color to each node such that no two adjacent nodes (connected by an edge) share the same color, using as few distinct colors as possible. This is the minimum vertex coloring problem, a classic combinatorial optimization problem with applications in register allocation, scheduling, and frequency assignment. The instance has 5 nodes forming a triangle (A-B-C) with a path extension (C-D-E).",
+    "problem_type": "integer_programming",
+    "objective": "minimize",
+    "objective_description": "Total number of distinct colors used across all node assignments",
+    "constraints": [
+      {
+        "description": "Each node must be assigned exactly one color"
+      },
+      {
+        "description": "If a node uses a color, that color must be marked as active"
+      },
+      {
+        "description": "No two adjacent nodes (connected by an edge) may share the same color"
+      }
+    ],
+    "decision_variables": [
+      "x[n,c]: 1 if node n is assigned color c, 0 otherwise (binary)",
+      "y[c]: 1 if color c is used by at least one node, 0 otherwise (binary)"
+    ],
+    "parameters": [
+      "edges[n1,n2]: 1 if nodes n1 and n2 are connected by an edge, 0 otherwise"
+    ],
+    "additional_notes": "The adjacency matrix is stored symmetrically (both (i,j) and (j,i) entries). Non-listed pairs default to 0 (not adjacent). Up to 5 colors are made available; the solver will use the minimum needed.",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "edges": "edges.csv"
+    }
+  },
+  "ir_patterns": [
+    "binary variable",
+    "indexed_sum",
+    "big-M linking",
+    "adjacency matrix constraint",
+    "3D constraint domain with duplicate set"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "nodes",
+        "element": "A"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": ["nodes", "colors"],
+        "element": ["A", "B", "C", "D", "E", "c1", "c2", "c3", "c4", "c5"]
+      }
+    },
+    "edges": {
+      "columns": {
+        "n1_id": "str",
+        "n2_id": "str",
+        "adjacent": "float"
+      },
+      "sample": {
+        "n1_id": "A",
+        "n2_id": "B",
+        "adjacent": 1.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "n1_id": ["A", "B", "C", "D", "E"],
+        "n2_id": ["A", "B", "C", "D", "E"],
+        "adjacent": ["1"]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "GraphColoring",
+    "model_type": "Integer Program",
+    "sense": "minimize",
+    "sets": {
+      "Nodes": {
+        "size": null,
+        "index_symbol": "n",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "nodes",
+        "ordered": false
+      },
+      "Colors": {
+        "size": null,
+        "index_symbol": "c",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "colors",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "edges": {
+        "domain": ["Nodes", "Nodes"],
+        "type": "float",
+        "source": "edges.csv",
+        "column": "adjacent",
+        "index_columns": ["n1_id", "n2_id"],
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "x": {
+        "description": "1 if node n is assigned color c, 0 otherwise",
+        "label": "node_color_assignments",
+        "domain": ["Nodes", "Colors"],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "y": {
+        "description": "1 if color c is used by at least one node, 0 otherwise",
+        "label": "colors_used",
+        "domain": ["Colors"],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "one_color": {
+        "domain": ["Nodes"],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": ["Colors:c"],
+          "body": {
+            "type": "variable",
+            "name": "x",
+            "indices": ["n", "c"]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 1
+        }
+      },
+      "color_usage": {
+        "domain": ["Nodes", "Colors"],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "x",
+            "indices": ["n", "c"]
+          },
+          "right": {
+            "type": "variable",
+            "name": "y",
+            "indices": ["c"]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "adj_coloring": {
+        "domain": ["Nodes", "Nodes", "Colors"],
+        "expression": {
+          "operation": "sum",
+          "left": {
+            "type": "variable",
+            "name": "x",
+            "indices": ["n1", "c"]
+          },
+          "right": {
+            "type": "variable",
+            "name": "x",
+            "indices": ["n2", "c"]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "operation": "subtract",
+          "left": {
+            "type": "constant",
+            "value": 2
+          },
+          "right": {
+            "type": "parameter",
+            "name": "edges",
+            "indices": ["n1", "n2"]
+          }
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": ["Colors:c"],
+        "body": {
+          "type": "variable",
+          "name": "y",
+          "indices": ["c"]
+        }
+      }
+    }
+  }
+}

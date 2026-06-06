@@ -1,0 +1,4 @@
+id,revenue_per_unit,production_cost,labor_hours,wood_board_feet,max_capacity
+chair,40.0,15.0,2.0,10.0,100
+table,90.0,30.0,4.0,25.0,50
+shelf,45.0,15.0,1.5,8.0,80

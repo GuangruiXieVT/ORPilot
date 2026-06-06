@@ -1,0 +1,13 @@
+customer_id,scenario_id,demand
+c1,sc1,60
+c1,sc2,80
+c1,sc3,100
+c2,sc1,50
+c2,sc2,70
+c2,sc3,90
+c3,sc1,70
+c3,sc2,60
+c3,sc3,80
+c4,sc1,40
+c4,sc2,50
+c4,sc3,70

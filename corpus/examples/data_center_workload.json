@@ -1,0 +1,499 @@
+{
+  "problem": {
+    "title": "Data Center Workload Assignment",
+    "description": "Assign computing workloads to servers to minimize energy cost. Each workload runs on exactly one server. Servers are activated only if needed (binary). Activated servers incur a fixed power cost. Running a workload on a server incurs a compute cost. CPU and memory capacity limits must be respected.",
+    "problem_type": "mixed_integer",
+    "objective": "minimize",
+    "objective_description": "Total cost = sum of server activation costs + sum of workload compute costs",
+    "constraints": [
+      {
+        "description": "Each workload is assigned to exactly one server"
+      },
+      {
+        "description": "CPU capacity: total CPU requirements of workloads on a server cannot exceed CPU capacity * active"
+      },
+      {
+        "description": "Memory capacity: total memory requirements of workloads on a server cannot exceed memory capacity * active"
+      },
+      {
+        "description": "Activation link: if a workload runs on a server, the server must be active"
+      }
+    ],
+    "decision_variables": [
+      "run[Workloads, Servers]: 1 if workload w runs on server sv (binary)",
+      "active[Servers]: 1 if server sv is powered on (binary)"
+    ],
+    "parameters": [
+      "cpu_req[Workloads]: CPU cores needed by each workload",
+      "mem_req[Workloads]: GB memory needed by each workload",
+      "cpu_cap[Servers]: CPU cores available per server",
+      "mem_cap[Servers]: GB memory available per server",
+      "server_cost[Servers]: fixed power cost when server is active",
+      "run_cost[Workloads, Servers]: compute cost to run workload w on server sv"
+    ],
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "workloads": "workloads.csv",
+      "servers": "servers.csv",
+      "run_cost": "run_cost.csv"
+    }
+  },
+  "ir_patterns": [
+    "binary variable",
+    "big-M linking",
+    "server activation",
+    "resource bin packing"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "workloads",
+        "element": "w1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "workloads",
+          "servers"
+        ],
+        "element": [
+          "w1",
+          "w2",
+          "w3",
+          "w4",
+          "w5",
+          "w6",
+          "sv1",
+          "sv2",
+          "sv3",
+          "sv4"
+        ]
+      }
+    },
+    "workloads": {
+      "columns": {
+        "workload_id": "str",
+        "cpu_req": "float",
+        "mem_req": "float"
+      },
+      "sample": {
+        "workload_id": "w1",
+        "cpu_req": 4.0,
+        "mem_req": 8.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "workload_id": [
+          "w1",
+          "w2",
+          "w3",
+          "w4",
+          "w5",
+          "w6"
+        ]
+      }
+    },
+    "servers": {
+      "columns": {
+        "server_id": "str",
+        "cpu_cap": "float",
+        "mem_cap": "float",
+        "server_cost": "float"
+      },
+      "sample": {
+        "server_id": "sv1",
+        "cpu_cap": 16.0,
+        "mem_cap": 32.0,
+        "server_cost": 100.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "server_id": [
+          "sv1",
+          "sv2",
+          "sv3",
+          "sv4"
+        ]
+      }
+    },
+    "run_cost": {
+      "columns": {
+        "workload_id": "str",
+        "server_id": "str",
+        "run_cost": "float"
+      },
+      "sample": {
+        "workload_id": "w1",
+        "server_id": "sv1",
+        "run_cost": 10.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "workload_id": [
+          "w1",
+          "w2",
+          "w3",
+          "w4",
+          "w5",
+          "w6"
+        ],
+        "server_id": [
+          "sv1",
+          "sv2",
+          "sv3",
+          "sv4"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "DataCenterWorkload",
+    "model_type": "Mixed Integer Program",
+    "sense": "minimize",
+    "sets": {
+      "Workloads": {
+        "size": null,
+        "index_symbol": "w",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "workloads",
+        "ordered": false
+      },
+      "Servers": {
+        "size": null,
+        "index_symbol": "sv",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "servers",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "cpu_req": {
+        "domain": [
+          "Workloads"
+        ],
+        "type": "float",
+        "source": "workloads.csv",
+        "column": "cpu_req",
+        "index_columns": [
+          "workload_id"
+        ],
+        "missing_default": "zero"
+      },
+      "mem_req": {
+        "domain": [
+          "Workloads"
+        ],
+        "type": "float",
+        "source": "workloads.csv",
+        "column": "mem_req",
+        "index_columns": [
+          "workload_id"
+        ],
+        "missing_default": "zero"
+      },
+      "cpu_cap": {
+        "domain": [
+          "Servers"
+        ],
+        "type": "float",
+        "source": "servers.csv",
+        "column": "cpu_cap",
+        "index_columns": [
+          "server_id"
+        ],
+        "missing_default": "inf"
+      },
+      "mem_cap": {
+        "domain": [
+          "Servers"
+        ],
+        "type": "float",
+        "source": "servers.csv",
+        "column": "mem_cap",
+        "index_columns": [
+          "server_id"
+        ],
+        "missing_default": "inf"
+      },
+      "server_cost": {
+        "domain": [
+          "Servers"
+        ],
+        "type": "float",
+        "source": "servers.csv",
+        "column": "server_cost",
+        "index_columns": [
+          "server_id"
+        ],
+        "missing_default": "inf"
+      },
+      "run_cost": {
+        "domain": [
+          "Workloads",
+          "Servers"
+        ],
+        "type": "float",
+        "source": "run_cost.csv",
+        "column": "run_cost",
+        "index_columns": [
+          "workload_id",
+          "server_id"
+        ],
+        "missing_default": "inf"
+      }
+    },
+    "variables": {
+      "run": {
+        "description": "1 if workload w runs on server sv",
+        "label": "workload_assignments",
+        "domain": [
+          "Workloads",
+          "Servers"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "active": {
+        "description": "1 if server sv is powered on",
+        "label": "server_activations",
+        "domain": [
+          "Servers"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "workload_assigned": {
+        "domain": [
+          "Workloads"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Servers:sv"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "run",
+            "indices": [
+              "w",
+              "sv"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 1
+        }
+      },
+      "cpu_cap_limit": {
+        "domain": [
+          "Servers"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Workloads:w"
+            ],
+            "body": {
+              "operation": "multiply",
+              "left": {
+                "type": "parameter",
+                "name": "cpu_req",
+                "indices": [
+                  "w"
+                ]
+              },
+              "right": {
+                "type": "variable",
+                "name": "run",
+                "indices": [
+                  "w",
+                  "sv"
+                ]
+              }
+            }
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "cpu_cap",
+              "indices": [
+                "sv"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "active",
+              "indices": [
+                "sv"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "mem_cap_limit": {
+        "domain": [
+          "Servers"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Workloads:w"
+            ],
+            "body": {
+              "operation": "multiply",
+              "left": {
+                "type": "parameter",
+                "name": "mem_req",
+                "indices": [
+                  "w"
+                ]
+              },
+              "right": {
+                "type": "variable",
+                "name": "run",
+                "indices": [
+                  "w",
+                  "sv"
+                ]
+              }
+            }
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "mem_cap",
+              "indices": [
+                "sv"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "active",
+              "indices": [
+                "sv"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "activate_link": {
+        "domain": [
+          "Workloads",
+          "Servers"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "run",
+            "indices": [
+              "w",
+              "sv"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "active",
+            "indices": [
+              "sv"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "sum",
+        "left": {
+          "operation": "indexed_sum",
+          "over": [
+            "Servers:sv"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "server_cost",
+              "indices": [
+                "sv"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "active",
+              "indices": [
+                "sv"
+              ]
+            }
+          }
+        },
+        "right": {
+          "operation": "indexed_sum",
+          "over": [
+            "Workloads:w",
+            "Servers:sv"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "run_cost",
+              "indices": [
+                "w",
+                "sv"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "run",
+              "indices": [
+                "w",
+                "sv"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

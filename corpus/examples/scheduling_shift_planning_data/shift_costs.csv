@@ -1,0 +1,7 @@
+worker_type_id,shift_id,cost_per_shift
+ft,morning,12.0
+ft,afternoon,10.0
+ft,night,15.0
+pt,morning,8.0
+pt,afternoon,7.0
+pt,night,12.0

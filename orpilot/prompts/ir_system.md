@@ -53,9 +53,11 @@ SETS
   set false for all other sets).
 
 - Infer what sets you need from the problem description.
-- csv_schemas format: each entry is {"columns": [...], "distinct_values": {col: [val, ...]}}
-  The distinct_values shows every unique value present in each column. Use this to determine
-  which CSV contains each set's members and whether a filter is needed.
+- csv_schemas format: each entry is {"columns": {...}, "distinct_values": {col: [val, ...]}, "row_count": N}
+  distinct_values shows every unique value present in each column (up to 30 per column).
+  row_count is the total number of data rows in the CSV. Use these to determine which CSV
+  contains each set's members, whether a filter is needed, and whether a parameter table
+  is sparse (see Sparse parameter semantics below).
 - The user ALWAYS provides a file named "sets.csv" with columns set_name and element.
   Every model set is defined here. ALL sets — entity sets (production sites, DCs,
   customers, products) AND time sets (periods, months, weeks) — are rows in this file.
@@ -170,6 +172,18 @@ PARAMETERS
   NEVER omit index_columns for a parameter with a domain — the compiler cannot infer the correct
   key column names from set metadata alone. null or omitted index_columns will cause incorrect
   parameter loading (all keys map to the wrong column name).
+- Detecting sparsity — use row_count and distinct_values to determine whether a parameter
+  table is sparse BEFORE deciding on domain_filter and sparse_filter:
+    full_product = product of len(distinct_values[col]) for each index column
+    sparse = (row_count < full_product)
+  Example: transport_cost.csv has columns from_site, to_dc, unit_cost.
+    distinct_values["from_site"] has 3 values, distinct_values["to_dc"] has 4 values.
+    full_product = 3 × 4 = 12.
+    If row_count = 8  → sparse=True  → use domain_filter on the variable, sparse_filter on the constraint.
+    If row_count = 12 → sparse=False → no domain_filter, no sparse_filter needed.
+  Apply this check to every multi-dimensional parameter before writing the IR.
+  Never assume sparsity from the problem description alone — always verify with row_count.
+
 - Sparse parameter semantics — when a table has fewer rows than the full Cartesian product
   of its domain sets, undefined combinations carry a type-dependent default:
   - Cost / penalty parameters: missing entry = infinite cost (option unavailable).
@@ -236,8 +250,8 @@ VARIABLES
   (e.g. MTZ position variables, sequencing indices). Leave null for all other variables.
 
 - domain_filter: Set to a parameter name when the variable should only be created for
-  index combinations where that parameter has an entry. This is used when the network is
-  sparse — not all combinations of the variable's domain sets are valid routes/pairs.
+  index combinations where that parameter has an entry. Use this when the parameter is
+  sparse (row_count < full Cartesian product — see Detecting sparsity above).
   The compiler emits: "if (i, j) in param_name" inside the variable creation comprehension,
   and uses .get(key, 0) for all accesses to that variable.
   IMPORTANT: the parameter's domain must be a SUBSET of the variable's domain.

@@ -1,0 +1,460 @@
+{
+  "problem": {
+    "title": "Multi-Product Multi-Period Inventory Planning",
+    "description": "A warehouse stocks multiple products over a multi-period planning horizon. Each product has a known per-period demand that must be fully met. Each product has a per-unit ordering cost and a per-unit holding cost for inventory carried between periods. Each product has a known initial inventory level at the start of the horizon. The warehouse has a shared total storage capacity: the combined ending inventory of all products in any period cannot exceed this limit. Determine the ordering plan across all products and periods that minimizes total ordering and holding costs while meeting all demands and never violating the shared storage capacity.",
+    "problem_type": "linear_programming",
+    "objective": "minimize",
+    "objective_description": "Total cost = sum of per-unit ordering costs times units ordered plus per-unit holding costs times ending inventory, summed across all products and periods",
+    "constraints": [
+      {
+        "description": "For each product in the first period, ending inventory equals the product's initial inventory plus the order quantity minus demand (inventory balance initialization)"
+      },
+      {
+        "description": "For each product in each subsequent period, ending inventory equals the previous period's ending inventory plus the order quantity minus demand (temporal lag inventory balance)"
+      },
+      {
+        "description": "For each period, the total ending inventory across all products must not exceed the warehouse's shared storage capacity"
+      }
+    ],
+    "decision_variables": [
+      "order[p,t]: units of product p ordered at the start of period t (continuous, non-negative)",
+      "inventory[p,t]: units of product p in inventory at the end of period t (continuous, non-negative)"
+    ],
+    "parameters": [
+      "demand[p,t]: known demand for product p in period t",
+      "order_cost[p]: per-unit ordering cost for product p",
+      "holding_cost[p]: per-unit holding cost for product p carried between periods",
+      "initial_inventory[p]: units of product p on hand at the start of the planning horizon",
+      "warehouse_capacity: maximum total units of all products that can be stored simultaneously"
+    ],
+    "additional_notes": "The inventory balance constraint uses a temporal lag (inventory[p,t-1]) to link adjacent periods per product. The initialization constraint handles the first period separately using initial_inventory[p].",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "products": "products.csv",
+      "demand": "demand.csv",
+      "warehouse": "warehouse.csv"
+    }
+  },
+  "ir_patterns": [
+    "ordered set",
+    "temporal lag",
+    "init constraint",
+    "scalar parameter"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "products",
+        "element": "prod_A"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "products",
+          "periods"
+        ],
+        "element": [
+          "prod_A",
+          "prod_B",
+          "prod_C",
+          "p1",
+          "p2",
+          "p3",
+          "p4",
+          "p5",
+          "p6"
+        ]
+      }
+    },
+    "products": {
+      "columns": {
+        "id": "str",
+        "order_cost": "float",
+        "holding_cost": "float",
+        "initial_inventory": "float"
+      },
+      "sample": {
+        "id": "prod_A",
+        "order_cost": 3.0,
+        "holding_cost": 0.8,
+        "initial_inventory": 30.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "id": [
+          "prod_A",
+          "prod_B",
+          "prod_C"
+        ],
+        "order_cost": [
+          "2.0",
+          "3.0",
+          "4.0"
+        ],
+        "holding_cost": [
+          "0.5",
+          "0.8",
+          "1.0"
+        ],
+        "initial_inventory": [
+          "20.0",
+          "25.0",
+          "30.0"
+        ]
+      }
+    },
+    "demand": {
+      "columns": {
+        "product_id": "str",
+        "period_id": "str",
+        "demand": "float"
+      },
+      "sample": {
+        "product_id": "prod_A",
+        "period_id": "p1",
+        "demand": 25.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "product_id": [
+          "prod_A",
+          "prod_B",
+          "prod_C"
+        ],
+        "period_id": [
+          "p1",
+          "p2",
+          "p3",
+          "p4",
+          "p5",
+          "p6"
+        ],
+        "demand": [
+          "15.0",
+          "20.0",
+          "25.0",
+          "30.0",
+          "35.0",
+          "40.0"
+        ]
+      }
+    },
+    "warehouse": {
+      "columns": {
+        "capacity": "float"
+      },
+      "sample": {
+        "capacity": 200.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "capacity": [
+          "200.0"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "MultiProductInventory",
+    "model_type": "Linear Program",
+    "sense": "minimize",
+    "sets": {
+      "Products": {
+        "size": null,
+        "index_symbol": "p",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "products",
+        "ordered": false
+      },
+      "Periods": {
+        "size": null,
+        "index_symbol": "t",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "periods",
+        "ordered": true
+      }
+    },
+    "parameters": {
+      "demand": {
+        "domain": [
+          "Products",
+          "Periods"
+        ],
+        "type": "float",
+        "source": "demand.csv",
+        "column": "demand",
+        "index_columns": [
+          "product_id",
+          "period_id"
+        ],
+        "missing_default": "zero"
+      },
+      "order_cost": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "products.csv",
+        "column": "order_cost",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "inf"
+      },
+      "holding_cost": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "products.csv",
+        "column": "holding_cost",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "inf"
+      },
+      "initial_inventory": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "products.csv",
+        "column": "initial_inventory",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "zero"
+      },
+      "warehouse_capacity": {
+        "domain": [],
+        "type": "float",
+        "source": "warehouse.csv",
+        "column": "capacity",
+        "index_columns": null,
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "order": {
+        "description": "Units of product p ordered at the start of period t",
+        "label": "order_quantities",
+        "domain": [
+          "Products",
+          "Periods"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "inventory": {
+        "description": "Units of product p in inventory at the end of period t",
+        "label": "inventory_levels",
+        "domain": [
+          "Products",
+          "Periods"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "inv_balance_init": {
+        "domain": [
+          "Products"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "type": "parameter",
+              "name": "initial_inventory",
+              "indices": [
+                "p"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "order",
+              "indices": [
+                "p",
+                "Periods[0]"
+              ]
+            }
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "type": "parameter",
+              "name": "demand",
+              "indices": [
+                "p",
+                "Periods[0]"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "inventory",
+              "indices": [
+                "p",
+                "Periods[0]"
+              ]
+            }
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "inv_balance": {
+        "domain": [
+          "Products",
+          "Periods"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "inventory",
+              "indices": [
+                "p",
+                "t"
+              ],
+              "lag": -1
+            },
+            "right": {
+              "type": "variable",
+              "name": "order",
+              "indices": [
+                "p",
+                "t"
+              ]
+            }
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "type": "parameter",
+              "name": "demand",
+              "indices": [
+                "p",
+                "t"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "inventory",
+              "indices": [
+                "p",
+                "t"
+              ]
+            }
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "warehouse_capacity_limit": {
+        "domain": [
+          "Periods"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Products:p"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "inventory",
+            "indices": [
+              "p",
+              "t"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "parameter",
+          "name": "warehouse_capacity",
+          "indices": []
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "sum",
+        "left": {
+          "operation": "indexed_sum",
+          "over": [
+            "Products:p",
+            "Periods:t"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "order_cost",
+              "indices": [
+                "p"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "order",
+              "indices": [
+                "p",
+                "t"
+              ]
+            }
+          }
+        },
+        "right": {
+          "operation": "indexed_sum",
+          "over": [
+            "Products:p",
+            "Periods:t"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "holding_cost",
+              "indices": [
+                "p"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "inventory",
+              "indices": [
+                "p",
+                "t"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

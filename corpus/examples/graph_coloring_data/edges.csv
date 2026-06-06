@@ -1,0 +1,11 @@
+n1_id,n2_id,adjacent
+A,B,1
+B,A,1
+A,C,1
+C,A,1
+B,C,1
+C,B,1
+C,D,1
+D,C,1
+D,E,1
+E,D,1

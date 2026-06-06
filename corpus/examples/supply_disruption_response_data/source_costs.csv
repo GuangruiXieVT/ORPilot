@@ -1,0 +1,13 @@
+supplier_id,product_id,source_cost
+s1,p1,2.0
+s1,p2,3.0
+s1,p3,4.0
+s2,p1,3.0
+s2,p2,2.0
+s2,p3,3.0
+s3,p1,4.0
+s3,p2,4.0
+s3,p3,2.0
+s4,p1,3.0
+s4,p2,3.0
+s4,p3,3.0

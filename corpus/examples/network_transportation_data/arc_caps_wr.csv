@@ -1,0 +1,8 @@
+warehouse_id,retailer_id,capacity
+w1,r1,80.0
+w1,r2,90.0
+w2,r2,70.0
+w2,r3,80.0
+w2,r4,80.0
+w3,r3,90.0
+w3,r4,80.0

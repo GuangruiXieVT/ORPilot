@@ -1,0 +1,437 @@
+{
+  "problem": {
+    "title": "Multi-Period Workforce Adjustment Planning",
+    "description": "A manufacturing company must plan its workforce size over six quarterly periods. In each period, the company can hire additional workers or lay off existing ones. Workforce adjustments carry transition costs: a fixed cost per new hire and a fixed cost per layoff. Workers also generate a recurring labor cost each period. The company must maintain a workforce level that meets the forecast demand in every period without exceeding a maximum headcount. The workforce in each period equals the previous period's workforce plus new hires minus layoffs. Starting workforce is given by a policy parameter.",
+    "problem_type": "integer_programming",
+    "objective": "minimize",
+    "objective_description": "Total cost of hiring, firing, and labor across all periods",
+    "constraints": [
+      {
+        "description": "In the first period, workforce equals initial workforce plus hires minus fires"
+      },
+      {
+        "description": "In each subsequent period, workforce equals previous period workforce plus hires minus fires"
+      },
+      {
+        "description": "Workforce in each period must meet or exceed the required staffing level"
+      },
+      {
+        "description": "Workforce in each period must not exceed the maximum allowed headcount"
+      }
+    ],
+    "decision_variables": [
+      "workforce[t]: number of workers employed in period t (non-negative integer)",
+      "hire[t]: number of new workers hired at the start of period t (non-negative integer)",
+      "fire[t]: number of workers laid off at the start of period t (non-negative integer)"
+    ],
+    "parameters": [
+      "required_workers[t]: minimum workforce needed in period t",
+      "hire_cost[t]: cost per worker hired in period t",
+      "fire_cost[t]: cost per worker laid off in period t",
+      "labor_cost[t]: cost per worker employed in period t",
+      "initial_workforce: number of workers at the start of the planning horizon",
+      "max_workers: maximum allowed workforce at any time"
+    ],
+    "additional_notes": "The workforce balance constraint uses temporal lag: workforce[t] = workforce[t-1] + hire[t] - fire[t]. The first-period constraint handles the initial condition separately.",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "demand_data": "demand_data.csv",
+      "policy": "policy.csv"
+    }
+  },
+  "ir_patterns": [
+    "integer variable",
+    "ordered set",
+    "temporal lag",
+    "init constraint",
+    "scalar parameter"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "periods",
+        "element": "q1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "periods"
+        ],
+        "element": [
+          "q1",
+          "q2",
+          "q3",
+          "q4",
+          "q5",
+          "q6"
+        ]
+      }
+    },
+    "demand_data": {
+      "columns": {
+        "period_id": "str",
+        "required_workers": "int",
+        "hire_cost": "float",
+        "fire_cost": "float",
+        "labor_cost": "float"
+      },
+      "sample": {
+        "period_id": "q1",
+        "required_workers": 35,
+        "hire_cost": 500.0,
+        "fire_cost": 800.0,
+        "labor_cost": 100.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "period_id": [
+          "q1",
+          "q2",
+          "q3",
+          "q4",
+          "q5",
+          "q6"
+        ],
+        "required_workers": [
+          "30",
+          "35",
+          "38",
+          "40",
+          "45",
+          "50"
+        ]
+      }
+    },
+    "policy": {
+      "columns": {
+        "initial_workforce": "int",
+        "max_workers": "int"
+      },
+      "sample": {
+        "initial_workforce": 40,
+        "max_workers": 70
+      },
+      "optional": false,
+      "distinct_values": {
+        "initial_workforce": [
+          "40"
+        ],
+        "max_workers": [
+          "70"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "WorkforcePlanningProblem",
+    "model_type": "Mixed Integer Program",
+    "sense": "minimize",
+    "sets": {
+      "Periods": {
+        "size": null,
+        "index_symbol": "t",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "periods",
+        "ordered": true
+      }
+    },
+    "parameters": {
+      "required_workers": {
+        "domain": [
+          "Periods"
+        ],
+        "type": "float",
+        "source": "demand_data.csv",
+        "column": "required_workers",
+        "index_columns": [
+          "period_id"
+        ],
+        "missing_default": "zero"
+      },
+      "hire_cost": {
+        "domain": [
+          "Periods"
+        ],
+        "type": "float",
+        "source": "demand_data.csv",
+        "column": "hire_cost",
+        "index_columns": [
+          "period_id"
+        ],
+        "missing_default": "inf"
+      },
+      "fire_cost": {
+        "domain": [
+          "Periods"
+        ],
+        "type": "float",
+        "source": "demand_data.csv",
+        "column": "fire_cost",
+        "index_columns": [
+          "period_id"
+        ],
+        "missing_default": "inf"
+      },
+      "labor_cost": {
+        "domain": [
+          "Periods"
+        ],
+        "type": "float",
+        "source": "demand_data.csv",
+        "column": "labor_cost",
+        "index_columns": [
+          "period_id"
+        ],
+        "missing_default": "inf"
+      },
+      "initial_workforce": {
+        "domain": [],
+        "type": "float",
+        "source": "policy.csv",
+        "column": "initial_workforce",
+        "missing_default": "zero"
+      },
+      "max_workers": {
+        "domain": [],
+        "type": "float",
+        "source": "policy.csv",
+        "column": "max_workers",
+        "missing_default": "inf"
+      }
+    },
+    "variables": {
+      "workforce": {
+        "description": "Number of workers employed in period t",
+        "label": "workforce",
+        "domain": [
+          "Periods"
+        ],
+        "type": "integer",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "hire": {
+        "description": "Number of new workers hired at the start of period t",
+        "label": "hires",
+        "domain": [
+          "Periods"
+        ],
+        "type": "integer",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "fire": {
+        "description": "Number of workers laid off at the start of period t",
+        "label": "fires",
+        "domain": [
+          "Periods"
+        ],
+        "type": "integer",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "balance_init": {
+        "domain": [],
+        "expression": {
+          "operation": "sum",
+          "left": {
+            "operation": "subtract",
+            "left": {
+              "type": "variable",
+              "name": "workforce",
+              "indices": [
+                "Periods[0]"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "hire",
+              "indices": [
+                "Periods[0]"
+              ]
+            }
+          },
+          "right": {
+            "type": "variable",
+            "name": "fire",
+            "indices": [
+              "Periods[0]"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "parameter",
+          "name": "initial_workforce",
+          "indices": []
+        }
+      },
+      "balance": {
+        "domain": [
+          "Periods"
+        ],
+        "expression": {
+          "operation": "sum",
+          "left": {
+            "operation": "subtract",
+            "left": {
+              "type": "variable",
+              "name": "workforce",
+              "indices": [
+                "t"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "workforce",
+              "indices": [
+                "t"
+              ],
+              "lag": -1
+            }
+          },
+          "right": {
+            "operation": "subtract",
+            "left": {
+              "type": "variable",
+              "name": "fire",
+              "indices": [
+                "t"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "hire",
+              "indices": [
+                "t"
+              ]
+            }
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "demand_coverage": {
+        "domain": [
+          "Periods"
+        ],
+        "expression": {
+          "type": "variable",
+          "name": "workforce",
+          "indices": [
+            "t"
+          ]
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "parameter",
+          "name": "required_workers",
+          "indices": [
+            "t"
+          ]
+        }
+      },
+      "max_workforce": {
+        "domain": [
+          "Periods"
+        ],
+        "expression": {
+          "type": "variable",
+          "name": "workforce",
+          "indices": [
+            "t"
+          ]
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "parameter",
+          "name": "max_workers",
+          "indices": []
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Periods:t"
+        ],
+        "body": {
+          "operation": "sum",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "operation": "multiply",
+              "left": {
+                "type": "parameter",
+                "name": "hire_cost",
+                "indices": [
+                  "t"
+                ]
+              },
+              "right": {
+                "type": "variable",
+                "name": "hire",
+                "indices": [
+                  "t"
+                ]
+              }
+            },
+            "right": {
+              "operation": "multiply",
+              "left": {
+                "type": "parameter",
+                "name": "fire_cost",
+                "indices": [
+                  "t"
+                ]
+              },
+              "right": {
+                "type": "variable",
+                "name": "fire",
+                "indices": [
+                  "t"
+                ]
+              }
+            }
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "labor_cost",
+              "indices": [
+                "t"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "workforce",
+              "indices": [
+                "t"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

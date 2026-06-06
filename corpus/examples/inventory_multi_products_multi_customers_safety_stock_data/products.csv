@@ -1,0 +1,4 @@
+id,order_cost,holding_cost,initial_inventory,safety_stock
+prod_A,2.0,0.5,30.0,10.0
+prod_B,3.0,0.8,40.0,15.0
+prod_C,4.0,1.0,50.0,20.0

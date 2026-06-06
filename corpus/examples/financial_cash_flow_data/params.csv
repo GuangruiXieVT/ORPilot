@@ -1,0 +1,2 @@
+borrow_rate,invest_rate,max_loan,min_cash,initial_loan,initial_invest,max_invest
+0.015,0.008,200,10,0,0,150

@@ -1,0 +1,492 @@
+{
+  "problem": {
+    "title": "Portfolio Rebalancing with Transaction Costs",
+    "description": "An investor holds a current portfolio and wants to rebalance toward target weights. Buying and selling incur transaction costs. The total portfolio value is fixed. Minimize total transaction costs while achieving target allocation within a tolerance band.",
+    "problem_type": "linear_programming",
+    "objective": "minimize",
+    "objective_description": "Total transaction costs from buying and selling assets",
+    "constraints": [
+      {
+        "description": "Balance: final holdings = current holdings + buy - sell"
+      },
+      {
+        "description": "Budget: total portfolio value equals target"
+      },
+      {
+        "description": "Weight upper bound: asset value <= (target_weight + max_deviation) * total_value"
+      },
+      {
+        "description": "Weight lower bound: asset value >= (target_weight - max_deviation) * total_value"
+      }
+    ],
+    "decision_variables": [
+      "hold[Assets]: final units held (continuous, non-negative)",
+      "buy[Assets]: units purchased (continuous, non-negative)",
+      "sell[Assets]: units sold (continuous, non-negative)"
+    ],
+    "parameters": [
+      "current_hold[Assets]: current holdings",
+      "price[Assets]: current price per unit",
+      "buy_cost[Assets]: transaction cost per unit bought",
+      "sell_cost[Assets]: transaction cost per unit sold",
+      "target_weight[Assets]: target portfolio fraction",
+      "total_value: target total portfolio value",
+      "max_deviation: maximum allowed deviation from target weight"
+    ],
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "assets": "assets.csv",
+      "params": "params.csv"
+    }
+  },
+  "ir_patterns": [
+    "balance constraint",
+    "scalar parameter",
+    "weight constraints",
+    "multiply parameters"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "assets",
+        "element": "a1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "assets"
+        ],
+        "element": [
+          "a1",
+          "a2",
+          "a3",
+          "a4",
+          "a5"
+        ]
+      }
+    },
+    "assets": {
+      "columns": {
+        "asset_id": "str",
+        "current_hold": "float",
+        "asset_val": "float",
+        "buy_cost": "float",
+        "sell_cost": "float",
+        "target_weight": "float"
+      },
+      "sample": {
+        "asset_id": "a1",
+        "current_hold": 25.0,
+        "asset_val": 10.0,
+        "buy_cost": 0.5,
+        "sell_cost": 0.3,
+        "target_weight": 0.25
+      },
+      "optional": false,
+      "distinct_values": {
+        "asset_id": [
+          "a1",
+          "a2",
+          "a3",
+          "a4",
+          "a5"
+        ]
+      }
+    },
+    "params": {
+      "columns": {
+        "total_value": "float",
+        "max_deviation": "float"
+      },
+      "sample": {
+        "total_value": 1000.0,
+        "max_deviation": 0.05
+      },
+      "optional": false,
+      "distinct_values": {
+        "total_value": [
+          "1000.0"
+        ],
+        "max_deviation": [
+          "0.05"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "PortfolioRebalancing",
+    "model_type": "Linear Program",
+    "sense": "minimize",
+    "sets": {
+      "Assets": {
+        "size": null,
+        "index_symbol": "a",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "assets",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "current_hold": {
+        "domain": [
+          "Assets"
+        ],
+        "type": "float",
+        "source": "assets.csv",
+        "column": "current_hold",
+        "index_columns": [
+          "asset_id"
+        ],
+        "missing_default": "zero"
+      },
+      "asset_val": {
+        "domain": [
+          "Assets"
+        ],
+        "type": "float",
+        "source": "assets.csv",
+        "column": "asset_val",
+        "index_columns": [
+          "asset_id"
+        ],
+        "missing_default": "zero"
+      },
+      "buy_cost": {
+        "domain": [
+          "Assets"
+        ],
+        "type": "float",
+        "source": "assets.csv",
+        "column": "buy_cost",
+        "index_columns": [
+          "asset_id"
+        ],
+        "missing_default": "inf"
+      },
+      "sell_cost": {
+        "domain": [
+          "Assets"
+        ],
+        "type": "float",
+        "source": "assets.csv",
+        "column": "sell_cost",
+        "index_columns": [
+          "asset_id"
+        ],
+        "missing_default": "inf"
+      },
+      "target_weight": {
+        "domain": [
+          "Assets"
+        ],
+        "type": "float",
+        "source": "assets.csv",
+        "column": "target_weight",
+        "index_columns": [
+          "asset_id"
+        ],
+        "missing_default": "zero"
+      },
+      "total_value": {
+        "domain": [],
+        "type": "float",
+        "source": "params.csv",
+        "column": "total_value",
+        "index_columns": null,
+        "missing_default": "zero"
+      },
+      "max_deviation": {
+        "domain": [],
+        "type": "float",
+        "source": "params.csv",
+        "column": "max_deviation",
+        "index_columns": null,
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "hold": {
+        "description": "Final units held of asset a",
+        "label": "final_holdings",
+        "domain": [
+          "Assets"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "buy": {
+        "description": "Units of asset a purchased",
+        "label": "buy_quantities",
+        "domain": [
+          "Assets"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "sell": {
+        "description": "Units of asset a sold",
+        "label": "sell_quantities",
+        "domain": [
+          "Assets"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "balance": {
+        "domain": [
+          "Assets"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "hold",
+              "indices": [
+                "a"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "sell",
+              "indices": [
+                "a"
+              ]
+            }
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "type": "parameter",
+              "name": "current_hold",
+              "indices": [
+                "a"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "buy",
+              "indices": [
+                "a"
+              ]
+            }
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "budget": {
+        "domain": [],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Assets:a"
+            ],
+            "body": {
+              "operation": "multiply",
+              "left": {
+                "type": "parameter",
+                "name": "asset_val",
+                "indices": [
+                  "a"
+                ]
+              },
+              "right": {
+                "type": "variable",
+                "name": "hold",
+                "indices": [
+                  "a"
+                ]
+              }
+            }
+          },
+          "right": {
+            "type": "parameter",
+            "name": "total_value",
+            "indices": []
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "weight_upper": {
+        "domain": [
+          "Assets"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "asset_val",
+              "indices": [
+                "a"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "hold",
+              "indices": [
+                "a"
+              ]
+            }
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "operation": "sum",
+              "left": {
+                "type": "parameter",
+                "name": "target_weight",
+                "indices": [
+                  "a"
+                ]
+              },
+              "right": {
+                "type": "parameter",
+                "name": "max_deviation",
+                "indices": []
+              }
+            },
+            "right": {
+              "type": "parameter",
+              "name": "total_value",
+              "indices": []
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "weight_lower": {
+        "domain": [
+          "Assets"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "multiply",
+            "left": {
+              "operation": "subtract",
+              "left": {
+                "type": "parameter",
+                "name": "target_weight",
+                "indices": [
+                  "a"
+                ]
+              },
+              "right": {
+                "type": "parameter",
+                "name": "max_deviation",
+                "indices": []
+              }
+            },
+            "right": {
+              "type": "parameter",
+              "name": "total_value",
+              "indices": []
+            }
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "asset_val",
+              "indices": [
+                "a"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "hold",
+              "indices": [
+                "a"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Assets:a"
+        ],
+        "body": {
+          "operation": "sum",
+          "left": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "buy_cost",
+              "indices": [
+                "a"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "buy",
+              "indices": [
+                "a"
+              ]
+            }
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "sell_cost",
+              "indices": [
+                "a"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "sell",
+              "indices": [
+                "a"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,5 @@
+session_id,min_rate,max_rate
+s1,10,50
+s2,15,40
+s3,5,30
+s4,20,60

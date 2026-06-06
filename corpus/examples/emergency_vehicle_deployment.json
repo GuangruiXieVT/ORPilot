@@ -1,0 +1,349 @@
+{
+  "problem": {
+    "title": "Emergency Vehicle Deployment (P-Median)",
+    "description": "A city deploys exactly p ambulances at candidate stations to minimize total population-weighted response distance. Each demand zone must be served by exactly one station. A zone can only be served by an open (deployed) station. Minimize total weighted distance.",
+    "problem_type": "mixed_integer",
+    "objective": "minimize",
+    "objective_description": "Total weighted distance = sum over stations and zones of distance * population * serve",
+    "constraints": [
+      {
+        "description": "Exactly p stations are opened"
+      },
+      {
+        "description": "Each zone is served by exactly one station"
+      },
+      {
+        "description": "A zone can only be served from an open station"
+      }
+    ],
+    "decision_variables": [
+      "open_st[Stations]: 1 if ambulance is deployed at station (binary)",
+      "serve[Stations, Zones]: 1 if station st serves zone z (binary)"
+    ],
+    "parameters": [
+      "dist[Stations, Zones]: response distance from station to zone",
+      "population[Zones]: demand weight of zone",
+      "p_vehicles: number of ambulances to deploy"
+    ],
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "distances": "distances.csv",
+      "population": "population.csv",
+      "params": "params.csv"
+    }
+  },
+  "ir_patterns": [
+    "binary variable",
+    "p-median",
+    "scalar parameter",
+    "linking constraint"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "stations",
+        "element": "st1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "stations",
+          "zones"
+        ],
+        "element": [
+          "st1",
+          "st2",
+          "st3",
+          "st4",
+          "st5",
+          "z1",
+          "z2",
+          "z3",
+          "z4",
+          "z5",
+          "z6"
+        ]
+      }
+    },
+    "distances": {
+      "columns": {
+        "station_id": "str",
+        "zone_id": "str",
+        "dist": "float"
+      },
+      "sample": {
+        "station_id": "st1",
+        "zone_id": "z1",
+        "dist": 2.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "station_id": [
+          "st1",
+          "st2",
+          "st3",
+          "st4",
+          "st5"
+        ],
+        "zone_id": [
+          "z1",
+          "z2",
+          "z3",
+          "z4",
+          "z5",
+          "z6"
+        ]
+      }
+    },
+    "population": {
+      "columns": {
+        "zone_id": "str",
+        "population": "float"
+      },
+      "sample": {
+        "zone_id": "z1",
+        "population": 1000.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "zone_id": [
+          "z1",
+          "z2",
+          "z3",
+          "z4",
+          "z5",
+          "z6"
+        ]
+      }
+    },
+    "params": {
+      "columns": {
+        "p_vehicles": "float"
+      },
+      "sample": {
+        "p_vehicles": 2.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "p_vehicles": [
+          "2.0"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "EmergencyVehicleDeployment",
+    "model_type": "Mixed Integer Program",
+    "sense": "minimize",
+    "sets": {
+      "Stations": {
+        "size": null,
+        "index_symbol": "st",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "stations",
+        "ordered": false
+      },
+      "Zones": {
+        "size": null,
+        "index_symbol": "z",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "zones",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "dist": {
+        "domain": [
+          "Stations",
+          "Zones"
+        ],
+        "type": "float",
+        "source": "distances.csv",
+        "column": "dist",
+        "index_columns": [
+          "station_id",
+          "zone_id"
+        ],
+        "missing_default": "inf"
+      },
+      "population": {
+        "domain": [
+          "Zones"
+        ],
+        "type": "float",
+        "source": "population.csv",
+        "column": "population",
+        "index_columns": [
+          "zone_id"
+        ],
+        "missing_default": "zero"
+      },
+      "p_vehicles": {
+        "domain": [],
+        "type": "float",
+        "source": "params.csv",
+        "column": "p_vehicles",
+        "index_columns": null,
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "open_st": {
+        "description": "1 if ambulance is deployed at station st",
+        "label": "open_stations",
+        "domain": [
+          "Stations"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "serve": {
+        "description": "1 if station st serves zone z",
+        "label": "serve_assignments",
+        "domain": [
+          "Stations",
+          "Zones"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "exactly_p": {
+        "domain": [],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Stations:st"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "open_st",
+              "indices": [
+                "st"
+              ]
+            }
+          },
+          "right": {
+            "type": "parameter",
+            "name": "p_vehicles",
+            "indices": []
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "zone_covered": {
+        "domain": [
+          "Zones"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Stations:st"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "serve",
+            "indices": [
+              "st",
+              "z"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 1
+        }
+      },
+      "serve_only_open": {
+        "domain": [
+          "Stations",
+          "Zones"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "serve",
+            "indices": [
+              "st",
+              "z"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "open_st",
+            "indices": [
+              "st"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Stations:st",
+          "Zones:z"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "dist",
+              "indices": [
+                "st",
+                "z"
+              ]
+            },
+            "right": {
+              "type": "parameter",
+              "name": "population",
+              "indices": [
+                "z"
+              ]
+            }
+          },
+          "right": {
+            "type": "variable",
+            "name": "serve",
+            "indices": [
+              "st",
+              "z"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

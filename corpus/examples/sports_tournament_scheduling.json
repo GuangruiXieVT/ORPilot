@@ -1,0 +1,363 @@
+{
+  "problem": {
+    "title": "Sports Tournament Scheduling",
+    "description": "Schedule a round-robin tournament for 6 teams across 15 matches (C(6,2)) and 5 rounds. Each match is scheduled in exactly one round. Each team plays in at most one match per round (3 matches per round). Maximize the total weighted appeal: high-appeal matches scheduled in early rounds score more.",
+    "problem_type": "integer_programming",
+    "objective": "maximize",
+    "objective_description": "Sum of appeal * round_weight for all scheduled matches",
+    "constraints": [
+      {
+        "description": "Each match is scheduled in exactly one round"
+      },
+      {
+        "description": "Each team plays in at most one match per round"
+      }
+    ],
+    "decision_variables": [
+      "schedule[m,r]: 1 if match m is scheduled in round r, 0 otherwise (binary)"
+    ],
+    "parameters": [
+      "appeal[m]: attractiveness of match m",
+      "involves[t,m]: 1 if team t participates in match m",
+      "round_weight[r]: weight for scheduling in this round (earlier=higher)"
+    ],
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "matches": "matches.csv",
+      "involves": "involves.csv",
+      "round_weights": "round_weights.csv"
+    }
+  },
+  "ir_patterns": [
+    "binary variable",
+    "sparse parameter",
+    "domain filter free (dense matchup)"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "matches",
+        "element": "m1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "matches",
+          "rounds",
+          "teams"
+        ],
+        "element": [
+          "m1",
+          "m2",
+          "m3",
+          "m4",
+          "m5",
+          "m6",
+          "m7",
+          "m8",
+          "m9",
+          "m10",
+          "m11",
+          "m12",
+          "m13",
+          "m14",
+          "m15",
+          "r1",
+          "r2",
+          "r3",
+          "r4",
+          "r5",
+          "t1",
+          "t2",
+          "t3",
+          "t4",
+          "t5",
+          "t6"
+        ]
+      }
+    },
+    "matches": {
+      "columns": {
+        "match_id": "str",
+        "appeal": "float"
+      },
+      "sample": {
+        "match_id": "m1",
+        "appeal": 9.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "match_id": [
+          "m1",
+          "m2",
+          "m3",
+          "m4",
+          "m5",
+          "m6",
+          "m7",
+          "m8",
+          "m9",
+          "m10",
+          "m11",
+          "m12",
+          "m13",
+          "m14",
+          "m15"
+        ]
+      }
+    },
+    "involves": {
+      "columns": {
+        "team_id": "str",
+        "match_id": "str",
+        "involves": "int"
+      },
+      "sample": {
+        "team_id": "t1",
+        "match_id": "m1",
+        "involves": 1
+      },
+      "optional": false,
+      "distinct_values": {
+        "team_id": [
+          "t1",
+          "t2",
+          "t3",
+          "t4",
+          "t5",
+          "t6"
+        ],
+        "match_id": [
+          "m1",
+          "m2",
+          "m3",
+          "m4",
+          "m5",
+          "m6",
+          "m7",
+          "m8",
+          "m9",
+          "m10",
+          "m11",
+          "m12",
+          "m13",
+          "m14",
+          "m15"
+        ]
+      }
+    },
+    "round_weights": {
+      "columns": {
+        "round_id": "str",
+        "weight": "float"
+      },
+      "sample": {
+        "round_id": "r1",
+        "weight": 5.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "round_id": [
+          "r1",
+          "r2",
+          "r3",
+          "r4",
+          "r5"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "TournamentScheduling",
+    "model_type": "Mixed Integer Program",
+    "sense": "maximize",
+    "sets": {
+      "Matches": {
+        "size": null,
+        "index_symbol": "m",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "matches",
+        "ordered": false
+      },
+      "Rounds": {
+        "size": null,
+        "index_symbol": "r",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "rounds",
+        "ordered": false
+      },
+      "Teams": {
+        "size": null,
+        "index_symbol": "t",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "teams",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "appeal": {
+        "domain": [
+          "Matches"
+        ],
+        "type": "float",
+        "source": "matches.csv",
+        "column": "appeal",
+        "index_columns": [
+          "match_id"
+        ],
+        "missing_default": "zero"
+      },
+      "involves": {
+        "domain": [
+          "Teams",
+          "Matches"
+        ],
+        "type": "float",
+        "source": "involves.csv",
+        "column": "involves",
+        "index_columns": [
+          "team_id",
+          "match_id"
+        ],
+        "missing_default": "zero"
+      },
+      "round_weight": {
+        "domain": [
+          "Rounds"
+        ],
+        "type": "float",
+        "source": "round_weights.csv",
+        "column": "weight",
+        "index_columns": [
+          "round_id"
+        ],
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "schedule": {
+        "description": "1 if match m is scheduled in round r, 0 otherwise",
+        "label": "match_round_schedule",
+        "domain": [
+          "Matches",
+          "Rounds"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "each_match_once": {
+        "domain": [
+          "Matches"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Rounds:r"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "schedule",
+            "indices": [
+              "m",
+              "r"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 1
+        }
+      },
+      "team_one_per_round": {
+        "domain": [
+          "Teams",
+          "Rounds"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Matches:m"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "involves",
+              "indices": [
+                "t",
+                "m"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "schedule",
+              "indices": [
+                "m",
+                "r"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 1
+        }
+      }
+    },
+    "objective": {
+      "sense": "maximize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Matches:m",
+          "Rounds:r"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "appeal",
+              "indices": [
+                "m"
+              ]
+            },
+            "right": {
+              "type": "parameter",
+              "name": "round_weight",
+              "indices": [
+                "r"
+              ]
+            }
+          },
+          "right": {
+            "type": "variable",
+            "name": "schedule",
+            "indices": [
+              "m",
+              "r"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,10 @@
+set_name,element
+products,prod_X
+products,prod_Y
+products,prod_Z
+components,comp_1
+components,comp_2
+components,comp_3
+components,comp_4
+boms,bom_1
+boms,bom_2

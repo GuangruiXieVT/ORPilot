@@ -1,0 +1,5 @@
+nutrient_id,min_amount,max_amount
+calories,1800.0,2200.0
+protein,50.0,200.0
+fat,40.0,75.0
+carbs,225.0,325.0

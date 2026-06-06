@@ -1,0 +1,9 @@
+from_node,to_node,cost
+A,B,2
+A,C,3
+B,C,1
+B,D,4
+C,D,2
+C,E,5
+D,E,1
+E,A,6

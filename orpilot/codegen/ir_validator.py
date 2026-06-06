@@ -134,17 +134,24 @@ def _check_inventory_balance_signs(ir: dict) -> list[str]:
         # zero_vars: appear as both current (+1) and lagged (-1) — this IS the
         # inventory variable in lag-based constraints.
 
-        # Identify inventory variables by name heuristic
-        inv_name_match = lambda n: "inventory" in n.lower() or n.lower().startswith("inv")
+        # Identify inventory/backlog state variables by name heuristic.
+        # "backlog" and "shortage" are split-variable representations of negative
+        # inventory position — they are state variables, not flow variables.
+        inv_name_match = lambda n: (
+            "inventory" in n.lower() or n.lower().startswith("inv")
+            or "backlog" in n.lower() or "shortage" in n.lower()
+        )
 
         # --- Pattern A: init constraints (no lag) ---
-        # Wrong: inventory(+1), inflow(-1), outflow(-1)
-        # The inventory variable is in pos_vars; 2+ flow vars are negative.
+        # Wrong: inventory(+1), inflow(-1), outflow(-1)  — ALL flow vars negative, none positive.
+        # Correct: inventory(+1), outflow(+1), inflow(-1).
+        # Only fire when no non-inventory variable has a positive coefficient (no outflow with +1).
         inv_vars_pos = [n for n in pos_vars if inv_name_match(n)]
         inv_vars_neg = [n for n in neg_vars if inv_name_match(n)]
         non_inv_neg = [n for n in neg_vars if n not in inv_vars_neg]
+        non_inv_pos = [n for n in pos_vars if not inv_name_match(n)]
 
-        if not has_lag and is_init and inv_vars_pos and len(non_inv_neg) >= 2:
+        if not has_lag and is_init and inv_vars_pos and len(non_inv_neg) >= 2 and not non_inv_pos:
             errors.append(
                 f"Constraint '{cname}': inventory balance has wrong signs. "
                 f"Inventory variable(s) {inv_vars_pos} have coefficient +1, "
@@ -636,7 +643,10 @@ def _check_init_lag_sign_consistency(ir: dict) -> list[str]:
     errors = []
     constraints = ir.get("constraints", {})
     variables = set(ir.get("variables", {}).keys())
-    inv_name_match = lambda n: "inventory" in n.lower() or n.lower().startswith("inv")
+    inv_name_match = lambda n: (
+        "inventory" in n.lower() or n.lower().startswith("inv")
+        or "backlog" in n.lower() or "shortage" in n.lower()
+    )
 
     for cname, cspec in constraints.items():
         if cspec.get("sense") != "=":

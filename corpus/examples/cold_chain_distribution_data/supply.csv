@@ -1,0 +1,10 @@
+warehouse_id,product_id,supply
+wh1,pr1,80
+wh1,pr2,60
+wh1,pr3,70
+wh2,pr1,70
+wh2,pr2,80
+wh2,pr3,60
+wh3,pr1,60
+wh3,pr2,70
+wh3,pr3,80

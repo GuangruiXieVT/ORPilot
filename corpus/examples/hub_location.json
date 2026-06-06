@@ -1,0 +1,870 @@
+{
+  "problem": {
+    "title": "Hub-and-Spoke Network Location",
+    "description": "A logistics company routes shipments from origins to destinations through a hub-and-spoke network. It must decide which of 3 candidate hubs to open (fixed cost). Shipments from each origin are consolidated at one hub, then possibly transferred to another hub before being delivered to destinations. Each hub has a throughput capacity. Minimize total fixed plus transportation costs.",
+    "problem_type": "mixed_integer_programming",
+    "objective": "minimize",
+    "objective_description": "Total cost = hub opening costs + collection costs (origin to hub) + transfer costs (hub to hub) + delivery costs (hub to destination)",
+    "constraints": [
+      {
+        "description": "supply_dispatch: all supply from each origin must be sent to hubs"
+      },
+      {
+        "description": "demand_fulfillment: all demand at each destination must be received from hubs"
+      },
+      {
+        "description": "hub_flow_balance: at each hub, inflow (from origins + other hubs) equals outflow (to destinations + other hubs)"
+      },
+      {
+        "description": "collect_big_m: collection from origin to hub is zero if hub is not open"
+      },
+      {
+        "description": "deliver_big_m: delivery from hub to destination is zero if hub is not open"
+      },
+      {
+        "description": "hub_capacity_limit: total flow through a hub (inbound) cannot exceed its capacity times its open indicator"
+      },
+      {
+        "description": "transfer_big_m: inter-hub transfer is zero if the originating hub is not open"
+      }
+    ],
+    "decision_variables": [
+      "open_hub[Hubs]: 1 if hub h is opened (binary)",
+      "collect[Origins,Hubs]: flow from origin o to hub h (continuous, non-negative)",
+      "transfer[Hubs,Hubs]: flow from hub h1 to hub h2 (continuous, non-negative, exclude diagonal)",
+      "deliver[Hubs,Destinations]: flow from hub h to destination d (continuous, non-negative)"
+    ],
+    "parameters": [
+      "hub_fixed_cost[Hubs]: fixed opening cost per hub",
+      "collect_cost[Origins,Hubs]: per-unit cost from origin to hub",
+      "transfer_cost[Hubs,Hubs]: per-unit inter-hub transfer cost (sparse, no self-loops)",
+      "deliver_cost[Hubs,Destinations]: per-unit cost from hub to destination",
+      "supply[Origins]: units to ship from each origin",
+      "demand[Destinations]: units needed at each destination",
+      "hub_capacity[Hubs]: maximum throughput per hub",
+      "big_m: large constant for big-M linking constraints (scalar)"
+    ],
+    "additional_notes": "Total supply = total demand = 155 units. h2 is cheapest to open (400) and centrally located. h3 is cheapest (300) but limited capacity (150). Optimal depends on trade-off between fixed cost, collection, and delivery costs.",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "hubs": "hubs.csv",
+      "origins": "origins.csv",
+      "destinations": "destinations.csv",
+      "collect_costs": "collect_costs.csv",
+      "transfer_costs": "transfer_costs.csv",
+      "deliver_costs": "deliver_costs.csv",
+      "hub_params": "hub_params.csv"
+    }
+  },
+  "ir_patterns": [
+    "binary variable",
+    "big-M linking",
+    "exclude_diagonal",
+    "duplicate set domain",
+    "aliased indexed_sum",
+    "sparse parameter"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "origins",
+        "element": "o1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "origins",
+          "hubs",
+          "destinations"
+        ],
+        "element": [
+          "o1",
+          "o2",
+          "o3",
+          "o4",
+          "h1",
+          "h2",
+          "h3",
+          "d1",
+          "d2",
+          "d3",
+          "d4"
+        ]
+      }
+    },
+    "hubs": {
+      "columns": {
+        "hub_id": "str",
+        "hub_fixed_cost": "float",
+        "hub_capacity": "float"
+      },
+      "sample": {
+        "hub_id": "h1",
+        "hub_fixed_cost": 500.0,
+        "hub_capacity": 200.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "hub_id": [
+          "h1",
+          "h2",
+          "h3"
+        ]
+      }
+    },
+    "origins": {
+      "columns": {
+        "origin_id": "str",
+        "supply": "float"
+      },
+      "sample": {
+        "origin_id": "o1",
+        "supply": 40.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "origin_id": [
+          "o1",
+          "o2",
+          "o3",
+          "o4"
+        ]
+      }
+    },
+    "destinations": {
+      "columns": {
+        "dest_id": "str",
+        "demand": "float"
+      },
+      "sample": {
+        "dest_id": "d1",
+        "demand": 45.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "dest_id": [
+          "d1",
+          "d2",
+          "d3",
+          "d4"
+        ]
+      }
+    },
+    "collect_costs": {
+      "columns": {
+        "origin_id": "str",
+        "hub_id": "str",
+        "cost": "float"
+      },
+      "sample": {
+        "origin_id": "o1",
+        "hub_id": "h1",
+        "cost": 2.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "origin_id": [
+          "o1",
+          "o2",
+          "o3",
+          "o4"
+        ],
+        "hub_id": [
+          "h1",
+          "h2",
+          "h3"
+        ]
+      }
+    },
+    "transfer_costs": {
+      "columns": {
+        "from_hub": "str",
+        "to_hub": "str",
+        "cost": "float"
+      },
+      "sample": {
+        "from_hub": "h1",
+        "to_hub": "h2",
+        "cost": 1.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "from_hub": [
+          "h1",
+          "h2",
+          "h3"
+        ],
+        "to_hub": [
+          "h1",
+          "h2",
+          "h3"
+        ]
+      }
+    },
+    "deliver_costs": {
+      "columns": {
+        "hub_id": "str",
+        "dest_id": "str",
+        "cost": "float"
+      },
+      "sample": {
+        "hub_id": "h1",
+        "dest_id": "d1",
+        "cost": 2.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "hub_id": [
+          "h1",
+          "h2",
+          "h3"
+        ],
+        "dest_id": [
+          "d1",
+          "d2",
+          "d3",
+          "d4"
+        ]
+      }
+    },
+    "hub_params": {
+      "columns": {
+        "big_m": "float"
+      },
+      "sample": {
+        "big_m": 300.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "big_m": [
+          "300.0"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "HubLocationRouting",
+    "model_type": "Mixed Integer Program",
+    "sense": "minimize",
+    "sets": {
+      "Origins": {
+        "size": null,
+        "index_symbol": "o",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "origins",
+        "ordered": false
+      },
+      "Hubs": {
+        "size": null,
+        "index_symbol": "h",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "hubs",
+        "ordered": false
+      },
+      "Destinations": {
+        "size": null,
+        "index_symbol": "d",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "destinations",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "hub_fixed_cost": {
+        "domain": [
+          "Hubs"
+        ],
+        "type": "float",
+        "source": "hubs.csv",
+        "column": "hub_fixed_cost",
+        "index_columns": [
+          "hub_id"
+        ],
+        "missing_default": "inf"
+      },
+      "hub_capacity": {
+        "domain": [
+          "Hubs"
+        ],
+        "type": "float",
+        "source": "hubs.csv",
+        "column": "hub_capacity",
+        "index_columns": [
+          "hub_id"
+        ],
+        "missing_default": "inf"
+      },
+      "collect_cost": {
+        "domain": [
+          "Origins",
+          "Hubs"
+        ],
+        "type": "float",
+        "source": "collect_costs.csv",
+        "column": "cost",
+        "index_columns": [
+          "origin_id",
+          "hub_id"
+        ],
+        "missing_default": "inf"
+      },
+      "transfer_cost": {
+        "domain": [
+          "Hubs",
+          "Hubs"
+        ],
+        "type": "float",
+        "source": "transfer_costs.csv",
+        "column": "cost",
+        "index_columns": [
+          "from_hub",
+          "to_hub"
+        ],
+        "missing_default": "inf"
+      },
+      "deliver_cost": {
+        "domain": [
+          "Hubs",
+          "Destinations"
+        ],
+        "type": "float",
+        "source": "deliver_costs.csv",
+        "column": "cost",
+        "index_columns": [
+          "hub_id",
+          "dest_id"
+        ],
+        "missing_default": "inf"
+      },
+      "supply": {
+        "domain": [
+          "Origins"
+        ],
+        "type": "float",
+        "source": "origins.csv",
+        "column": "supply",
+        "index_columns": [
+          "origin_id"
+        ],
+        "missing_default": "zero"
+      },
+      "demand": {
+        "domain": [
+          "Destinations"
+        ],
+        "type": "float",
+        "source": "destinations.csv",
+        "column": "demand",
+        "index_columns": [
+          "dest_id"
+        ],
+        "missing_default": "zero"
+      },
+      "big_m": {
+        "domain": [],
+        "type": "float",
+        "source": "hub_params.csv",
+        "column": "big_m",
+        "index_columns": null,
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "open_hub": {
+        "description": "1 if hub h is opened",
+        "label": "hub_open_decisions",
+        "domain": [
+          "Hubs"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "collect": {
+        "description": "Flow from origin o to hub h",
+        "label": "collection_flows",
+        "domain": [
+          "Origins",
+          "Hubs"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "transfer": {
+        "description": "Inter-hub flow from hub h1 to hub h2 (no self-loops)",
+        "label": "transfer_flows",
+        "domain": [
+          "Hubs",
+          "Hubs"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": true
+      },
+      "deliver": {
+        "description": "Flow from hub h to destination d",
+        "label": "delivery_flows",
+        "domain": [
+          "Hubs",
+          "Destinations"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "supply_dispatch": {
+        "domain": [
+          "Origins"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Hubs:h"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "collect",
+              "indices": [
+                "o",
+                "h"
+              ]
+            }
+          },
+          "right": {
+            "type": "parameter",
+            "name": "supply",
+            "indices": [
+              "o"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "demand_fulfillment": {
+        "domain": [
+          "Destinations"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Hubs:h"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "deliver",
+              "indices": [
+                "h",
+                "d"
+              ]
+            }
+          },
+          "right": {
+            "type": "parameter",
+            "name": "demand",
+            "indices": [
+              "d"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "hub_flow_balance": {
+        "domain": [
+          "Hubs"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "operation": "indexed_sum",
+              "over": [
+                "Origins:o"
+              ],
+              "body": {
+                "type": "variable",
+                "name": "collect",
+                "indices": [
+                  "o",
+                  "h"
+                ]
+              }
+            },
+            "right": {
+              "operation": "indexed_sum",
+              "over": [
+                "Hubs:h_in"
+              ],
+              "body": {
+                "type": "variable",
+                "name": "transfer",
+                "indices": [
+                  "h_in",
+                  "h"
+                ]
+              }
+            }
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "operation": "indexed_sum",
+              "over": [
+                "Destinations:d"
+              ],
+              "body": {
+                "type": "variable",
+                "name": "deliver",
+                "indices": [
+                  "h",
+                  "d"
+                ]
+              }
+            },
+            "right": {
+              "operation": "indexed_sum",
+              "over": [
+                "Hubs:h_out"
+              ],
+              "body": {
+                "type": "variable",
+                "name": "transfer",
+                "indices": [
+                  "h",
+                  "h_out"
+                ]
+              }
+            }
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "collect_big_m": {
+        "domain": [
+          "Origins",
+          "Hubs"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "collect",
+            "indices": [
+              "o",
+              "h"
+            ]
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "supply",
+              "indices": [
+                "o"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "open_hub",
+              "indices": [
+                "h"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "deliver_big_m": {
+        "domain": [
+          "Hubs",
+          "Destinations"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "deliver",
+            "indices": [
+              "h",
+              "d"
+            ]
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "demand",
+              "indices": [
+                "d"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "open_hub",
+              "indices": [
+                "h"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "hub_capacity_limit": {
+        "domain": [
+          "Hubs"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "operation": "indexed_sum",
+              "over": [
+                "Origins:o"
+              ],
+              "body": {
+                "type": "variable",
+                "name": "collect",
+                "indices": [
+                  "o",
+                  "h"
+                ]
+              }
+            },
+            "right": {
+              "operation": "indexed_sum",
+              "over": [
+                "Hubs:h_in"
+              ],
+              "body": {
+                "type": "variable",
+                "name": "transfer",
+                "indices": [
+                  "h_in",
+                  "h"
+                ]
+              }
+            }
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "hub_capacity",
+              "indices": [
+                "h"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "open_hub",
+              "indices": [
+                "h"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "transfer_big_m": {
+        "domain": [
+          "Hubs",
+          "Hubs"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "transfer",
+            "indices": [
+              "h1",
+              "h2"
+            ]
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "big_m",
+              "indices": []
+            },
+            "right": {
+              "type": "variable",
+              "name": "open_hub",
+              "indices": [
+                "h1"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "sum",
+        "left": {
+          "operation": "sum",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "operation": "indexed_sum",
+              "over": [
+                "Hubs:h"
+              ],
+              "body": {
+                "operation": "multiply",
+                "left": {
+                  "type": "parameter",
+                  "name": "hub_fixed_cost",
+                  "indices": [
+                    "h"
+                  ]
+                },
+                "right": {
+                  "type": "variable",
+                  "name": "open_hub",
+                  "indices": [
+                    "h"
+                  ]
+                }
+              }
+            },
+            "right": {
+              "operation": "indexed_sum",
+              "over": [
+                "Origins:o",
+                "Hubs:h"
+              ],
+              "body": {
+                "operation": "multiply",
+                "left": {
+                  "type": "parameter",
+                  "name": "collect_cost",
+                  "indices": [
+                    "o",
+                    "h"
+                  ]
+                },
+                "right": {
+                  "type": "variable",
+                  "name": "collect",
+                  "indices": [
+                    "o",
+                    "h"
+                  ]
+                }
+              }
+            }
+          },
+          "right": {
+            "operation": "indexed_sum",
+            "over": [
+              "Hubs:h1",
+              "Hubs:h2"
+            ],
+            "body": {
+              "operation": "multiply",
+              "left": {
+                "type": "parameter",
+                "name": "transfer_cost",
+                "indices": [
+                  "h1",
+                  "h2"
+                ]
+              },
+              "right": {
+                "type": "variable",
+                "name": "transfer",
+                "indices": [
+                  "h1",
+                  "h2"
+                ]
+              }
+            }
+          }
+        },
+        "right": {
+          "operation": "indexed_sum",
+          "over": [
+            "Hubs:h",
+            "Destinations:d"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "deliver_cost",
+              "indices": [
+                "h",
+                "d"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "deliver",
+              "indices": [
+                "h",
+                "d"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,519 @@
+{
+  "problem": {
+    "title": "Joint Replenishment Problem",
+    "description": "A retailer orders multiple products from a common supplier over 6 weekly periods. A joint ordering cost is incurred whenever any product is ordered. Each product also has its own ordering cost and holding cost. Demand must be met and inventory balanced over time. Minimize total ordering and holding costs.",
+    "problem_type": "mixed_integer_program",
+    "objective": "minimize",
+    "objective_description": "Total holding costs plus per-product ordering costs plus joint ordering cost",
+    "constraints": [
+      {
+        "description": "Inventory balance: inventory[t] = inventory[t-1] + order[t] - demand[t]"
+      },
+      {
+        "description": "Order quantity is zero if no order is placed (big-M linking)"
+      },
+      {
+        "description": "Joint order flag is active if any product orders"
+      }
+    ],
+    "decision_variables": [
+      "order[p,t]: units ordered for product p in period t (continuous >= 0)",
+      "inventory[p,t]: ending inventory for product p in period t (continuous >= 0)",
+      "order_placed[p,t]: 1 if product p is ordered in period t (binary)",
+      "joint_order[t]: 1 if any order placed in period t (binary)"
+    ],
+    "parameters": [
+      "demand[p,t]: units demanded",
+      "holding_rate[p]: holding cost per unit per period",
+      "order_cost[p]: fixed cost when product p is ordered",
+      "max_order[p]: maximum order quantity (big-M)",
+      "joint_order_cost: shared ordering cost per joint order event"
+    ],
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "demand": "demand.csv",
+      "products": "products.csv",
+      "params": "params.csv"
+    }
+  },
+  "ir_patterns": [
+    "temporal lag",
+    "init constraint",
+    "binary big-M linking",
+    "joint ordering cost"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "products",
+        "element": "pr1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "products",
+          "periods"
+        ],
+        "element": [
+          "pr1",
+          "pr2",
+          "pr3",
+          "pr4",
+          "wk1",
+          "wk2",
+          "wk3",
+          "wk4",
+          "wk5",
+          "wk6"
+        ]
+      }
+    },
+    "demand": {
+      "columns": {
+        "product_id": "str",
+        "period_id": "str",
+        "demand": "float"
+      },
+      "sample": {
+        "product_id": "pr1",
+        "period_id": "wk1",
+        "demand": 20.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "product_id": [
+          "pr1",
+          "pr2",
+          "pr3",
+          "pr4"
+        ],
+        "period_id": [
+          "wk1",
+          "wk2",
+          "wk3",
+          "wk4",
+          "wk5",
+          "wk6"
+        ]
+      }
+    },
+    "products": {
+      "columns": {
+        "product_id": "str",
+        "holding_rate": "float",
+        "order_cost": "float",
+        "max_order": "float"
+      },
+      "sample": {
+        "product_id": "pr1",
+        "holding_rate": 0.5,
+        "order_cost": 30.0,
+        "max_order": 200.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "product_id": [
+          "pr1",
+          "pr2",
+          "pr3",
+          "pr4"
+        ]
+      }
+    },
+    "params": {
+      "columns": {
+        "joint_order_cost": "float"
+      },
+      "sample": {
+        "joint_order_cost": 50.0
+      },
+      "optional": false,
+      "distinct_values": {}
+    }
+  },
+  "ir": {
+    "problem_class": "JointReplenishment",
+    "model_type": "Mixed Integer Program",
+    "sense": "minimize",
+    "sets": {
+      "Products": {
+        "size": null,
+        "index_symbol": "p",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "products",
+        "ordered": false
+      },
+      "Periods": {
+        "size": null,
+        "index_symbol": "wk",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "periods",
+        "ordered": true
+      }
+    },
+    "parameters": {
+      "demand": {
+        "domain": [
+          "Products",
+          "Periods"
+        ],
+        "type": "float",
+        "source": "demand.csv",
+        "column": "demand",
+        "index_columns": [
+          "product_id",
+          "period_id"
+        ],
+        "missing_default": "zero"
+      },
+      "holding_rate": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "products.csv",
+        "column": "holding_rate",
+        "index_columns": [
+          "product_id"
+        ],
+        "missing_default": "zero"
+      },
+      "order_cost": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "products.csv",
+        "column": "order_cost",
+        "index_columns": [
+          "product_id"
+        ],
+        "missing_default": "inf"
+      },
+      "max_order": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "products.csv",
+        "column": "max_order",
+        "index_columns": [
+          "product_id"
+        ],
+        "missing_default": "inf"
+      },
+      "joint_order_cost": {
+        "domain": [],
+        "type": "float",
+        "source": "params.csv",
+        "column": "joint_order_cost",
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "order": {
+        "description": "Units ordered for product p in period wk",
+        "label": "product_orders",
+        "domain": [
+          "Products",
+          "Periods"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "inventory": {
+        "description": "Ending inventory for product p in period wk",
+        "label": "product_inventory",
+        "domain": [
+          "Products",
+          "Periods"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "order_placed": {
+        "description": "1 if product p is ordered in period wk",
+        "label": "product_order_flags",
+        "domain": [
+          "Products",
+          "Periods"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "joint_order": {
+        "description": "1 if any product is ordered in period wk",
+        "label": "joint_order_flags",
+        "domain": [
+          "Periods"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "inventory_balance_init": {
+        "domain": [
+          "Products"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "subtract",
+            "left": {
+              "type": "variable",
+              "name": "order",
+              "indices": [
+                "p",
+                "Periods[0]"
+              ]
+            },
+            "right": {
+              "type": "parameter",
+              "name": "demand",
+              "indices": [
+                "p",
+                "Periods[0]"
+              ]
+            }
+          },
+          "right": {
+            "type": "variable",
+            "name": "inventory",
+            "indices": [
+              "p",
+              "Periods[0]"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "inventory_balance": {
+        "domain": [
+          "Products",
+          "Periods"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "inventory",
+              "indices": [
+                "p",
+                "wk"
+              ],
+              "lag": -1
+            },
+            "right": {
+              "type": "variable",
+              "name": "order",
+              "indices": [
+                "p",
+                "wk"
+              ]
+            }
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "type": "parameter",
+              "name": "demand",
+              "indices": [
+                "p",
+                "wk"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "inventory",
+              "indices": [
+                "p",
+                "wk"
+              ]
+            }
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "order_if_placed": {
+        "domain": [
+          "Products",
+          "Periods"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "order",
+            "indices": [
+              "p",
+              "wk"
+            ]
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "max_order",
+              "indices": [
+                "p"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "order_placed",
+              "indices": [
+                "p",
+                "wk"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "joint_if_any": {
+        "domain": [
+          "Products",
+          "Periods"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "joint_order",
+            "indices": [
+              "wk"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "order_placed",
+            "indices": [
+              "p",
+              "wk"
+            ]
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "sum",
+        "left": {
+          "operation": "sum",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Products:p",
+              "Periods:wk"
+            ],
+            "body": {
+              "operation": "multiply",
+              "left": {
+                "type": "parameter",
+                "name": "holding_rate",
+                "indices": [
+                  "p"
+                ]
+              },
+              "right": {
+                "type": "variable",
+                "name": "inventory",
+                "indices": [
+                  "p",
+                  "wk"
+                ]
+              }
+            }
+          },
+          "right": {
+            "operation": "indexed_sum",
+            "over": [
+              "Products:p",
+              "Periods:wk"
+            ],
+            "body": {
+              "operation": "multiply",
+              "left": {
+                "type": "parameter",
+                "name": "order_cost",
+                "indices": [
+                  "p"
+                ]
+              },
+              "right": {
+                "type": "variable",
+                "name": "order_placed",
+                "indices": [
+                  "p",
+                  "wk"
+                ]
+              }
+            }
+          }
+        },
+        "right": {
+          "operation": "indexed_sum",
+          "over": [
+            "Periods:wk"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "joint_order_cost",
+              "indices": []
+            },
+            "right": {
+              "type": "variable",
+              "name": "joint_order",
+              "indices": [
+                "wk"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

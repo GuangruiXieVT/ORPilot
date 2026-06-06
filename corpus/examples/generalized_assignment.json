@@ -1,0 +1,310 @@
+{
+  "problem": {
+    "title": "Generalized Assignment: Jobs to Machines",
+    "description": "A manufacturing plant has a set of jobs to schedule and a set of machines to run them on. Each job must be assigned to exactly one machine. Assigning a particular job to a particular machine yields a known profit and consumes a known amount of that machine's processing capacity (processing times differ by job-machine pair). Each machine has a fixed total capacity limit. Find the assignment of all jobs to machines that maximizes total profit while ensuring no machine's capacity is exceeded.",
+    "problem_type": "integer_programming",
+    "objective": "maximize",
+    "objective_description": "Total profit earned from assigning all jobs to machines, summed over all job-machine assignment pairs",
+    "constraints": [
+      {
+        "description": "Each job must be assigned to exactly one machine"
+      },
+      {
+        "description": "For each machine, the total processing capacity consumed by all jobs assigned to it must not exceed the machine's capacity"
+      }
+    ],
+    "decision_variables": [
+      "assign[j,m]: 1 if job j is assigned to machine m, 0 otherwise (binary)"
+    ],
+    "parameters": [
+      "profit[j,m]: profit earned if job j is assigned to machine m",
+      "resource_use[j,m]: processing capacity consumed by job j when run on machine m",
+      "capacity[m]: maximum processing capacity available on machine m"
+    ],
+    "additional_notes": "",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "machines": "machines.csv",
+      "job_machine_data": "job_machine_data.csv"
+    }
+  },
+  "ir_patterns": [
+    "binary variable",
+    "big-M linking"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "jobs",
+        "element": "job_1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "jobs",
+          "machines"
+        ],
+        "element": [
+          "job_1",
+          "job_2",
+          "job_3",
+          "job_4",
+          "job_5",
+          "job_6",
+          "mach_1",
+          "mach_2",
+          "mach_3"
+        ]
+      }
+    },
+    "machines": {
+      "columns": {
+        "id": "str",
+        "capacity": "float"
+      },
+      "sample": {
+        "id": "mach_1",
+        "capacity": 20.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "id": [
+          "mach_1",
+          "mach_2",
+          "mach_3"
+        ],
+        "capacity": [
+          "18.0",
+          "20.0",
+          "22.0"
+        ]
+      }
+    },
+    "job_machine_data": {
+      "columns": {
+        "job_id": "str",
+        "machine_id": "str",
+        "profit": "float",
+        "resource_use": "float"
+      },
+      "sample": {
+        "job_id": "job_1",
+        "machine_id": "mach_1",
+        "profit": 10.0,
+        "resource_use": 3.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "job_id": [
+          "job_1",
+          "job_2",
+          "job_3",
+          "job_4",
+          "job_5",
+          "job_6"
+        ],
+        "machine_id": [
+          "mach_1",
+          "mach_2",
+          "mach_3"
+        ],
+        "profit": [
+          "5.0",
+          "7.0",
+          "8.0",
+          "9.0",
+          "10.0",
+          "12.0",
+          "14.0",
+          "15.0"
+        ],
+        "resource_use": [
+          "2.0",
+          "3.0",
+          "4.0",
+          "5.0",
+          "6.0"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "GeneralizedAssignment",
+    "model_type": "Mixed Integer Program",
+    "sense": "maximize",
+    "sets": {
+      "Jobs": {
+        "size": null,
+        "index_symbol": "j",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "jobs",
+        "ordered": false
+      },
+      "Machines": {
+        "size": null,
+        "index_symbol": "m",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "machines",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "profit": {
+        "domain": [
+          "Jobs",
+          "Machines"
+        ],
+        "type": "float",
+        "source": "job_machine_data.csv",
+        "column": "profit",
+        "index_columns": [
+          "job_id",
+          "machine_id"
+        ],
+        "missing_default": "zero"
+      },
+      "resource_use": {
+        "domain": [
+          "Jobs",
+          "Machines"
+        ],
+        "type": "float",
+        "source": "job_machine_data.csv",
+        "column": "resource_use",
+        "index_columns": [
+          "job_id",
+          "machine_id"
+        ],
+        "missing_default": "zero"
+      },
+      "capacity": {
+        "domain": [
+          "Machines"
+        ],
+        "type": "float",
+        "source": "machines.csv",
+        "column": "capacity",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "inf"
+      }
+    },
+    "variables": {
+      "assign": {
+        "description": "1 if job j is assigned to machine m, 0 otherwise",
+        "label": "job_machine_assignments",
+        "domain": [
+          "Jobs",
+          "Machines"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "one_machine_per_job": {
+        "domain": [
+          "Jobs"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Machines:m"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "assign",
+            "indices": [
+              "j",
+              "m"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 1
+        }
+      },
+      "machine_capacity": {
+        "domain": [
+          "Machines"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Jobs:j"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "resource_use",
+              "indices": [
+                "j",
+                "m"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "assign",
+              "indices": [
+                "j",
+                "m"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "parameter",
+          "name": "capacity",
+          "indices": [
+            "m"
+          ]
+        }
+      }
+    },
+    "objective": {
+      "sense": "maximize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Jobs:j",
+          "Machines:m"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "type": "parameter",
+            "name": "profit",
+            "indices": [
+              "j",
+              "m"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "assign",
+            "indices": [
+              "j",
+              "m"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

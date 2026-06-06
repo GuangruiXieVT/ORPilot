@@ -1,0 +1,16 @@
+project_id,period_id,investment_required
+proj_A,yr_1,10.0
+proj_A,yr_2,20.0
+proj_A,yr_3,30.0
+proj_B,yr_1,40.0
+proj_B,yr_2,50.0
+proj_B,yr_3,60.0
+proj_C,yr_1,10.0
+proj_C,yr_2,20.0
+proj_C,yr_3,30.0
+proj_D,yr_1,40.0
+proj_D,yr_2,50.0
+proj_D,yr_3,60.0
+proj_E,yr_1,10.0
+proj_E,yr_2,20.0
+proj_E,yr_3,30.0

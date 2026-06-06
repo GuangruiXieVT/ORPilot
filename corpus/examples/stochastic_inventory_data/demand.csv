@@ -1,0 +1,10 @@
+product_id,scenario_id,demand
+p1,s1,40
+p1,s2,60
+p1,s3,80
+p2,s1,30
+p2,s2,50
+p2,s3,70
+p3,s1,20
+p3,s2,35
+p3,s3,55

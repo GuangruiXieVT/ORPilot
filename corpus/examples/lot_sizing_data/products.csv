@@ -1,0 +1,4 @@
+id,setup_cost,prod_cost,holding_cost,initial_inv,max_batch
+prod_A,500.0,10.0,2.0,20.0,100.0
+prod_B,700.0,15.0,3.0,10.0,150.0
+prod_C,400.0,8.0,1.5,0.0,120.0

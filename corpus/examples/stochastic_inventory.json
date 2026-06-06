@@ -1,0 +1,451 @@
+{
+  "problem": {
+    "title": "Stochastic Newsvendor — Multi-Product",
+    "description": "A retailer orders multiple products before the selling season. Demand for each product is uncertain with 3 equally likely scenarios. For each scenario the retailer sells min(order, demand) and salvages leftover units. Maximize expected profit (revenue from sales plus salvage value minus ordering cost).",
+    "problem_type": "linear_programming",
+    "objective": "maximize",
+    "objective_description": "Expected profit = E[sell_price * sell + salvage_price * leftover - unit_cost * order]",
+    "constraints": [
+      {
+        "description": "sell_limit_order: units sold cannot exceed the order quantity"
+      },
+      {
+        "description": "sell_limit_demand: units sold cannot exceed the realised demand"
+      },
+      {
+        "description": "inventory_balance: sell + leftover = order (balance split variables to order quantity)"
+      }
+    ],
+    "decision_variables": [
+      "order[Products]: first-stage order quantity before demand is known (continuous, non-negative)",
+      "sell[Products,Scenarios]: units sold in scenario s (continuous, non-negative)",
+      "leftover[Products,Scenarios]: unsold units in scenario s (continuous, non-negative)"
+    ],
+    "parameters": [
+      "unit_cost[Products]: ordering cost per unit",
+      "sell_price[Products]: revenue per unit sold",
+      "salvage_price[Products]: salvage value per unsold unit",
+      "demand[Products,Scenarios]: demand in each scenario",
+      "probability[Scenarios]: scenario probability"
+    ],
+    "additional_notes": "Optimal orders: order the maximum demand (high scenario) since sell price exceeds salvage. Expected objective ~1906.2.",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "products": "products.csv",
+      "demand": "demand.csv",
+      "scenarios": "scenarios.csv"
+    }
+  },
+  "ir_patterns": [
+    "scenario weighted sum",
+    "split variables",
+    "two-stage stochastic"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "products",
+        "element": "p1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "products",
+          "scenarios"
+        ],
+        "element": [
+          "p1",
+          "p2",
+          "p3",
+          "s1",
+          "s2",
+          "s3"
+        ]
+      }
+    },
+    "products": {
+      "columns": {
+        "product_id": "str",
+        "unit_cost": "float",
+        "sell_price": "float",
+        "salvage_price": "float"
+      },
+      "sample": {
+        "product_id": "p1",
+        "unit_cost": 10.0,
+        "sell_price": 25.0,
+        "salvage_price": 5.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "product_id": [
+          "p1",
+          "p2",
+          "p3"
+        ]
+      }
+    },
+    "demand": {
+      "columns": {
+        "product_id": "str",
+        "scenario_id": "str",
+        "demand": "float"
+      },
+      "sample": {
+        "product_id": "p1",
+        "scenario_id": "s1",
+        "demand": 40.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "product_id": [
+          "p1",
+          "p2",
+          "p3"
+        ],
+        "scenario_id": [
+          "s1",
+          "s2",
+          "s3"
+        ]
+      }
+    },
+    "scenarios": {
+      "columns": {
+        "scenario_id": "str",
+        "probability": "float"
+      },
+      "sample": {
+        "scenario_id": "s1",
+        "probability": 0.333
+      },
+      "optional": false,
+      "distinct_values": {
+        "scenario_id": [
+          "s1",
+          "s2",
+          "s3"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "StochasticNewsvendor",
+    "model_type": "Linear Program",
+    "sense": "maximize",
+    "sets": {
+      "Products": {
+        "size": null,
+        "index_symbol": "p",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "products",
+        "ordered": false
+      },
+      "Scenarios": {
+        "size": null,
+        "index_symbol": "s",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "scenarios",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "unit_cost": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "products.csv",
+        "column": "unit_cost",
+        "index_columns": [
+          "product_id"
+        ],
+        "missing_default": "inf"
+      },
+      "sell_price": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "products.csv",
+        "column": "sell_price",
+        "index_columns": [
+          "product_id"
+        ],
+        "missing_default": "zero"
+      },
+      "salvage_price": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "products.csv",
+        "column": "salvage_price",
+        "index_columns": [
+          "product_id"
+        ],
+        "missing_default": "zero"
+      },
+      "demand": {
+        "domain": [
+          "Products",
+          "Scenarios"
+        ],
+        "type": "float",
+        "source": "demand.csv",
+        "column": "demand",
+        "index_columns": [
+          "product_id",
+          "scenario_id"
+        ],
+        "missing_default": "zero"
+      },
+      "probability": {
+        "domain": [
+          "Scenarios"
+        ],
+        "type": "float",
+        "source": "scenarios.csv",
+        "column": "probability",
+        "index_columns": [
+          "scenario_id"
+        ],
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "order": {
+        "description": "First-stage order quantity for product p",
+        "label": "order_quantities",
+        "domain": [
+          "Products"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "sell": {
+        "description": "Units sold in scenario s for product p",
+        "label": "sell_by_scenario",
+        "domain": [
+          "Products",
+          "Scenarios"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "leftover": {
+        "description": "Unsold units in scenario s for product p",
+        "label": "leftover_by_scenario",
+        "domain": [
+          "Products",
+          "Scenarios"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "sell_limit_order": {
+        "domain": [
+          "Products",
+          "Scenarios"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "sell",
+            "indices": [
+              "p",
+              "s"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "order",
+            "indices": [
+              "p"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "sell_limit_demand": {
+        "domain": [
+          "Products",
+          "Scenarios"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "sell",
+            "indices": [
+              "p",
+              "s"
+            ]
+          },
+          "right": {
+            "type": "parameter",
+            "name": "demand",
+            "indices": [
+              "p",
+              "s"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "inventory_balance": {
+        "domain": [
+          "Products",
+          "Scenarios"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "sell",
+              "indices": [
+                "p",
+                "s"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "leftover",
+              "indices": [
+                "p",
+                "s"
+              ]
+            }
+          },
+          "right": {
+            "type": "variable",
+            "name": "order",
+            "indices": [
+              "p"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "maximize",
+      "expression": {
+        "operation": "subtract",
+        "left": {
+          "operation": "indexed_sum",
+          "over": [
+            "Scenarios:s",
+            "Products:p"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "probability",
+              "indices": [
+                "s"
+              ]
+            },
+            "right": {
+              "operation": "sum",
+              "left": {
+                "operation": "multiply",
+                "left": {
+                  "type": "parameter",
+                  "name": "sell_price",
+                  "indices": [
+                    "p"
+                  ]
+                },
+                "right": {
+                  "type": "variable",
+                  "name": "sell",
+                  "indices": [
+                    "p",
+                    "s"
+                  ]
+                }
+              },
+              "right": {
+                "operation": "multiply",
+                "left": {
+                  "type": "parameter",
+                  "name": "salvage_price",
+                  "indices": [
+                    "p"
+                  ]
+                },
+                "right": {
+                  "type": "variable",
+                  "name": "leftover",
+                  "indices": [
+                    "p",
+                    "s"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "right": {
+          "operation": "indexed_sum",
+          "over": [
+            "Products:p"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "unit_cost",
+              "indices": [
+                "p"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "order",
+              "indices": [
+                "p"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

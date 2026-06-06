@@ -1,0 +1,13 @@
+origin_id,hub_id,cost
+o1,h1,2
+o1,h2,5
+o1,h3,7
+o2,h1,4
+o2,h2,2
+o2,h3,6
+o3,h1,6
+o3,h2,3
+o3,h3,2
+o4,h1,5
+o4,h2,4
+o4,h3,3

@@ -1,0 +1,5 @@
+component_id,product_id,quantity
+comp_1,prod_A,2.0
+comp_2,prod_A,1.0
+comp_1,prod_B,1.0
+comp_3,prod_B,2.0

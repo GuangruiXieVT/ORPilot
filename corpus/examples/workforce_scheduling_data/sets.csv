@@ -1,0 +1,17 @@
+set_name,element
+shifts,shift_mon_am
+shifts,shift_mon_pm
+shifts,shift_tue_am
+shifts,shift_tue_pm
+shifts,shift_wed_am
+shifts,shift_wed_pm
+shifts,shift_thu_am
+shifts,shift_thu_pm
+shifts,shift_fri_am
+shifts,shift_fri_pm
+employees,emp_1
+employees,emp_2
+employees,emp_3
+employees,emp_4
+employees,emp_5
+employees,emp_6

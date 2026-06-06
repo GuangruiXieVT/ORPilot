@@ -1,0 +1,16 @@
+product_id,day_id,demand
+bread,mon,8
+bread,tue,10
+bread,wed,9
+bread,thu,11
+bread,fri,10
+cake,mon,4
+cake,tue,5
+cake,wed,4
+cake,thu,6
+cake,fri,5
+cookie,mon,6
+cookie,tue,7
+cookie,wed,8
+cookie,thu,7
+cookie,fri,6

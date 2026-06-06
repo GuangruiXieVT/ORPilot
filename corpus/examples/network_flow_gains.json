@@ -1,0 +1,382 @@
+{
+  "problem": {
+    "title": "Network Flow with Gains",
+    "description": "A pipeline network where flow may gain or lose value on each arc (processing yield or transmission loss). A single commodity is injected at source node n1 and must reach sink node n5. Each arc has a capacity limit. A gain factor < 1 models transmission losses; gain = 1 models no change. Minimize total routing cost.",
+    "problem_type": "linear_programming",
+    "objective": "minimize",
+    "objective_description": "Total routing cost = sum over arcs of arc_cost * flow",
+    "constraints": [
+      {
+        "description": "Flow conservation with gain: for each node, outflow - gain-weighted inflow = net_supply"
+      },
+      {
+        "description": "Arc capacity: flow on each arc cannot exceed its capacity"
+      }
+    ],
+    "decision_variables": [
+      "flow[Nodes, Nodes]: units flowing on arc (i,j) (continuous, non-negative, exclude diagonal, sparse)"
+    ],
+    "parameters": [
+      "arc_cost[Nodes, Nodes]: per-unit routing cost (sparse)",
+      "arc_capacity[Nodes, Nodes]: arc capacity (sparse)",
+      "gain[Nodes, Nodes]: gain factor on arc (sparse, same pairs as arc_cost)",
+      "net_supply[Nodes]: positive = source, negative = sink"
+    ],
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "arc_cost": "arc_cost.csv",
+      "arc_capacity": "arc_capacity.csv",
+      "gain": "gain.csv",
+      "net_supply": "net_supply.csv"
+    }
+  },
+  "ir_patterns": [
+    "exclude diagonal",
+    "domain filter",
+    "reversed indices in sum",
+    "gain multiplier"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "nodes",
+        "element": "n1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "nodes"
+        ],
+        "element": [
+          "n1",
+          "n2",
+          "n3",
+          "n4",
+          "n5"
+        ]
+      }
+    },
+    "arc_cost": {
+      "columns": {
+        "from_node": "str",
+        "to_node": "str",
+        "arc_cost": "float"
+      },
+      "sample": {
+        "from_node": "n1",
+        "to_node": "n2",
+        "arc_cost": 3.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "from_node": [
+          "n1",
+          "n2",
+          "n3",
+          "n4"
+        ],
+        "to_node": [
+          "n2",
+          "n3",
+          "n4",
+          "n5"
+        ]
+      }
+    },
+    "arc_capacity": {
+      "columns": {
+        "from_node": "str",
+        "to_node": "str",
+        "arc_capacity": "float"
+      },
+      "sample": {
+        "from_node": "n1",
+        "to_node": "n2",
+        "arc_capacity": 80.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "from_node": [
+          "n1",
+          "n2",
+          "n3",
+          "n4"
+        ],
+        "to_node": [
+          "n2",
+          "n3",
+          "n4",
+          "n5"
+        ]
+      }
+    },
+    "gain": {
+      "columns": {
+        "from_node": "str",
+        "to_node": "str",
+        "gain": "float"
+      },
+      "sample": {
+        "from_node": "n1",
+        "to_node": "n2",
+        "gain": 1.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "from_node": [
+          "n1",
+          "n2",
+          "n3",
+          "n4"
+        ],
+        "to_node": [
+          "n2",
+          "n3",
+          "n4",
+          "n5"
+        ]
+      }
+    },
+    "net_supply": {
+      "columns": {
+        "node_id": "str",
+        "net_supply": "float"
+      },
+      "sample": {
+        "node_id": "n1",
+        "net_supply": 100.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "node_id": [
+          "n1",
+          "n2",
+          "n3",
+          "n4",
+          "n5"
+        ],
+        "net_supply": [
+          "-85.0",
+          "0.0",
+          "100.0"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "NetworkFlowWithGains",
+    "model_type": "Linear Program",
+    "sense": "minimize",
+    "sets": {
+      "Nodes": {
+        "size": null,
+        "index_symbol": "i",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "nodes",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "arc_cost": {
+        "domain": [
+          "Nodes",
+          "Nodes"
+        ],
+        "type": "float",
+        "source": "arc_cost.csv",
+        "column": "arc_cost",
+        "index_columns": [
+          "from_node",
+          "to_node"
+        ],
+        "missing_default": "inf"
+      },
+      "arc_capacity": {
+        "domain": [
+          "Nodes",
+          "Nodes"
+        ],
+        "type": "float",
+        "source": "arc_capacity.csv",
+        "column": "arc_capacity",
+        "index_columns": [
+          "from_node",
+          "to_node"
+        ],
+        "missing_default": "inf"
+      },
+      "gain": {
+        "domain": [
+          "Nodes",
+          "Nodes"
+        ],
+        "type": "float",
+        "source": "gain.csv",
+        "column": "gain",
+        "index_columns": [
+          "from_node",
+          "to_node"
+        ],
+        "missing_default": "zero"
+      },
+      "net_supply": {
+        "domain": [
+          "Nodes"
+        ],
+        "type": "float",
+        "source": "net_supply.csv",
+        "column": "net_supply",
+        "index_columns": [
+          "node_id"
+        ],
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "flow": {
+        "description": "Units flowing on arc from node i to node j",
+        "label": "arc_flows",
+        "domain": [
+          "Nodes",
+          "Nodes"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": true,
+        "domain_filter": "arc_cost"
+      }
+    },
+    "constraints": {
+      "flow_conservation": {
+        "domain": [
+          "Nodes"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Nodes:j"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "flow",
+              "indices": [
+                "i",
+                "j"
+              ]
+            }
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "operation": "indexed_sum",
+              "over": [
+                "Nodes:j"
+              ],
+              "body": {
+                "operation": "multiply",
+                "left": {
+                  "type": "parameter",
+                  "name": "gain",
+                  "indices": [
+                    "j",
+                    "i"
+                  ]
+                },
+                "right": {
+                  "type": "variable",
+                  "name": "flow",
+                  "indices": [
+                    "j",
+                    "i"
+                  ]
+                }
+              }
+            },
+            "right": {
+              "type": "parameter",
+              "name": "net_supply",
+              "indices": [
+                "i"
+              ]
+            }
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "arc_cap_limit": {
+        "domain": [
+          "Nodes",
+          "Nodes"
+        ],
+        "sparse_filter": "arc_cost",
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "flow",
+            "indices": [
+              "i1",
+              "i2"
+            ]
+          },
+          "right": {
+            "type": "parameter",
+            "name": "arc_capacity",
+            "indices": [
+              "i1",
+              "i2"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Nodes:i1",
+          "Nodes:i2"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "type": "parameter",
+            "name": "arc_cost",
+            "indices": [
+              "i1",
+              "i2"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "flow",
+            "indices": [
+              "i1",
+              "i2"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

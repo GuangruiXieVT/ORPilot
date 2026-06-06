@@ -1,0 +1,340 @@
+{
+  "problem": {
+    "title": "Weekly Nurse Rostering",
+    "description": "A hospital must create a weekly schedule for five nurses across three shifts (morning, afternoon, night) and seven days. Each shift on each day has a minimum number of nurses required to provide adequate patient care. Each nurse has a shift-specific cost (reflecting overtime, seniority, and preference). No nurse may work more than a specified maximum number of shifts per week. Determine the minimum-cost weekly schedule that meets all coverage requirements without exceeding nurse working-hour limits.",
+    "problem_type": "integer_programming",
+    "objective": "minimize",
+    "objective_description": "Total scheduling cost across all nurse-shift-day assignments",
+    "constraints": [
+      {
+        "description": "For each shift on each day, the number of nurses assigned must meet or exceed the minimum required coverage"
+      },
+      {
+        "description": "For each nurse, the total number of shift assignments across the week must not exceed their maximum allowed weekly shifts"
+      }
+    ],
+    "decision_variables": [
+      "assign[n,s,d]: 1 if nurse n is assigned to shift s on day d, 0 otherwise (binary)"
+    ],
+    "parameters": [
+      "shift_cost[n,s]: cost of scheduling nurse n for shift s (per occurrence)",
+      "min_nurses[s,d]: minimum number of nurses required for shift s on day d",
+      "max_weekly_shifts[n]: maximum number of shifts nurse n can work per week"
+    ],
+    "additional_notes": "The assign variable is 3-dimensional (nurses × shifts × days). The coverage constraint sums over nurses for each (shift, day) pair. The weekly limit sums over both shifts and days for each nurse.",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "min_coverage": "min_coverage.csv",
+      "shift_costs": "shift_costs.csv",
+      "nurses": "nurses.csv"
+    }
+  },
+  "ir_patterns": [
+    "binary variable"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "nurses",
+        "element": "n1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "nurses",
+          "shifts",
+          "days"
+        ],
+        "element": [
+          "n1",
+          "n2",
+          "n3",
+          "n4",
+          "n5",
+          "morning",
+          "afternoon",
+          "night",
+          "mon",
+          "tue",
+          "wed",
+          "thu",
+          "fri",
+          "sat",
+          "sun"
+        ]
+      }
+    },
+    "min_coverage": {
+      "columns": {
+        "shift_id": "str",
+        "day_id": "str",
+        "min_nurses": "int"
+      },
+      "sample": {
+        "shift_id": "morning",
+        "day_id": "mon",
+        "min_nurses": 2
+      },
+      "optional": false,
+      "distinct_values": {
+        "shift_id": [
+          "morning",
+          "afternoon",
+          "night"
+        ],
+        "day_id": [
+          "mon",
+          "tue",
+          "wed",
+          "thu",
+          "fri",
+          "sat",
+          "sun"
+        ],
+        "min_nurses": [
+          "1",
+          "2"
+        ]
+      }
+    },
+    "shift_costs": {
+      "columns": {
+        "nurse_id": "str",
+        "shift_id": "str",
+        "cost": "float"
+      },
+      "sample": {
+        "nurse_id": "n1",
+        "shift_id": "morning",
+        "cost": 20.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "nurse_id": [
+          "n1",
+          "n2",
+          "n3",
+          "n4",
+          "n5"
+        ],
+        "shift_id": [
+          "morning",
+          "afternoon",
+          "night"
+        ]
+      }
+    },
+    "nurses": {
+      "columns": {
+        "nurse_id": "str",
+        "max_weekly_shifts": "int"
+      },
+      "sample": {
+        "nurse_id": "n1",
+        "max_weekly_shifts": 5
+      },
+      "optional": false,
+      "distinct_values": {
+        "nurse_id": [
+          "n1",
+          "n2",
+          "n3",
+          "n4",
+          "n5"
+        ],
+        "max_weekly_shifts": [
+          "6",
+          "7"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "AssignmentProblem",
+    "model_type": "Mixed Integer Program",
+    "sense": "minimize",
+    "sets": {
+      "Nurses": {
+        "size": null,
+        "index_symbol": "n",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "nurses",
+        "ordered": false
+      },
+      "Shifts": {
+        "size": null,
+        "index_symbol": "s",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "shifts",
+        "ordered": false
+      },
+      "Days": {
+        "size": null,
+        "index_symbol": "d",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "days",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "shift_cost": {
+        "domain": [
+          "Nurses",
+          "Shifts"
+        ],
+        "type": "float",
+        "source": "shift_costs.csv",
+        "column": "cost",
+        "index_columns": [
+          "nurse_id",
+          "shift_id"
+        ],
+        "missing_default": "inf"
+      },
+      "min_nurses": {
+        "domain": [
+          "Shifts",
+          "Days"
+        ],
+        "type": "float",
+        "source": "min_coverage.csv",
+        "column": "min_nurses",
+        "index_columns": [
+          "shift_id",
+          "day_id"
+        ],
+        "missing_default": "zero"
+      },
+      "max_weekly_shifts": {
+        "domain": [
+          "Nurses"
+        ],
+        "type": "float",
+        "source": "nurses.csv",
+        "column": "max_weekly_shifts",
+        "index_columns": [
+          "nurse_id"
+        ],
+        "missing_default": "inf"
+      }
+    },
+    "variables": {
+      "assign": {
+        "description": "1 if nurse n is assigned to shift s on day d, 0 otherwise",
+        "label": "nurse_assignments",
+        "domain": [
+          "Nurses",
+          "Shifts",
+          "Days"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "shift_coverage": {
+        "domain": [
+          "Shifts",
+          "Days"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Nurses:n"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "assign",
+            "indices": [
+              "n",
+              "s",
+              "d"
+            ]
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "parameter",
+          "name": "min_nurses",
+          "indices": [
+            "s",
+            "d"
+          ]
+        }
+      },
+      "weekly_shift_limit": {
+        "domain": [
+          "Nurses"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Shifts:s",
+            "Days:d"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "assign",
+            "indices": [
+              "n",
+              "s",
+              "d"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "parameter",
+          "name": "max_weekly_shifts",
+          "indices": [
+            "n"
+          ]
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Nurses:n",
+          "Shifts:s",
+          "Days:d"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "type": "parameter",
+            "name": "shift_cost",
+            "indices": [
+              "n",
+              "s"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "assign",
+            "indices": [
+              "n",
+              "s",
+              "d"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

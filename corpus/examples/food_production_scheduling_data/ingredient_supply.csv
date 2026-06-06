@@ -1,0 +1,16 @@
+ingredient_id,day_id,ingredient_supply
+flour,mon,50
+flour,tue,60
+flour,wed,55
+flour,thu,65
+flour,fri,50
+sugar,mon,20
+sugar,tue,25
+sugar,wed,20
+sugar,thu,30
+sugar,fri,25
+eggs,mon,40
+eggs,tue,45
+eggs,wed,40
+eggs,thu,50
+eggs,fri,40

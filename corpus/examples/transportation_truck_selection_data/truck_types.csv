@@ -1,0 +1,4 @@
+truck_id,capacity,fixed_cost
+small,20.0,50.0
+medium,40.0,80.0
+large,80.0,130.0

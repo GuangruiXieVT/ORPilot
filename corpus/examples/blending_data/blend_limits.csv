@@ -1,0 +1,10 @@
+bean_id,product_id,min_fraction,max_fraction
+arabica,premium,0.6,1.0
+arabica,standard,0.3,1.0
+arabica,economy,0.1,1.0
+robusta,premium,0.0,0.3
+robusta,standard,0.0,0.6
+robusta,economy,0.0,0.8
+blend_x,premium,0.0,0.2
+blend_x,standard,0.0,0.4
+blend_x,economy,0.0,0.5

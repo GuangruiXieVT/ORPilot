@@ -1,0 +1,2 @@
+max_charge_rate,max_discharge_rate,capacity,efficiency,initial_soc
+30,30,100,0.9,20

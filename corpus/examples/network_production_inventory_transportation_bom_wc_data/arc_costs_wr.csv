@@ -1,0 +1,9 @@
+warehouse_id,retailer_id,cost_per_unit
+w1,r1,1.5
+w1,r2,2.0
+w1,r4,2.5
+w2,r2,1.5
+w2,r3,2.0
+w2,r4,2.0
+w3,r3,1.5
+w3,r4,1.0

@@ -1,0 +1,324 @@
+{
+  "problem": {
+    "title": "Airline Revenue Management — Network LP",
+    "description": "An airline allocates seats on 3 flights to 5 fare classes. Each fare class uses one or more flight legs. Each flight has a limited seat capacity. Demand for each fare class is bounded. Maximize total revenue by deciding how many seats to sell per fare class (LP relaxation).",
+    "problem_type": "linear_programming",
+    "objective": "maximize",
+    "objective_description": "Total revenue from all fare classes sold",
+    "constraints": [
+      {
+        "description": "demand_limit: seats sold for a fare class cannot exceed its demand"
+      },
+      {
+        "description": "flight_capacity: total seat consumption across all fare classes using a flight cannot exceed flight capacity"
+      }
+    ],
+    "decision_variables": [
+      "sell[FareClasses]: seats sold for fare class f (continuous, non-negative)"
+    ],
+    "parameters": [
+      "revenue[FareClasses]: revenue per seat for each fare class",
+      "demand[FareClasses]: maximum demand for each fare class",
+      "uses_flight[FareClasses,Flights]: 1 if fare class f uses flight leg l (routing matrix, sparse)",
+      "seat_capacity[Flights]: available seats on each flight"
+    ],
+    "additional_notes": "Itineraries: f1 uses fl1+fl2 (connecting), f2 uses fl1 only, f3 uses fl2 only, f4 uses fl2+fl3 (connecting), f5 uses fl3 only.",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "fare_classes": "fare_classes.csv",
+      "flights": "flights.csv",
+      "uses_flight": "uses_flight.csv"
+    }
+  },
+  "ir_patterns": [
+    "sparse parameter in constraint",
+    "domain_filter",
+    "maximize"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "fare_classes",
+        "element": "f1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "fare_classes",
+          "flights"
+        ],
+        "element": [
+          "f1",
+          "f2",
+          "f3",
+          "f4",
+          "f5",
+          "fl1",
+          "fl2",
+          "fl3"
+        ]
+      }
+    },
+    "fare_classes": {
+      "columns": {
+        "fare_class_id": "str",
+        "revenue": "float",
+        "demand": "float"
+      },
+      "sample": {
+        "fare_class_id": "f1",
+        "revenue": 500.0,
+        "demand": 40.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "fare_class_id": [
+          "f1",
+          "f2",
+          "f3",
+          "f4",
+          "f5"
+        ]
+      }
+    },
+    "flights": {
+      "columns": {
+        "flight_id": "str",
+        "seat_capacity": "float"
+      },
+      "sample": {
+        "flight_id": "fl1",
+        "seat_capacity": 120.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "flight_id": [
+          "fl1",
+          "fl2",
+          "fl3"
+        ]
+      }
+    },
+    "uses_flight": {
+      "columns": {
+        "fare_class_id": "str",
+        "flight_id": "str",
+        "uses": "float"
+      },
+      "sample": {
+        "fare_class_id": "f1",
+        "flight_id": "fl1",
+        "uses": 1.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "fare_class_id": [
+          "f1",
+          "f2",
+          "f3",
+          "f4",
+          "f5"
+        ],
+        "flight_id": [
+          "fl1",
+          "fl2",
+          "fl3"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "AirlineRevenueManagement",
+    "model_type": "Linear Program",
+    "sense": "maximize",
+    "sets": {
+      "FareClasses": {
+        "size": null,
+        "index_symbol": "f",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "fare_classes",
+        "ordered": false
+      },
+      "Flights": {
+        "size": null,
+        "index_symbol": "l",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "flights",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "revenue": {
+        "domain": [
+          "FareClasses"
+        ],
+        "type": "float",
+        "source": "fare_classes.csv",
+        "column": "revenue",
+        "index_columns": [
+          "fare_class_id"
+        ],
+        "missing_default": "zero"
+      },
+      "demand": {
+        "domain": [
+          "FareClasses"
+        ],
+        "type": "float",
+        "source": "fare_classes.csv",
+        "column": "demand",
+        "index_columns": [
+          "fare_class_id"
+        ],
+        "missing_default": "zero"
+      },
+      "uses_flight": {
+        "domain": [
+          "FareClasses",
+          "Flights"
+        ],
+        "type": "float",
+        "source": "uses_flight.csv",
+        "column": "uses",
+        "index_columns": [
+          "fare_class_id",
+          "flight_id"
+        ],
+        "missing_default": "zero"
+      },
+      "seat_capacity": {
+        "domain": [
+          "Flights"
+        ],
+        "type": "float",
+        "source": "flights.csv",
+        "column": "seat_capacity",
+        "index_columns": [
+          "flight_id"
+        ],
+        "missing_default": "inf"
+      }
+    },
+    "variables": {
+      "sell": {
+        "description": "Seats sold for fare class f",
+        "label": "seats_sold",
+        "domain": [
+          "FareClasses"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "demand_limit": {
+        "domain": [
+          "FareClasses"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "sell",
+            "indices": [
+              "f"
+            ]
+          },
+          "right": {
+            "type": "parameter",
+            "name": "demand",
+            "indices": [
+              "f"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "flight_capacity": {
+        "domain": [
+          "Flights"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "FareClasses:f"
+            ],
+            "body": {
+              "operation": "multiply",
+              "left": {
+                "type": "parameter",
+                "name": "uses_flight",
+                "indices": [
+                  "f",
+                  "l"
+                ]
+              },
+              "right": {
+                "type": "variable",
+                "name": "sell",
+                "indices": [
+                  "f"
+                ]
+              }
+            }
+          },
+          "right": {
+            "type": "parameter",
+            "name": "seat_capacity",
+            "indices": [
+              "l"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "maximize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "FareClasses:f"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "type": "parameter",
+            "name": "revenue",
+            "indices": [
+              "f"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "sell",
+            "indices": [
+              "f"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

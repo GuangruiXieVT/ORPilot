@@ -1,0 +1,358 @@
+{
+  "problem": {
+    "title": "Coffee Blending",
+    "description": "A coffee producer must blend three bean types (arabica, robusta, blend_x) to meet volume demand for three product grades (premium, standard, economy). Each product has minimum arabica content and maximum robusta/blend_x fractions. Minimise total bean cost.",
+    "problem_type": "linear_programming",
+    "objective": "minimize",
+    "objective_description": "Total bean cost across all products",
+    "constraints": [
+      {
+        "description": "Volume met: total beans blended equals product demand"
+      },
+      {
+        "description": "Minimum fraction: bean b must contribute at least min_fraction of product p volume"
+      },
+      {
+        "description": "Maximum fraction: bean b must contribute at most max_fraction of product p volume"
+      }
+    ],
+    "decision_variables": [
+      "blend[Beans,Products]: kg of bean b used in product p (continuous, non-negative)"
+    ],
+    "parameters": [
+      "bean_cost[Beans]: cost per kg of each bean type",
+      "demand_vol[Products]: required volume (kg) of each product",
+      "min_fraction[Beans,Products]: minimum fraction of bean b in product p",
+      "max_fraction[Beans,Products]: maximum fraction of bean b in product p"
+    ],
+    "additional_notes": "Fraction constraints are linearised using the known total volume: blend[b,p] >= min_fraction[b,p]*demand_vol[p]. Optimal: arabica at minimum, robusta at maximum, blend_x fills remainder. Objective = 395 (premium) + 610 (standard) + 367.5 (economy) = 1372.5.",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "beans": "beans.csv",
+      "products": "products.csv",
+      "blend_limits": "blend_limits.csv"
+    }
+  },
+  "ir_patterns": [],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "beans",
+        "element": "arabica"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "beans",
+          "products"
+        ],
+        "element": [
+          "arabica",
+          "robusta",
+          "blend_x",
+          "premium",
+          "standard",
+          "economy"
+        ]
+      }
+    },
+    "beans": {
+      "columns": {
+        "id": "str",
+        "cost": "float"
+      },
+      "sample": {
+        "id": "arabica",
+        "cost": 5.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "id": [
+          "arabica",
+          "robusta",
+          "blend_x"
+        ]
+      }
+    },
+    "products": {
+      "columns": {
+        "id": "str",
+        "demand_vol": "float"
+      },
+      "sample": {
+        "id": "premium",
+        "demand_vol": 100.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "id": [
+          "premium",
+          "standard",
+          "economy"
+        ]
+      }
+    },
+    "blend_limits": {
+      "columns": {
+        "bean_id": "str",
+        "product_id": "str",
+        "min_fraction": "float",
+        "max_fraction": "float"
+      },
+      "sample": {
+        "bean_id": "arabica",
+        "product_id": "premium",
+        "min_fraction": 0.6,
+        "max_fraction": 1.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "bean_id": [
+          "arabica",
+          "robusta",
+          "blend_x"
+        ],
+        "product_id": [
+          "premium",
+          "standard",
+          "economy"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "Blending",
+    "model_type": "Linear Program",
+    "sense": "minimize",
+    "sets": {
+      "Beans": {
+        "size": null,
+        "index_symbol": "b",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "beans",
+        "ordered": false
+      },
+      "Products": {
+        "size": null,
+        "index_symbol": "p",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "products",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "bean_cost": {
+        "domain": [
+          "Beans"
+        ],
+        "type": "float",
+        "source": "beans.csv",
+        "column": "cost",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "inf"
+      },
+      "demand_vol": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "products.csv",
+        "column": "demand_vol",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "zero"
+      },
+      "min_fraction": {
+        "domain": [
+          "Beans",
+          "Products"
+        ],
+        "type": "float",
+        "source": "blend_limits.csv",
+        "column": "min_fraction",
+        "index_columns": [
+          "bean_id",
+          "product_id"
+        ],
+        "missing_default": "zero"
+      },
+      "max_fraction": {
+        "domain": [
+          "Beans",
+          "Products"
+        ],
+        "type": "float",
+        "source": "blend_limits.csv",
+        "column": "max_fraction",
+        "index_columns": [
+          "bean_id",
+          "product_id"
+        ],
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "blend": {
+        "description": "kg of bean b used in product p",
+        "label": "blend_quantities",
+        "domain": [
+          "Beans",
+          "Products"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "volume_met": {
+        "domain": [
+          "Products"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Beans:b"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "blend",
+            "indices": [
+              "b",
+              "p"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "parameter",
+          "name": "demand_vol",
+          "indices": [
+            "p"
+          ]
+        }
+      },
+      "min_content": {
+        "domain": [
+          "Beans",
+          "Products"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "blend",
+            "indices": [
+              "b",
+              "p"
+            ]
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "min_fraction",
+              "indices": [
+                "b",
+                "p"
+              ]
+            },
+            "right": {
+              "type": "parameter",
+              "name": "demand_vol",
+              "indices": [
+                "p"
+              ]
+            }
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "max_content": {
+        "domain": [
+          "Beans",
+          "Products"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "max_fraction",
+              "indices": [
+                "b",
+                "p"
+              ]
+            },
+            "right": {
+              "type": "parameter",
+              "name": "demand_vol",
+              "indices": [
+                "p"
+              ]
+            }
+          },
+          "right": {
+            "type": "variable",
+            "name": "blend",
+            "indices": [
+              "b",
+              "p"
+            ]
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Beans:b",
+          "Products:p"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "type": "parameter",
+            "name": "bean_cost",
+            "indices": [
+              "b"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "blend",
+            "indices": [
+              "b",
+              "p"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,9 @@
+from_node,to_node,arc_capacity
+n1,n2,80
+n1,n3,60
+n2,n3,50
+n2,n4,70
+n3,n5,90
+n4,n3,40
+n4,n5,80
+n3,n4,30

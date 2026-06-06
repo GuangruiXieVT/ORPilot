@@ -1,0 +1,4 @@
+warehouse_id,primary_customer_id,reference_customer_id,min_pct
+wh3,c3,c4,1.5
+wh1,c3,c2,0.5
+wh2,c2,c1,0.25

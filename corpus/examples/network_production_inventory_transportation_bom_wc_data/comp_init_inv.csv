@@ -1,0 +1,10 @@
+plant_id,component_id,initial_inventory
+p1,comp_1,50.0
+p1,comp_2,30.0
+p1,comp_3,40.0
+p2,comp_1,40.0
+p2,comp_2,25.0
+p2,comp_3,30.0
+p3,comp_1,30.0
+p3,comp_2,20.0
+p3,comp_3,35.0

@@ -1,0 +1,559 @@
+{
+  "problem": {
+    "title": "Supply Disruption Response",
+    "description": "A supply chain faces potential supplier disruptions across scenarios. First stage: commit to supplier contracts (capacity reservation). Second stage: actual sourcing given disruptions. Shortage penalties apply for unmet demand. Minimize expected total cost.",
+    "problem_type": "stochastic_program",
+    "objective": "minimize",
+    "objective_description": "Contract reservation costs plus expected sourcing and shortage costs across scenarios",
+    "constraints": [
+      {
+        "description": "Sourcing limited by available fraction times contracted capacity"
+      },
+      {
+        "description": "Total sourcing plus shortage meets demand in each scenario"
+      }
+    ],
+    "decision_variables": [
+      "contract[s,p]: contracted capacity from supplier s for product p (continuous >= 0)",
+      "source[s,p,sc]: actual sourcing in scenario sc (continuous >= 0)",
+      "shortage[p,sc]: unmet demand in scenario sc (continuous >= 0)"
+    ],
+    "parameters": [
+      "contract_cost[s,p]: cost per unit contracted",
+      "source_cost[s,p]: variable sourcing cost",
+      "available_fraction[s,sc]: fraction of contracted capacity deliverable in scenario sc",
+      "demand[p]: total demand to be fulfilled",
+      "probability[sc]: scenario probability",
+      "shortage_cost[p]: penalty per unit short"
+    ],
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "contract_costs": "contract_costs.csv",
+      "source_costs": "source_costs.csv",
+      "avail_fractions": "avail_fractions.csv",
+      "demand": "demand.csv",
+      "shortage_costs": "shortage_costs.csv",
+      "scenarios": "scenarios.csv"
+    }
+  },
+  "ir_patterns": [
+    "two-stage stochastic",
+    "continuous first-stage",
+    "scenario indexed variable",
+    "fraction linking"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "suppliers",
+        "element": "s1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "suppliers",
+          "products",
+          "scenarios"
+        ],
+        "element": [
+          "s1",
+          "s2",
+          "s3",
+          "s4",
+          "p1",
+          "p2",
+          "p3",
+          "sc1",
+          "sc2",
+          "sc3"
+        ]
+      }
+    },
+    "contract_costs": {
+      "columns": {
+        "supplier_id": "str",
+        "product_id": "str",
+        "contract_cost": "float"
+      },
+      "sample": {
+        "supplier_id": "s1",
+        "product_id": "p1",
+        "contract_cost": 1.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "supplier_id": [
+          "s1",
+          "s2",
+          "s3",
+          "s4"
+        ],
+        "product_id": [
+          "p1",
+          "p2",
+          "p3"
+        ]
+      }
+    },
+    "source_costs": {
+      "columns": {
+        "supplier_id": "str",
+        "product_id": "str",
+        "source_cost": "float"
+      },
+      "sample": {
+        "supplier_id": "s1",
+        "product_id": "p1",
+        "source_cost": 2.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "supplier_id": [
+          "s1",
+          "s2",
+          "s3",
+          "s4"
+        ],
+        "product_id": [
+          "p1",
+          "p2",
+          "p3"
+        ]
+      }
+    },
+    "avail_fractions": {
+      "columns": {
+        "supplier_id": "str",
+        "scenario_id": "str",
+        "available_fraction": "float"
+      },
+      "sample": {
+        "supplier_id": "s1",
+        "scenario_id": "sc1",
+        "available_fraction": 1.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "supplier_id": [
+          "s1",
+          "s2",
+          "s3",
+          "s4"
+        ],
+        "scenario_id": [
+          "sc1",
+          "sc2",
+          "sc3"
+        ]
+      }
+    },
+    "demand": {
+      "columns": {
+        "product_id": "str",
+        "demand": "float"
+      },
+      "sample": {
+        "product_id": "p1",
+        "demand": 100.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "product_id": [
+          "p1",
+          "p2",
+          "p3"
+        ]
+      }
+    },
+    "shortage_costs": {
+      "columns": {
+        "product_id": "str",
+        "shortage_cost": "float"
+      },
+      "sample": {
+        "product_id": "p1",
+        "shortage_cost": 20.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "product_id": [
+          "p1",
+          "p2",
+          "p3"
+        ]
+      }
+    },
+    "scenarios": {
+      "columns": {
+        "scenario_id": "str",
+        "probability": "float"
+      },
+      "sample": {
+        "scenario_id": "sc1",
+        "probability": 0.5
+      },
+      "optional": false,
+      "distinct_values": {
+        "scenario_id": [
+          "sc1",
+          "sc2",
+          "sc3"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "SupplyDisruptionResponse",
+    "model_type": "Linear Program",
+    "sense": "minimize",
+    "sets": {
+      "Suppliers": {
+        "size": null,
+        "index_symbol": "s",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "suppliers",
+        "ordered": false
+      },
+      "Products": {
+        "size": null,
+        "index_symbol": "p",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "products",
+        "ordered": false
+      },
+      "Scenarios": {
+        "size": null,
+        "index_symbol": "sc",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "scenarios",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "contract_cost": {
+        "domain": [
+          "Suppliers",
+          "Products"
+        ],
+        "type": "float",
+        "source": "contract_costs.csv",
+        "column": "contract_cost",
+        "index_columns": [
+          "supplier_id",
+          "product_id"
+        ],
+        "missing_default": "inf"
+      },
+      "source_cost": {
+        "domain": [
+          "Suppliers",
+          "Products"
+        ],
+        "type": "float",
+        "source": "source_costs.csv",
+        "column": "source_cost",
+        "index_columns": [
+          "supplier_id",
+          "product_id"
+        ],
+        "missing_default": "inf"
+      },
+      "available_fraction": {
+        "domain": [
+          "Suppliers",
+          "Scenarios"
+        ],
+        "type": "float",
+        "source": "avail_fractions.csv",
+        "column": "available_fraction",
+        "index_columns": [
+          "supplier_id",
+          "scenario_id"
+        ],
+        "missing_default": "zero"
+      },
+      "demand": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "demand.csv",
+        "column": "demand",
+        "index_columns": [
+          "product_id"
+        ],
+        "missing_default": "zero"
+      },
+      "shortage_cost": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "shortage_costs.csv",
+        "column": "shortage_cost",
+        "index_columns": [
+          "product_id"
+        ],
+        "missing_default": "inf"
+      },
+      "probability": {
+        "domain": [
+          "Scenarios"
+        ],
+        "type": "float",
+        "source": "scenarios.csv",
+        "column": "probability",
+        "index_columns": [
+          "scenario_id"
+        ],
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "contract": {
+        "description": "Contracted capacity from supplier s for product p",
+        "label": "contracted_capacity",
+        "domain": [
+          "Suppliers",
+          "Products"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "source": {
+        "description": "Actual sourcing from supplier s for product p in scenario sc",
+        "label": "actual_sourcing",
+        "domain": [
+          "Suppliers",
+          "Products",
+          "Scenarios"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "shortage": {
+        "description": "Unmet demand for product p in scenario sc",
+        "label": "demand_shortage",
+        "domain": [
+          "Products",
+          "Scenarios"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "source_limit": {
+        "domain": [
+          "Suppliers",
+          "Products",
+          "Scenarios"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "source",
+            "indices": [
+              "s",
+              "p",
+              "sc"
+            ]
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "available_fraction",
+              "indices": [
+                "s",
+                "sc"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "contract",
+              "indices": [
+                "s",
+                "p"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "demand_balance": {
+        "domain": [
+          "Products",
+          "Scenarios"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "operation": "indexed_sum",
+              "over": [
+                "Suppliers:s"
+              ],
+              "body": {
+                "type": "variable",
+                "name": "source",
+                "indices": [
+                  "s",
+                  "p",
+                  "sc"
+                ]
+              }
+            },
+            "right": {
+              "type": "variable",
+              "name": "shortage",
+              "indices": [
+                "p",
+                "sc"
+              ]
+            }
+          },
+          "right": {
+            "type": "parameter",
+            "name": "demand",
+            "indices": [
+              "p"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "sum",
+        "left": {
+          "operation": "indexed_sum",
+          "over": [
+            "Suppliers:s",
+            "Products:p"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "contract_cost",
+              "indices": [
+                "s",
+                "p"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "contract",
+              "indices": [
+                "s",
+                "p"
+              ]
+            }
+          }
+        },
+        "right": {
+          "operation": "indexed_sum",
+          "over": [
+            "Scenarios:sc"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "probability",
+              "indices": [
+                "sc"
+              ]
+            },
+            "right": {
+              "operation": "sum",
+              "left": {
+                "operation": "indexed_sum",
+                "over": [
+                  "Suppliers:s",
+                  "Products:p"
+                ],
+                "body": {
+                  "operation": "multiply",
+                  "left": {
+                    "type": "parameter",
+                    "name": "source_cost",
+                    "indices": [
+                      "s",
+                      "p"
+                    ]
+                  },
+                  "right": {
+                    "type": "variable",
+                    "name": "source",
+                    "indices": [
+                      "s",
+                      "p",
+                      "sc"
+                    ]
+                  }
+                }
+              },
+              "right": {
+                "operation": "indexed_sum",
+                "over": [
+                  "Products:p"
+                ],
+                "body": {
+                  "operation": "multiply",
+                  "left": {
+                    "type": "parameter",
+                    "name": "shortage_cost",
+                    "indices": [
+                      "p"
+                    ]
+                  },
+                  "right": {
+                    "type": "variable",
+                    "name": "shortage",
+                    "indices": [
+                      "p",
+                      "sc"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

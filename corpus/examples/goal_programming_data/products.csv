@@ -1,0 +1,5 @@
+id,demand,max_capacity,over_penalty,under_penalty
+prod_A,100,120,1,5
+prod_B,80,60,1,8
+prod_C,150,130,1,6
+prod_D,60,90,1,3

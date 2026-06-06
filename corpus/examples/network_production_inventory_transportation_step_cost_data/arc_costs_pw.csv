@@ -1,0 +1,10 @@
+plant_id,warehouse_id,cost_per_unit
+p1,w1,1.5
+p1,w2,2.0
+p1,w3,2.5
+p2,w1,3.0
+p2,w2,3.5
+p2,w3,4.0
+p3,w1,1.5
+p3,w2,2.0
+p3,w3,2.5

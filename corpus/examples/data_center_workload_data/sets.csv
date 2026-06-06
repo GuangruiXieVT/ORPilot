@@ -1,0 +1,11 @@
+set_name,element
+workloads,w1
+workloads,w2
+workloads,w3
+workloads,w4
+workloads,w5
+workloads,w6
+servers,sv1
+servers,sv2
+servers,sv3
+servers,sv4

@@ -1,0 +1,377 @@
+{
+  "problem": {
+    "title": "Open Shop Scheduling — Minimize Makespan",
+    "description": "Four jobs must each be processed on three machines. Each job-machine combination has a known processing time. On each machine, jobs are processed one at a time (no overlap). The order of machines within each job is flexible (open shop). Minimize the makespan (time when all jobs finish).",
+    "problem_type": "mixed_integer_programming",
+    "objective": "minimize",
+    "objective_description": "Makespan: the time by which all jobs have finished on all machines",
+    "constraints": [
+      {
+        "description": "no_overlap_fwd: if job i precedes job j on machine m (before[i,j,m]=1), then job j cannot start until job i finishes"
+      },
+      {
+        "description": "no_overlap_rev: if job j precedes job i on machine m (before[i,j,m]=0), then job i cannot start until job j finishes"
+      },
+      {
+        "description": "makespan_bound: makespan >= start[j,m] + proc_time[j,m] for all jobs and machines"
+      }
+    ],
+    "decision_variables": [
+      "start[Jobs,Machines]: start time of job j on machine m (continuous, non-negative)",
+      "before[Jobs,Jobs,Machines]: 1 if job i is processed before job j on machine m (binary, exclude diagonal)",
+      "makespan: overall completion time (scalar continuous)"
+    ],
+    "parameters": [
+      "proc_time[Jobs,Machines]: processing time of job j on machine m",
+      "big_m: large constant for disjunctive big-M constraints (scalar)"
+    ],
+    "additional_notes": "Optimal open-shop makespan for this 4x3 instance is 14 (machine m1 total load = 14 = lower bound).",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "proc_times": "proc_times.csv",
+      "big_m": "big_m.csv"
+    }
+  },
+  "ir_patterns": [
+    "scalar variable",
+    "binary variable",
+    "big-M linking",
+    "duplicate set domain",
+    "exclude_diagonal"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "jobs",
+        "element": "j1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "jobs",
+          "machines"
+        ],
+        "element": [
+          "j1",
+          "j2",
+          "j3",
+          "j4",
+          "m1",
+          "m2",
+          "m3"
+        ]
+      }
+    },
+    "proc_times": {
+      "columns": {
+        "job_id": "str",
+        "machine_id": "str",
+        "duration": "float"
+      },
+      "sample": {
+        "job_id": "j1",
+        "machine_id": "m1",
+        "duration": 3.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "job_id": [
+          "j1",
+          "j2",
+          "j3",
+          "j4"
+        ],
+        "machine_id": [
+          "m1",
+          "m2",
+          "m3"
+        ]
+      }
+    },
+    "big_m": {
+      "columns": {
+        "value": "float"
+      },
+      "sample": {
+        "value": 100.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "value": [
+          "100.0"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "OpenShopScheduling",
+    "model_type": "Mixed Integer Program",
+    "sense": "minimize",
+    "sets": {
+      "Jobs": {
+        "size": null,
+        "index_symbol": "j",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "jobs",
+        "ordered": false
+      },
+      "Machines": {
+        "size": null,
+        "index_symbol": "m",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "machines",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "proc_time": {
+        "domain": [
+          "Jobs",
+          "Machines"
+        ],
+        "type": "float",
+        "source": "proc_times.csv",
+        "column": "duration",
+        "index_columns": [
+          "job_id",
+          "machine_id"
+        ],
+        "missing_default": "zero"
+      },
+      "big_m": {
+        "domain": [],
+        "type": "float",
+        "source": "big_m.csv",
+        "column": "value",
+        "index_columns": null,
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "start": {
+        "description": "Start time of job j on machine m",
+        "label": "start_times",
+        "domain": [
+          "Jobs",
+          "Machines"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "before": {
+        "description": "1 if job i is processed before job j on machine m",
+        "label": "ordering_decisions",
+        "domain": [
+          "Jobs",
+          "Jobs",
+          "Machines"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": true
+      },
+      "makespan": {
+        "description": "Overall completion time (scalar auxiliary variable)",
+        "label": "makespan",
+        "domain": [],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "no_overlap_fwd": {
+        "domain": [
+          "Jobs",
+          "Jobs",
+          "Machines"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "subtract",
+            "left": {
+              "type": "variable",
+              "name": "start",
+              "indices": [
+                "j2",
+                "m"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "start",
+              "indices": [
+                "j1",
+                "m"
+              ]
+            }
+          },
+          "right": {
+            "type": "parameter",
+            "name": "proc_time",
+            "indices": [
+              "j1",
+              "m"
+            ]
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "operation": "multiply",
+          "left": {
+            "type": "constant",
+            "value": -1
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "big_m",
+              "indices": []
+            },
+            "right": {
+              "operation": "subtract",
+              "left": {
+                "type": "constant",
+                "value": 1
+              },
+              "right": {
+                "type": "variable",
+                "name": "before",
+                "indices": [
+                  "j1",
+                  "j2",
+                  "m"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "no_overlap_rev": {
+        "domain": [
+          "Jobs",
+          "Jobs",
+          "Machines"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "subtract",
+            "left": {
+              "type": "variable",
+              "name": "start",
+              "indices": [
+                "j1",
+                "m"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "start",
+              "indices": [
+                "j2",
+                "m"
+              ]
+            }
+          },
+          "right": {
+            "type": "parameter",
+            "name": "proc_time",
+            "indices": [
+              "j2",
+              "m"
+            ]
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "operation": "multiply",
+          "left": {
+            "type": "constant",
+            "value": -1
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "big_m",
+              "indices": []
+            },
+            "right": {
+              "type": "variable",
+              "name": "before",
+              "indices": [
+                "j1",
+                "j2",
+                "m"
+              ]
+            }
+          }
+        }
+      },
+      "makespan_bound": {
+        "domain": [
+          "Jobs",
+          "Machines"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "makespan",
+            "indices": []
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "start",
+              "indices": [
+                "j",
+                "m"
+              ]
+            },
+            "right": {
+              "type": "parameter",
+              "name": "proc_time",
+              "indices": [
+                "j",
+                "m"
+              ]
+            }
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "type": "variable",
+        "name": "makespan",
+        "indices": []
+      }
+    }
+  }
+}

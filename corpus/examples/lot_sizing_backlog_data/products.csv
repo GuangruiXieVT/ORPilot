@@ -1,0 +1,4 @@
+product_id,production_cost,holding_cost,backlog_cost,setup_cost,max_production
+p1,5,1,8,50,200
+p2,4,1.5,10,40,150
+p3,6,2,12,60,180

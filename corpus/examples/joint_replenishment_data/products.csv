@@ -1,0 +1,5 @@
+product_id,holding_rate,order_cost,max_order
+pr1,0.5,30,200
+pr2,0.8,25,150
+pr3,0.3,35,250
+pr4,1.0,20,100

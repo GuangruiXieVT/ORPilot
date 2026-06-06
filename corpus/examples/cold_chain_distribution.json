@@ -1,0 +1,361 @@
+{
+  "problem": {
+    "title": "Cold Chain Distribution",
+    "description": "A food distributor ships perishable goods from warehouses to stores. Products require temperature-controlled shipping. Minimize total distribution cost subject to supply and demand constraints.",
+    "problem_type": "linear_program",
+    "objective": "minimize",
+    "objective_description": "Total shipping cost across all warehouse-store-product routes",
+    "constraints": [
+      {
+        "description": "Shipments from each warehouse do not exceed available supply"
+      },
+      {
+        "description": "Each store receives exactly its required demand for each product"
+      }
+    ],
+    "decision_variables": [
+      "ship[wh,st,pr]: units shipped from warehouse wh to store st for product pr (continuous >= 0)"
+    ],
+    "parameters": [
+      "ship_cost[wh,st,pr]: per-unit shipping cost (sparse, only valid routes)",
+      "supply[wh,pr]: available units at warehouse",
+      "demand[st,pr]: required units at store"
+    ],
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "ship_costs": "ship_costs.csv",
+      "supply": "supply.csv",
+      "demand": "demand.csv"
+    }
+  },
+  "ir_patterns": [
+    "3D variable",
+    "domain filter",
+    "sparse shipping cost",
+    "supply-demand balance"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "warehouses",
+        "element": "wh1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "warehouses",
+          "stores",
+          "products"
+        ],
+        "element": [
+          "wh1",
+          "wh2",
+          "wh3",
+          "st1",
+          "st2",
+          "st3",
+          "st4",
+          "st5",
+          "pr1",
+          "pr2",
+          "pr3"
+        ]
+      }
+    },
+    "ship_costs": {
+      "columns": {
+        "warehouse_id": "str",
+        "store_id": "str",
+        "product_id": "str",
+        "ship_cost": "float"
+      },
+      "sample": {
+        "warehouse_id": "wh1",
+        "store_id": "st1",
+        "product_id": "pr1",
+        "ship_cost": 3.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "warehouse_id": [
+          "wh1",
+          "wh2",
+          "wh3"
+        ],
+        "store_id": [
+          "st1",
+          "st2",
+          "st3",
+          "st4",
+          "st5"
+        ],
+        "product_id": [
+          "pr1",
+          "pr2",
+          "pr3"
+        ]
+      }
+    },
+    "supply": {
+      "columns": {
+        "warehouse_id": "str",
+        "product_id": "str",
+        "supply": "float"
+      },
+      "sample": {
+        "warehouse_id": "wh1",
+        "product_id": "pr1",
+        "supply": 80.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "warehouse_id": [
+          "wh1",
+          "wh2",
+          "wh3"
+        ],
+        "product_id": [
+          "pr1",
+          "pr2",
+          "pr3"
+        ]
+      }
+    },
+    "demand": {
+      "columns": {
+        "store_id": "str",
+        "product_id": "str",
+        "demand": "float"
+      },
+      "sample": {
+        "store_id": "st1",
+        "product_id": "pr1",
+        "demand": 30.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "store_id": [
+          "st1",
+          "st2",
+          "st3",
+          "st4",
+          "st5"
+        ],
+        "product_id": [
+          "pr1",
+          "pr2",
+          "pr3"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "TransportationProblem",
+    "model_type": "Linear Program",
+    "sense": "minimize",
+    "sets": {
+      "Warehouses": {
+        "size": null,
+        "index_symbol": "wh",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "warehouses",
+        "ordered": false
+      },
+      "Stores": {
+        "size": null,
+        "index_symbol": "st",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "stores",
+        "ordered": false
+      },
+      "Products": {
+        "size": null,
+        "index_symbol": "pr",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "products",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "ship_cost": {
+        "domain": [
+          "Warehouses",
+          "Stores",
+          "Products"
+        ],
+        "type": "float",
+        "source": "ship_costs.csv",
+        "column": "ship_cost",
+        "index_columns": [
+          "warehouse_id",
+          "store_id",
+          "product_id"
+        ],
+        "missing_default": "inf"
+      },
+      "supply": {
+        "domain": [
+          "Warehouses",
+          "Products"
+        ],
+        "type": "float",
+        "source": "supply.csv",
+        "column": "supply",
+        "index_columns": [
+          "warehouse_id",
+          "product_id"
+        ],
+        "missing_default": "zero"
+      },
+      "demand": {
+        "domain": [
+          "Stores",
+          "Products"
+        ],
+        "type": "float",
+        "source": "demand.csv",
+        "column": "demand",
+        "index_columns": [
+          "store_id",
+          "product_id"
+        ],
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "ship": {
+        "description": "Units shipped from warehouse wh to store st for product pr",
+        "label": "shipments",
+        "domain": [
+          "Warehouses",
+          "Stores",
+          "Products"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false,
+        "domain_filter": "ship_cost"
+      }
+    },
+    "constraints": {
+      "supply_limit": {
+        "domain": [
+          "Warehouses",
+          "Products"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Stores:st"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "ship",
+              "indices": [
+                "wh",
+                "st",
+                "pr"
+              ]
+            }
+          },
+          "right": {
+            "type": "parameter",
+            "name": "supply",
+            "indices": [
+              "wh",
+              "pr"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "demand_met": {
+        "domain": [
+          "Stores",
+          "Products"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Warehouses:wh"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "ship",
+              "indices": [
+                "wh",
+                "st",
+                "pr"
+              ]
+            }
+          },
+          "right": {
+            "type": "parameter",
+            "name": "demand",
+            "indices": [
+              "st",
+              "pr"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Warehouses:wh",
+          "Stores:st",
+          "Products:pr"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "type": "parameter",
+            "name": "ship_cost",
+            "indices": [
+              "wh",
+              "st",
+              "pr"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "ship",
+            "indices": [
+              "wh",
+              "st",
+              "pr"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

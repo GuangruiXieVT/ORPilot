@@ -29,6 +29,14 @@ temperature = 1
 # Can also be set via OPENAI_API_KEY / ANTHROPIC_API_KEY / GOOGLE_API_KEY env vars.
 api_key = "your_api_key"
 
+# API key for OpenAI embedding model, used by RAG retrieval.
+# Needed when the LLM provider is not OpenAI (e.g. DeepSeek), so api_key above is
+# not an OpenAI key. Can also be set via ORPILOT_EMBED_API_KEY env var.
+embed_api_key = "your_api_key_for_embedding_model"
+
+# Embedding model for RAG retrieval. Options: text-embedding-3-small, text-embedding-3-large. rag_index.json is using text-embedding-3-small.
+embed_model = "text-embedding-3-small"
+
 # Custom API base URL. Use for OpenAI-compatible third-party providers (e.g. DeepSeek).
 # Leave unset when using the official OpenAI or Anthropic endpoints.
 base_url = "https://api.deepseek.com"

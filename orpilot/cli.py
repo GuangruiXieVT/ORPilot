@@ -57,6 +57,8 @@ _NODE_LABELS: dict[str, tuple[str, str]] = {
     "interview": ("blue", "Conducting interview..."),
     "data_collection": ("blue", "Collecting data..."),
     "param_computation": ("blue", "Computing derived parameters..."),
+    "ir_builder": ("yellow", "Building optimization model (IR)..."),
+    "ir_compiler": ("yellow", "Compiling IR to solver code..."),
     "direct_code_gen": ("yellow", "Generating solver code..."),
     "solver_runner": ("yellow", "Starting model solving..."),
     "ir_builder_on_demand": ("dim", "Generating IR blueprint..."),
@@ -66,6 +68,8 @@ _NODE_LABELS: dict[str, tuple[str, str]] = {
 _NODE_COMPLETE_LABELS: dict[str, tuple[str, str]] = {
     "interview": ("green", "Interview finished — problem defined."),
     "data_collection": ("green", "Data collection finished — all CSV files loaded."),
+    "ir_builder": ("green", "IR model built."),
+    "ir_compiler": ("green", "Solver code compiled from IR."),
     "direct_code_gen": ("green", "Solver code generated."),
     "solver_runner": ("green", "Model solving finished."),
     "ir_builder_on_demand": ("green", "IR blueprint saved."),
@@ -85,6 +89,8 @@ def _log_entering_node(node: str) -> None:
 
 _POST_DATA_COLLECTION_NODES = {
     "param_computation",
+    "ir_builder",
+    "ir_compiler",
     "direct_code_gen",
     "ir_builder_on_demand",
     "solver_runner",
@@ -396,6 +402,8 @@ def run(
     verbose: Optional[bool] = typer.Option(None, "--verbose/--no-verbose", help="Show full solver and compiler error details"),
     generate_ir: Optional[bool] = typer.Option(None, "--generate-ir/--no-generate-ir", help="After a successful solve, generate an IR blueprint for solver portability"),
     api_key: Optional[str] = typer.Option(None, "--api-key", envvar="OPENAI_API_KEY", help="API key. For Gemini, set GOOGLE_API_KEY in env instead."),
+    embed_api_key: Optional[str] = typer.Option(None, "--embed-api-key", envvar="ORPILOT_EMBED_API_KEY", help="OpenAI API key for RAG embeddings. Required when LLM provider is not OpenAI (e.g. DeepSeek)."),
+    embed_model: Optional[str] = typer.Option(None, "--embed-model", envvar="ORPILOT_EMBED_MODEL", help="OpenAI embedding model for RAG (e.g. text-embedding-3-small)."),
     base_url: Optional[str] = typer.Option(None, "--base-url", envvar="OPENAI_BASE_URL", help="Custom API base URL (e.g. https://api.deepseek.com)"),
     temperature: Optional[float] = typer.Option(None, "--temperature", help="LLM sampling temperature (0.0 = deterministic)"),
     session_file: Optional[Path] = typer.Option(None, "--session", help="Path to session file for save/resume. Defaults to session.json inside --output-dir if set."),
@@ -429,6 +437,8 @@ def run(
     temperature     = temperature     if temperature     is not None else cfg.get("temperature",     0.0)
     base_url        = base_url        or cfg.get("base_url")
     api_key         = api_key         or cfg.get("api_key")
+    embed_api_key   = embed_api_key   or cfg.get("embed_api_key")
+    embed_model     = embed_model     or cfg.get("embed_model")
     max_tokens      = int(cfg.get("max_tokens", 8192))
 
     # Resolve path options: relative paths from a config file are relative to
@@ -489,6 +499,8 @@ def run(
         "show_solver_log": show_solver_log,
         "generate_ir": generate_ir,
         "save_data": save_data,
+        "embed_api_key": embed_api_key,
+        "embed_model": embed_model,
     }
 
     # Load problem from file if provided
@@ -503,7 +515,7 @@ def run(
         data = UserData.model_validate_json(data_file.read_text())
         state["user_data"] = data
         if state.get("problem"):
-            state["current_node"] = "direct_code_gen"
+            state["current_node"] = "ir_builder"
         console.print(Panel("Loaded data from file", title="Data"))
 
     # Resume from session file if it exists (and --no-resume was not given).
@@ -1276,6 +1288,99 @@ def compile_ir_cmd(
             console.print(f"[dim]  -> Saved report to {report_path}[/dim]")
             console.print()
             console.print(Panel(Markdown(report), title="Solution Report", border_style="green"))
+
+
+# ---------------------------------------------------------------------------
+# RAG sub-commands
+# ---------------------------------------------------------------------------
+
+rag_app = typer.Typer(name="rag", help="Manage the corpus RAG index.", invoke_without_command=True)
+app.add_typer(rag_app, name="rag")
+
+
+@rag_app.command("build")
+def rag_build(
+    force: bool = typer.Option(False, "--force", "-f", help="Rebuild even if index already exists."),
+    embed: bool = typer.Option(True, "--embed/--no-embed", help="Include semantic embeddings (requires embed_api_key)."),
+    config_file: Optional[Path] = typer.Option(None, "--config", "-c", help="Path to config file. Auto-discovered if orpilot.toml exists."),
+) -> None:
+    """Build (or rebuild) the corpus RAG index from corpus/examples/*.json."""
+    from orpilot.rag.indexer import build_index, CORPUS_DIR, INDEX_PATH
+    from orpilot.rag import reset_retriever_cache
+
+    if not CORPUS_DIR.exists():
+        console.print(f"[red]Corpus directory not found: {CORPUS_DIR}[/red]")
+        raise typer.Exit(1)
+
+    resolved_config = config_file or discover_config_file()
+    cfg = load_config_file(resolved_config) if resolved_config else {}
+    embed_api_key = cfg.get("embed_api_key")
+    embed_model = cfg.get("embed_model")
+
+    embedder = None
+    if embed:
+        from orpilot.rag.embedder import get_embedder
+        embedder = get_embedder(api_key=embed_api_key, model=embed_model) if embed_model else get_embedder(api_key=embed_api_key)
+        if embedder is None:
+            console.print("[yellow]No embed_api_key found — building BM25-only index.[/yellow]")
+        else:
+            console.print(f"[blue]Using embedder: {embedder.model}[/blue]")
+
+    json_files = list(CORPUS_DIR.glob("*.json"))
+    console.print(f"[blue]Building index from {len(json_files)} examples in {CORPUS_DIR}...[/blue]")
+
+    index = build_index(corpus_dir=CORPUS_DIR, embedder=embedder, force=force)
+    reset_retriever_cache()
+    n = len(index.get("examples", []))
+    has_emb = any(e.get("embedding") for e in index.get("examples", []))
+    console.print(f"[green]Index ready: {n} examples, embeddings={'yes' if has_emb else 'no (BM25 only)'} → {INDEX_PATH}[/green]")
+
+
+@rag_app.command("info")
+def rag_info() -> None:
+    """Show information about the current RAG index."""
+    from orpilot.rag.indexer import INDEX_PATH, load_index
+
+    index = load_index()
+    if index is None:
+        console.print(f"[yellow]No index found at {INDEX_PATH}. Run `orpilot rag build` first.[/yellow]")
+        raise typer.Exit(1)
+
+    n = len(index.get("examples", []))
+    has_emb = any(e.get("embedding") for e in index.get("examples", []))
+    model = index.get("embedding_model") or "none"
+    created = index.get("created_at", "unknown")
+    console.print(f"[green]RAG Index[/green]")
+    console.print(f"  Path:      {INDEX_PATH}")
+    console.print(f"  Examples:  {n}")
+    console.print(f"  Embeddings: {'yes — ' + model if has_emb else 'no (BM25 only)'}")
+    console.print(f"  Created:   {created}")
+
+
+@rag_app.command("query")
+def rag_query(
+    text: str = typer.Argument(..., help="Query text to search for similar examples."),
+    k: int = typer.Option(3, "--top-k", "-k", help="Number of results to return."),
+) -> None:
+    """Search the RAG index and print the top-k matching examples."""
+    from orpilot.rag import get_retriever
+    from orpilot.rag.embedder import get_embedder
+
+    retriever = get_retriever()
+    if retriever is None:
+        console.print("[yellow]No index found. Run `orpilot rag build` first.[/yellow]")
+        raise typer.Exit(1)
+
+    embedder = get_embedder()
+    results = retriever.retrieve(text, k=k, embedder=embedder)
+    console.print(f"\n[bold]Top {len(results)} results for:[/bold] {text!r}\n")
+    for i, ex in enumerate(results, 1):
+        title = ex.get("problem_title", ex["name"])
+        kw = ", ".join(ex.get("ir_patterns", []))
+        console.print(f"  {i}. [green]{title}[/green]")
+        console.print(f"     [dim]{ex['name']}[/dim]")
+        if kw:
+            console.print(f"     Keywords: {kw}")
 
 
 if __name__ == "__main__":

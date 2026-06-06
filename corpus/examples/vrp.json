@@ -1,0 +1,528 @@
+{
+  "problem": {
+    "title": "Capacitated Vehicle Routing Problem (CVRP) with MTZ Subtour Elimination",
+    "description": "A delivery company must route a fleet of vehicles from a central depot to serve a set of customers, then return to the depot. Each customer has a known demand. Each vehicle has a fixed load capacity — the total demand of all customers on a vehicle's route cannot exceed its capacity. The travel distance (cost) between every pair of locations (depot and customers) is known. Each customer must be visited exactly once by exactly one vehicle. Subtour elimination is enforced via Miller-Tucker-Zemlin (MTZ) constraints using integer position variables. Find the set of routes — one per vehicle — that minimizes total travel distance while serving all customers within vehicle capacity.",
+    "problem_type": "mixed_integer",
+    "objective": "minimize",
+    "objective_description": "Total travel distance across all activated arcs (vehicle routes), summed over all vehicle-arc combinations",
+    "constraints": [
+      {
+        "description": "Each customer must be visited exactly once across all vehicles and all incoming arcs"
+      },
+      {
+        "description": "For each location and vehicle, the number of arcs entering that location equals the number leaving (flow conservation)"
+      },
+      {
+        "description": "Each vehicle departs the depot at most once (depot departure)"
+      },
+      {
+        "description": "Each vehicle returns to the depot at most once (depot return)"
+      },
+      {
+        "description": "For each vehicle, the total demand of all customers visited must not exceed the vehicle's load capacity"
+      },
+      {
+        "description": "MTZ subtour elimination: for each pair of distinct customers and each vehicle, if vehicle v travels directly from customer c1 to c2, then the visit position of c2 must be at least one more than c1's position, preventing subtours"
+      }
+    ],
+    "decision_variables": [
+      "y[l1,l2,v]: 1 if vehicle v travels directly from location l1 to location l2, 0 otherwise (binary, self-loops excluded)",
+      "u[c,v]: visit position of customer c in vehicle v's route, used for MTZ subtour elimination (integer, lower bound 1)"
+    ],
+    "parameters": [
+      "distance[l1,l2]: travel distance from location l1 to location l2",
+      "demand[c]: units of goods required by customer c",
+      "vehicle_capacity: maximum load each vehicle can carry (uniform across all vehicles)"
+    ],
+    "additional_notes": "Locations includes the depot (first element) and all customers. Customers is a subset of Locations. depot_departure and depot_return use <= 1 (not = 1) to allow vehicles to remain unused.",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "distances": "distances.csv",
+      "customers": "customers.csv",
+      "vehicles": "vehicles.csv"
+    }
+  },
+  "ir_patterns": [
+    "binary variable",
+    "integer variable",
+    "exclude diagonal",
+    "upper bound set",
+    "init constraint",
+    "set size expression",
+    "duplicate set",
+    "scalar parameter"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "locations",
+        "element": "depot"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "locations",
+          "customers",
+          "vehicles"
+        ],
+        "element": [
+          "depot",
+          "cust_1",
+          "cust_2",
+          "cust_3",
+          "cust_4",
+          "cust_5",
+          "veh_1",
+          "veh_2",
+          "veh_3"
+        ]
+      }
+    },
+    "distances": {
+      "columns": {
+        "from_id": "str",
+        "to_id": "str",
+        "distance": "float"
+      },
+      "sample": {
+        "from_id": "depot",
+        "to_id": "cust_1",
+        "distance": 12.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "from_id": [
+          "depot",
+          "cust_1",
+          "cust_2",
+          "cust_3",
+          "cust_4",
+          "cust_5"
+        ],
+        "to_id": [
+          "depot",
+          "cust_1",
+          "cust_2",
+          "cust_3",
+          "cust_4",
+          "cust_5"
+        ],
+        "distance": [
+          "5.0",
+          "8.0",
+          "10.0",
+          "12.0",
+          "14.0",
+          "15.0",
+          "18.0",
+          "20.0",
+          "22.0",
+          "25.0"
+        ]
+      }
+    },
+    "customers": {
+      "columns": {
+        "id": "str",
+        "demand": "float"
+      },
+      "sample": {
+        "id": "cust_1",
+        "demand": 10.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "id": [
+          "cust_1",
+          "cust_2",
+          "cust_3",
+          "cust_4",
+          "cust_5"
+        ],
+        "demand": [
+          "8.0",
+          "10.0",
+          "12.0",
+          "14.0",
+          "15.0"
+        ]
+      }
+    },
+    "vehicles": {
+      "columns": {
+        "id": "str",
+        "capacity": "float"
+      },
+      "sample": {
+        "id": "veh_1",
+        "capacity": 40.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "id": [
+          "veh_1",
+          "veh_2",
+          "veh_3"
+        ],
+        "capacity": [
+          "40.0"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "VehicleRoutingProblem",
+    "model_type": "Mixed Integer Program",
+    "sense": "minimize",
+    "sets": {
+      "Locations": {
+        "size": null,
+        "index_symbol": "i",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "locations",
+        "ordered": false
+      },
+      "Customers": {
+        "size": null,
+        "index_symbol": "c",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "customers",
+        "ordered": false
+      },
+      "Vehicles": {
+        "size": null,
+        "index_symbol": "v",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "vehicles",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "distance": {
+        "domain": [
+          "Locations",
+          "Locations"
+        ],
+        "type": "float",
+        "source": "distances.csv",
+        "column": "distance",
+        "index_columns": [
+          "from_id",
+          "to_id"
+        ],
+        "missing_default": "inf"
+      },
+      "demand": {
+        "domain": [
+          "Customers"
+        ],
+        "type": "float",
+        "source": "customers.csv",
+        "column": "demand",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "zero"
+      },
+      "vehicle_capacity": {
+        "domain": [],
+        "type": "float",
+        "source": "vehicles.csv",
+        "column": "capacity",
+        "index_columns": null,
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "y": {
+        "description": "1 if vehicle v travels directly from location l1 to location l2, 0 otherwise",
+        "label": "arc_activations",
+        "domain": [
+          "Locations",
+          "Locations",
+          "Vehicles"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": true
+      },
+      "u": {
+        "description": "Position (visit order) of customer c in the route of vehicle v; used for MTZ subtour elimination",
+        "label": "visit_positions",
+        "domain": [
+          "Customers",
+          "Vehicles"
+        ],
+        "type": "integer",
+        "lower_bound": 1,
+        "upper_bound": null,
+        "upper_bound_set": "Customers",
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "customer_visit": {
+        "domain": [
+          "Customers"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Locations:l",
+            "Vehicles:v"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "y",
+            "indices": [
+              "l",
+              "c",
+              "v"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 1
+        }
+      },
+      "flow_conservation": {
+        "domain": [
+          "Locations",
+          "Vehicles"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Locations:l"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "y",
+              "indices": [
+                "l",
+                "i",
+                "v"
+              ]
+            }
+          },
+          "right": {
+            "operation": "indexed_sum",
+            "over": [
+              "Locations:ll"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "y",
+              "indices": [
+                "i",
+                "ll",
+                "v"
+              ]
+            }
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "depot_departure": {
+        "domain": [
+          "Vehicles"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Locations:l"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "y",
+            "indices": [
+              "Locations[0]",
+              "l",
+              "v"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 1
+        }
+      },
+      "depot_return": {
+        "domain": [
+          "Vehicles"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Locations:l"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "y",
+            "indices": [
+              "l",
+              "Locations[0]",
+              "v"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 1
+        }
+      },
+      "vehicle_capacity_limit": {
+        "domain": [
+          "Vehicles"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Customers:c"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "demand",
+              "indices": [
+                "c"
+              ]
+            },
+            "right": {
+              "operation": "indexed_sum",
+              "over": [
+                "Locations:l"
+              ],
+              "body": {
+                "type": "variable",
+                "name": "y",
+                "indices": [
+                  "l",
+                  "c",
+                  "v"
+                ]
+              }
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "parameter",
+          "name": "vehicle_capacity",
+          "indices": []
+        }
+      },
+      "mtz": {
+        "domain": [
+          "Customers",
+          "Customers",
+          "Vehicles"
+        ],
+        "expression": {
+          "operation": "sum",
+          "left": {
+            "operation": "subtract",
+            "left": {
+              "type": "variable",
+              "name": "u",
+              "indices": [
+                "c1",
+                "v"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "u",
+              "indices": [
+                "c2",
+                "v"
+              ]
+            }
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "set_size",
+              "set": "Customers"
+            },
+            "right": {
+              "type": "variable",
+              "name": "y",
+              "indices": [
+                "c1",
+                "c2",
+                "v"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "operation": "subtract",
+          "left": {
+            "type": "set_size",
+            "set": "Customers"
+          },
+          "right": {
+            "type": "constant",
+            "value": 1
+          }
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Locations:l1",
+          "Locations:l2",
+          "Vehicles:v"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "type": "parameter",
+            "name": "distance",
+            "indices": [
+              "l1",
+              "l2"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "y",
+            "indices": [
+              "l1",
+              "l2",
+              "v"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

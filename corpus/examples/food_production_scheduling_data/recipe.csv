@@ -1,0 +1,10 @@
+ingredient_id,product_id,recipe
+flour,bread,2
+flour,cake,1.5
+flour,cookie,0.5
+sugar,bread,0.2
+sugar,cake,1
+sugar,cookie,0.8
+eggs,bread,1
+eggs,cake,3
+eggs,cookie,2

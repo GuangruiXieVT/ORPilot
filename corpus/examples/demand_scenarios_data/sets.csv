@@ -1,0 +1,6 @@
+set_name,element
+products,prod_A
+products,prod_B
+scenarios,s_low
+scenarios,s_med
+scenarios,s_high

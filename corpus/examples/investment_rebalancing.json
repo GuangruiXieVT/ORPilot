@@ -1,0 +1,540 @@
+{
+  "problem": {
+    "title": "Multi-Period Investment Portfolio Rebalancing",
+    "description": "An investor rebalances a portfolio over 4 quarters by buying and selling assets. Holdings evolve via temporal balance: hold[t] = hold[t-1] + buy[t] - sell[t]. Target holdings each quarter must be met within a tolerance (deviation_units). Transaction costs depend on trade volume. Minimize total transaction costs.",
+    "problem_type": "linear_program",
+    "objective": "minimize",
+    "objective_description": "Total transaction costs from buying and selling across all assets and quarters",
+    "constraints": [
+      {
+        "description": "Holdings balance: hold[a,q] = hold[a,q-1] + buy[a,q] - sell[a,q]"
+      },
+      {
+        "description": "Holdings stay within target_units +/- deviation_units"
+      },
+      {
+        "description": "Holdings, buys, and sells are non-negative"
+      }
+    ],
+    "decision_variables": [
+      "hold[a,q]: units held at end of quarter q (continuous >= 0)",
+      "buy[a,q]: units bought in quarter q (continuous >= 0)",
+      "sell[a,q]: units sold in quarter q (continuous >= 0)"
+    ],
+    "parameters": [
+      "price[a,q]: asset price per unit",
+      "trade_cost_rate[a]: transaction cost fraction of trade value",
+      "initial_hold[a]: starting holdings at q0",
+      "target_units[a,q]: target holding count",
+      "deviation_units: allowed deviation from target"
+    ],
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "prices": "prices.csv",
+      "assets": "assets.csv",
+      "initial": "initial.csv",
+      "targets": "targets.csv",
+      "params": "params.csv"
+    }
+  },
+  "ir_patterns": [
+    "temporal lag",
+    "init constraint",
+    "buy/sell/hold balance",
+    "ordered set"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "assets",
+        "element": "a1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "assets",
+          "quarters"
+        ],
+        "element": [
+          "a1",
+          "a2",
+          "a3",
+          "a4",
+          "a5",
+          "q1",
+          "q2",
+          "q3",
+          "q4"
+        ]
+      }
+    },
+    "prices": {
+      "columns": {
+        "asset_id": "str",
+        "quarter_id": "str",
+        "price": "float"
+      },
+      "sample": {
+        "asset_id": "a1",
+        "quarter_id": "q1",
+        "price": 100.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "asset_id": [
+          "a1",
+          "a2",
+          "a3",
+          "a4",
+          "a5"
+        ],
+        "quarter_id": [
+          "q1",
+          "q2",
+          "q3",
+          "q4"
+        ]
+      }
+    },
+    "assets": {
+      "columns": {
+        "asset_id": "str",
+        "trade_cost_rate": "float"
+      },
+      "sample": {
+        "asset_id": "a1",
+        "trade_cost_rate": 0.001
+      },
+      "optional": false,
+      "distinct_values": {
+        "asset_id": [
+          "a1",
+          "a2",
+          "a3",
+          "a4",
+          "a5"
+        ]
+      }
+    },
+    "initial": {
+      "columns": {
+        "asset_id": "str",
+        "initial_hold": "float"
+      },
+      "sample": {
+        "asset_id": "a1",
+        "initial_hold": 50.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "asset_id": [
+          "a1",
+          "a2",
+          "a3",
+          "a4",
+          "a5"
+        ]
+      }
+    },
+    "targets": {
+      "columns": {
+        "asset_id": "str",
+        "quarter_id": "str",
+        "target_units": "float"
+      },
+      "sample": {
+        "asset_id": "a1",
+        "quarter_id": "q1",
+        "target_units": 64.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "asset_id": [
+          "a1",
+          "a2",
+          "a3",
+          "a4",
+          "a5"
+        ],
+        "quarter_id": [
+          "q1",
+          "q2",
+          "q3",
+          "q4"
+        ]
+      }
+    },
+    "params": {
+      "columns": {
+        "deviation_units": "float"
+      },
+      "sample": {
+        "deviation_units": 10.0
+      },
+      "optional": false,
+      "distinct_values": {}
+    }
+  },
+  "ir": {
+    "problem_class": "PortfolioRebalancing",
+    "model_type": "Linear Program",
+    "sense": "minimize",
+    "sets": {
+      "Assets": {
+        "size": null,
+        "index_symbol": "a",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "assets",
+        "ordered": false
+      },
+      "Quarters": {
+        "size": null,
+        "index_symbol": "q",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "quarters",
+        "ordered": true
+      }
+    },
+    "parameters": {
+      "price": {
+        "domain": [
+          "Assets",
+          "Quarters"
+        ],
+        "type": "float",
+        "source": "prices.csv",
+        "column": "price",
+        "index_columns": [
+          "asset_id",
+          "quarter_id"
+        ],
+        "missing_default": "zero"
+      },
+      "trade_cost_rate": {
+        "domain": [
+          "Assets"
+        ],
+        "type": "float",
+        "source": "assets.csv",
+        "column": "trade_cost_rate",
+        "index_columns": [
+          "asset_id"
+        ],
+        "missing_default": "inf"
+      },
+      "initial_hold": {
+        "domain": [
+          "Assets"
+        ],
+        "type": "float",
+        "source": "initial.csv",
+        "column": "initial_hold",
+        "index_columns": [
+          "asset_id"
+        ],
+        "missing_default": "zero"
+      },
+      "target_units": {
+        "domain": [
+          "Assets",
+          "Quarters"
+        ],
+        "type": "float",
+        "source": "targets.csv",
+        "column": "target_units",
+        "index_columns": [
+          "asset_id",
+          "quarter_id"
+        ],
+        "missing_default": "zero"
+      },
+      "deviation_units": {
+        "domain": [],
+        "type": "float",
+        "source": "params.csv",
+        "column": "deviation_units",
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "hold": {
+        "description": "Units of asset a held at end of quarter q",
+        "label": "asset_holdings",
+        "domain": [
+          "Assets",
+          "Quarters"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "buy": {
+        "description": "Units of asset a bought in quarter q",
+        "label": "asset_purchases",
+        "domain": [
+          "Assets",
+          "Quarters"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "sell": {
+        "description": "Units of asset a sold in quarter q",
+        "label": "asset_sales",
+        "domain": [
+          "Assets",
+          "Quarters"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "balance_update_init": {
+        "domain": [
+          "Assets"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "type": "parameter",
+              "name": "initial_hold",
+              "indices": [
+                "a"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "buy",
+              "indices": [
+                "a",
+                "Quarters[0]"
+              ]
+            }
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "sell",
+              "indices": [
+                "a",
+                "Quarters[0]"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "hold",
+              "indices": [
+                "a",
+                "Quarters[0]"
+              ]
+            }
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "balance_update": {
+        "domain": [
+          "Assets",
+          "Quarters"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "hold",
+              "indices": [
+                "a",
+                "q"
+              ],
+              "lag": -1
+            },
+            "right": {
+              "type": "variable",
+              "name": "buy",
+              "indices": [
+                "a",
+                "q"
+              ]
+            }
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "sell",
+              "indices": [
+                "a",
+                "q"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "hold",
+              "indices": [
+                "a",
+                "q"
+              ]
+            }
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "target_upper": {
+        "domain": [
+          "Assets",
+          "Quarters"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "hold",
+            "indices": [
+              "a",
+              "q"
+            ]
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "type": "parameter",
+              "name": "target_units",
+              "indices": [
+                "a",
+                "q"
+              ]
+            },
+            "right": {
+              "type": "parameter",
+              "name": "deviation_units",
+              "indices": []
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "target_lower": {
+        "domain": [
+          "Assets",
+          "Quarters"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "subtract",
+            "left": {
+              "type": "parameter",
+              "name": "target_units",
+              "indices": [
+                "a",
+                "q"
+              ]
+            },
+            "right": {
+              "type": "parameter",
+              "name": "deviation_units",
+              "indices": []
+            }
+          },
+          "right": {
+            "type": "variable",
+            "name": "hold",
+            "indices": [
+              "a",
+              "q"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Assets:a",
+          "Quarters:q"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "trade_cost_rate",
+              "indices": [
+                "a"
+              ]
+            },
+            "right": {
+              "type": "parameter",
+              "name": "price",
+              "indices": [
+                "a",
+                "q"
+              ]
+            }
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "buy",
+              "indices": [
+                "a",
+                "q"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "sell",
+              "indices": [
+                "a",
+                "q"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

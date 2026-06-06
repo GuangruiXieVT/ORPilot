@@ -1,0 +1,4 @@
+id,prod_cost,prod_capacity,hold_cost,initial_inventory
+p1,4.5,150.0,0.4,20.0
+p2,5.0,180.0,0.5,30.0
+p3,6.0,200.0,0.6,50.0

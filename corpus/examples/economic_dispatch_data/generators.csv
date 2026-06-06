@@ -1,0 +1,4 @@
+generator_id,fuel_cost,min_output,max_output,ramp_limit
+g1,15,50,300,80
+g2,25,30,200,60
+g3,40,10,100,30

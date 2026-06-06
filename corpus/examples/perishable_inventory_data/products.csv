@@ -1,0 +1,4 @@
+id,purchase_cost,holding_cost,waste_penalty,initial_inventory,storage_cap
+milk,2.5,0.3,1.5,5.0,40.0
+bread,1.2,0.2,0.8,10.0,50.0
+eggs,0.8,0.1,0.5,0.0,30.0

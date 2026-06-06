@@ -1,0 +1,9 @@
+set_name,element
+gen_types,coal
+gen_types,gas
+gen_types,solar
+years,y1
+years,y2
+years,y3
+years,y4
+years,y5

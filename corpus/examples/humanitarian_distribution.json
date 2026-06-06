@@ -1,0 +1,328 @@
+{
+  "problem": {
+    "title": "Humanitarian Relief Distribution",
+    "description": "After a disaster, relief supplies must be shipped from depots to affected areas. Each depot has limited supply; each area has a minimum relief requirement. Shipping routes are sparse (not all depot-area pairs are accessible). Minimize total shipping cost while meeting all demands.",
+    "problem_type": "linear_programming",
+    "objective": "minimize",
+    "objective_description": "Total shipping cost across all depot-area shipments",
+    "constraints": [
+      {
+        "description": "Supply limit: total shipment from each depot cannot exceed its supply"
+      },
+      {
+        "description": "Demand met: total shipment received by each area must meet its demand"
+      }
+    ],
+    "decision_variables": [
+      "ship[Depots, Areas]: units shipped from depot d to area a (continuous, non-negative, sparse)"
+    ],
+    "parameters": [
+      "supply[Depots]: available relief units at each depot",
+      "demand[Areas]: required relief units at each area",
+      "shipping_cost[Depots, Areas]: cost per unit shipped (sparse, not all routes exist)"
+    ],
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "supply": "supply.csv",
+      "demand": "demand.csv",
+      "shipping_cost": "shipping_cost.csv"
+    }
+  },
+  "ir_patterns": [
+    "domain filter",
+    "sparse network",
+    "supply-demand balance"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "depots",
+        "element": "dp1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "depots",
+          "areas"
+        ],
+        "element": [
+          "dp1",
+          "dp2",
+          "dp3",
+          "a1",
+          "a2",
+          "a3",
+          "a4",
+          "a5"
+        ]
+      }
+    },
+    "supply": {
+      "columns": {
+        "depot_id": "str",
+        "supply": "float"
+      },
+      "sample": {
+        "depot_id": "dp1",
+        "supply": 150.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "depot_id": [
+          "dp1",
+          "dp2",
+          "dp3"
+        ],
+        "supply": [
+          "100.0",
+          "120.0",
+          "150.0"
+        ]
+      }
+    },
+    "demand": {
+      "columns": {
+        "area_id": "str",
+        "demand": "float"
+      },
+      "sample": {
+        "area_id": "a1",
+        "demand": 60.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "area_id": [
+          "a1",
+          "a2",
+          "a3",
+          "a4",
+          "a5"
+        ],
+        "demand": [
+          "50.0",
+          "60.0",
+          "70.0",
+          "80.0",
+          "90.0"
+        ]
+      }
+    },
+    "shipping_cost": {
+      "columns": {
+        "depot_id": "str",
+        "area_id": "str",
+        "cost": "float"
+      },
+      "sample": {
+        "depot_id": "dp1",
+        "area_id": "a1",
+        "cost": 2.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "depot_id": [
+          "dp1",
+          "dp2",
+          "dp3"
+        ],
+        "area_id": [
+          "a1",
+          "a2",
+          "a3",
+          "a4",
+          "a5"
+        ],
+        "cost": [
+          "2.0",
+          "3.0",
+          "4.0",
+          "5.0"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "HumanitarianDistribution",
+    "model_type": "Linear Program",
+    "sense": "minimize",
+    "sets": {
+      "Depots": {
+        "size": null,
+        "index_symbol": "d",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "depots",
+        "ordered": false
+      },
+      "Areas": {
+        "size": null,
+        "index_symbol": "a",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "areas",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "supply": {
+        "domain": [
+          "Depots"
+        ],
+        "type": "float",
+        "source": "supply.csv",
+        "column": "supply",
+        "index_columns": [
+          "depot_id"
+        ],
+        "missing_default": "zero"
+      },
+      "demand": {
+        "domain": [
+          "Areas"
+        ],
+        "type": "float",
+        "source": "demand.csv",
+        "column": "demand",
+        "index_columns": [
+          "area_id"
+        ],
+        "missing_default": "zero"
+      },
+      "shipping_cost": {
+        "domain": [
+          "Depots",
+          "Areas"
+        ],
+        "type": "float",
+        "source": "shipping_cost.csv",
+        "column": "cost",
+        "index_columns": [
+          "depot_id",
+          "area_id"
+        ],
+        "missing_default": "inf"
+      }
+    },
+    "variables": {
+      "ship": {
+        "description": "Units shipped from depot d to area a",
+        "label": "shipments",
+        "domain": [
+          "Depots",
+          "Areas"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false,
+        "domain_filter": "shipping_cost"
+      }
+    },
+    "constraints": {
+      "supply_limit": {
+        "domain": [
+          "Depots"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Areas:a"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "ship",
+              "indices": [
+                "d",
+                "a"
+              ]
+            }
+          },
+          "right": {
+            "type": "parameter",
+            "name": "supply",
+            "indices": [
+              "d"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "demand_met": {
+        "domain": [
+          "Areas"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Depots:d"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "ship",
+              "indices": [
+                "d",
+                "a"
+              ]
+            }
+          },
+          "right": {
+            "type": "parameter",
+            "name": "demand",
+            "indices": [
+              "a"
+            ]
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Depots:d",
+          "Areas:a"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "type": "parameter",
+            "name": "shipping_cost",
+            "indices": [
+              "d",
+              "a"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "ship",
+            "indices": [
+              "d",
+              "a"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

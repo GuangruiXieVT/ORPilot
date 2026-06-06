@@ -1,0 +1,16 @@
+ore_type,period_id,reserve
+high_grade,p1,500
+high_grade,p2,450
+high_grade,p3,400
+high_grade,p4,350
+high_grade,p5,300
+mid_grade,p1,800
+mid_grade,p2,900
+mid_grade,p3,850
+mid_grade,p4,750
+mid_grade,p5,700
+low_grade,p1,1200
+low_grade,p2,1100
+low_grade,p3,1000
+low_grade,p4,900
+low_grade,p5,800

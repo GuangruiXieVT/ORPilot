@@ -1,0 +1,4 @@
+product_id,unit_cost,sell_price,salvage_price
+p1,10,25,5
+p2,8,20,3
+p3,15,35,8

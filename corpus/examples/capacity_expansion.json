@@ -1,0 +1,461 @@
+{
+  "problem": {
+    "title": "Multi-Period Capacity Expansion",
+    "description": "A manufacturer operates two plants and must decide in each period whether to invest in expanding a plant's capacity (binary decision). Capacity accumulates over time: once expanded, the added capacity persists. Production from each plant is limited by its current cumulative capacity. Total production must meet growing demand each period. Minimise total expansion and production costs.",
+    "problem_type": "mixed_integer_programming",
+    "objective": "minimize",
+    "objective_description": "Total expansion investment plus production costs over all periods",
+    "constraints": [
+      {
+        "description": "Capacity initialisation: first-period capacity = initial_cap + expansion if expanded in p1"
+      },
+      {
+        "description": "Capacity update (temporal lag): each period's capacity = previous capacity + new expansion"
+      },
+      {
+        "description": "Production upper bound: production cannot exceed current period capacity"
+      },
+      {
+        "description": "Demand satisfaction: total production across plants meets demand each period"
+      }
+    ],
+    "decision_variables": [
+      "expand[Facilities,Periods]: 1 if plant f is expanded in period t (binary)",
+      "capacity[Facilities,Periods]: cumulative production capacity of plant f in period t (continuous)",
+      "produce[Facilities,Periods]: units produced at plant f in period t (continuous)"
+    ],
+    "parameters": [
+      "initial_cap[Facilities]: starting capacity before any expansions",
+      "expansion_size[Facilities]: capacity added per expansion event",
+      "expansion_cost[Facilities]: capital cost per expansion",
+      "demand[Periods]: total demand that must be met each period",
+      "prod_cost[Facilities]: variable production cost per unit"
+    ],
+    "additional_notes": "plant_2 is cheaper to produce (prod_cost=5 vs 8) and cheaper to expand (300 vs 400). Demand first exceeds initial total capacity (160) in p3 (190). Optimal: expand plant_2 in p1 AND p2 (giving capacity=220), so plant_2 covers all demand alone from p2 onward without using expensive plant_1. Expansion cost=600, production cost=3400, total objective=4000. Two expansions beat one because the production savings (390) exceed the extra expansion cost (300).",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "facilities": "facilities.csv",
+      "demand": "demand.csv"
+    }
+  },
+  "ir_patterns": [
+    "binary variable",
+    "ordered set",
+    "temporal lag",
+    "init constraint",
+    "big-M linking"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "facilities",
+        "element": "plant_1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "facilities",
+          "periods"
+        ],
+        "element": [
+          "plant_1",
+          "plant_2",
+          "p1",
+          "p2",
+          "p3",
+          "p4"
+        ]
+      }
+    },
+    "facilities": {
+      "columns": {
+        "id": "str",
+        "initial_cap": "float",
+        "expansion_size": "float",
+        "expansion_cost": "float",
+        "prod_cost": "float"
+      },
+      "sample": {
+        "id": "plant_1",
+        "initial_cap": 100.0,
+        "expansion_size": 50.0,
+        "expansion_cost": 400.0,
+        "prod_cost": 8.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "id": [
+          "plant_1",
+          "plant_2"
+        ]
+      }
+    },
+    "demand": {
+      "columns": {
+        "period_id": "str",
+        "demand": "float"
+      },
+      "sample": {
+        "period_id": "p1",
+        "demand": 130.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "period_id": [
+          "p1",
+          "p2",
+          "p3",
+          "p4"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "CapacityExpansion",
+    "model_type": "Mixed Integer Program",
+    "sense": "minimize",
+    "sets": {
+      "Facilities": {
+        "size": null,
+        "index_symbol": "f",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "facilities",
+        "ordered": false
+      },
+      "Periods": {
+        "size": null,
+        "index_symbol": "p",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "periods",
+        "ordered": true
+      }
+    },
+    "parameters": {
+      "initial_cap": {
+        "domain": [
+          "Facilities"
+        ],
+        "type": "float",
+        "source": "facilities.csv",
+        "column": "initial_cap",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "zero"
+      },
+      "expansion_size": {
+        "domain": [
+          "Facilities"
+        ],
+        "type": "float",
+        "source": "facilities.csv",
+        "column": "expansion_size",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "zero"
+      },
+      "expansion_cost": {
+        "domain": [
+          "Facilities"
+        ],
+        "type": "float",
+        "source": "facilities.csv",
+        "column": "expansion_cost",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "inf"
+      },
+      "demand": {
+        "domain": [
+          "Periods"
+        ],
+        "type": "float",
+        "source": "demand.csv",
+        "column": "demand",
+        "index_columns": [
+          "period_id"
+        ],
+        "missing_default": "zero"
+      },
+      "prod_cost": {
+        "domain": [
+          "Facilities"
+        ],
+        "type": "float",
+        "source": "facilities.csv",
+        "column": "prod_cost",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "inf"
+      }
+    },
+    "variables": {
+      "expand": {
+        "description": "1 if plant f is expanded in period p",
+        "label": "expansion_decisions",
+        "domain": [
+          "Facilities",
+          "Periods"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "capacity": {
+        "description": "Cumulative production capacity of plant f in period p",
+        "label": "cumulative_capacities",
+        "domain": [
+          "Facilities",
+          "Periods"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "produce": {
+        "description": "Units produced at plant f in period p",
+        "label": "production_quantities",
+        "domain": [
+          "Facilities",
+          "Periods"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "capacity_update_init": {
+        "domain": [
+          "Facilities"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "capacity",
+            "indices": [
+              "f",
+              "Periods[0]"
+            ]
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "type": "parameter",
+              "name": "initial_cap",
+              "indices": [
+                "f"
+              ]
+            },
+            "right": {
+              "operation": "multiply",
+              "left": {
+                "type": "parameter",
+                "name": "expansion_size",
+                "indices": [
+                  "f"
+                ]
+              },
+              "right": {
+                "type": "variable",
+                "name": "expand",
+                "indices": [
+                  "f",
+                  "Periods[0]"
+                ]
+              }
+            }
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "capacity_update": {
+        "domain": [
+          "Facilities",
+          "Periods"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "capacity",
+            "indices": [
+              "f",
+              "p"
+            ]
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "capacity",
+              "indices": [
+                "f",
+                "p"
+              ],
+              "lag": -1
+            },
+            "right": {
+              "operation": "multiply",
+              "left": {
+                "type": "parameter",
+                "name": "expansion_size",
+                "indices": [
+                  "f"
+                ]
+              },
+              "right": {
+                "type": "variable",
+                "name": "expand",
+                "indices": [
+                  "f",
+                  "p"
+                ]
+              }
+            }
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "produce_ub": {
+        "domain": [
+          "Facilities",
+          "Periods"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "capacity",
+            "indices": [
+              "f",
+              "p"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "produce",
+            "indices": [
+              "f",
+              "p"
+            ]
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "demand_met": {
+        "domain": [
+          "Periods"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Facilities:f"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "produce",
+              "indices": [
+                "f",
+                "p"
+              ]
+            }
+          },
+          "right": {
+            "type": "parameter",
+            "name": "demand",
+            "indices": [
+              "p"
+            ]
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Facilities:f",
+          "Periods:p"
+        ],
+        "body": {
+          "operation": "sum",
+          "left": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "expansion_cost",
+              "indices": [
+                "f"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "expand",
+              "indices": [
+                "f",
+                "p"
+              ]
+            }
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "prod_cost",
+              "indices": [
+                "f"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "produce",
+              "indices": [
+                "f",
+                "p"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

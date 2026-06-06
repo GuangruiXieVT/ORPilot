@@ -1,0 +1,5 @@
+plant_id,cwc_id,capacity,prod_cost_per_unit
+p1,cwc1,80.0,0.5
+p1,cwc2,60.0,0.6
+p2,cwc3,100.0,0.4
+p3,cwc4,70.0,0.5

@@ -1,0 +1,508 @@
+{
+  "problem": {
+    "title": "Workforce Upskilling Planning",
+    "description": "A company trains workers over 4 quarters to acquire skills needed for upcoming projects. Once a worker gains a skill, they retain it. Training capacity limits how many workers can be trained per quarter. Skill supply (skilled workers) must meet demand each quarter. Minimize total training cost.",
+    "problem_type": "mixed_integer",
+    "objective": "minimize",
+    "objective_description": "Total training cost = sum over workers, skills, quarters of training_cost[w,sk] * train[w,sk,q]",
+    "constraints": [
+      {
+        "description": "Skill accumulation: once skilled, a worker retains the skill (temporal lag - skills cannot decrease)"
+      },
+      {
+        "description": "Train to skill: training in a quarter makes the worker skilled that quarter"
+      },
+      {
+        "description": "Skill demand met: number of skilled workers per skill per quarter must meet demand"
+      },
+      {
+        "description": "Training capacity: total trainings per quarter cannot exceed capacity"
+      }
+    ],
+    "decision_variables": [
+      "train[Workers, Skills, Quarters]: 1 if worker w is trained in skill sk in quarter q (binary)",
+      "skilled[Workers, Skills, Quarters]: 1 if worker w has skill sk by end of quarter q (binary)"
+    ],
+    "parameters": [
+      "training_cost[Workers, Skills]: cost to train worker w in skill sk",
+      "skill_demand[Skills, Quarters]: number of workers needed with skill sk in quarter q",
+      "training_cap[Quarters]: maximum total trainings per quarter"
+    ],
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "training_costs": "training_costs.csv",
+      "skill_demand": "skill_demand.csv",
+      "training_cap": "training_cap.csv"
+    }
+  },
+  "ir_patterns": [
+    "binary variable",
+    "ordered set",
+    "temporal lag (inequality)",
+    "skill accumulation",
+    "3D variable"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "workers",
+        "element": "w1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "workers",
+          "skills",
+          "quarters"
+        ],
+        "element": [
+          "w1",
+          "w2",
+          "w3",
+          "w4",
+          "w5",
+          "sk1",
+          "sk2",
+          "sk3",
+          "q1",
+          "q2",
+          "q3",
+          "q4"
+        ]
+      }
+    },
+    "training_costs": {
+      "columns": {
+        "worker_id": "str",
+        "skill_id": "str",
+        "training_cost": "float"
+      },
+      "sample": {
+        "worker_id": "w1",
+        "skill_id": "sk1",
+        "training_cost": 100.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "worker_id": [
+          "w1",
+          "w2",
+          "w3",
+          "w4",
+          "w5"
+        ],
+        "skill_id": [
+          "sk1",
+          "sk2",
+          "sk3"
+        ]
+      }
+    },
+    "skill_demand": {
+      "columns": {
+        "skill_id": "str",
+        "quarter_id": "str",
+        "skill_demand": "float"
+      },
+      "sample": {
+        "skill_id": "sk1",
+        "quarter_id": "q1",
+        "skill_demand": 1.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "skill_id": [
+          "sk1",
+          "sk2",
+          "sk3"
+        ],
+        "quarter_id": [
+          "q1",
+          "q2",
+          "q3",
+          "q4"
+        ]
+      }
+    },
+    "training_cap": {
+      "columns": {
+        "quarter_id": "str",
+        "training_cap": "float"
+      },
+      "sample": {
+        "quarter_id": "q1",
+        "training_cap": 3.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "quarter_id": [
+          "q1",
+          "q2",
+          "q3",
+          "q4"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "WorkforceUpskilling",
+    "model_type": "Mixed Integer Program",
+    "sense": "minimize",
+    "sets": {
+      "Workers": {
+        "size": null,
+        "index_symbol": "w",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "workers",
+        "ordered": false
+      },
+      "Skills": {
+        "size": null,
+        "index_symbol": "sk",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "skills",
+        "ordered": false
+      },
+      "Quarters": {
+        "size": null,
+        "index_symbol": "q",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "quarters",
+        "ordered": true
+      }
+    },
+    "parameters": {
+      "training_cost": {
+        "domain": [
+          "Workers",
+          "Skills"
+        ],
+        "type": "float",
+        "source": "training_costs.csv",
+        "column": "training_cost",
+        "index_columns": [
+          "worker_id",
+          "skill_id"
+        ],
+        "missing_default": "inf"
+      },
+      "skill_demand": {
+        "domain": [
+          "Skills",
+          "Quarters"
+        ],
+        "type": "float",
+        "source": "skill_demand.csv",
+        "column": "skill_demand",
+        "index_columns": [
+          "skill_id",
+          "quarter_id"
+        ],
+        "missing_default": "zero"
+      },
+      "training_cap": {
+        "domain": [
+          "Quarters"
+        ],
+        "type": "float",
+        "source": "training_cap.csv",
+        "column": "training_cap",
+        "index_columns": [
+          "quarter_id"
+        ],
+        "missing_default": "inf"
+      }
+    },
+    "variables": {
+      "train": {
+        "description": "1 if worker w is trained in skill sk in quarter q",
+        "label": "training_decisions",
+        "domain": [
+          "Workers",
+          "Skills",
+          "Quarters"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "skilled": {
+        "description": "1 if worker w has skill sk by end of quarter q",
+        "label": "skill_levels",
+        "domain": [
+          "Workers",
+          "Skills",
+          "Quarters"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "skill_accumulation": {
+        "domain": [
+          "Workers",
+          "Skills",
+          "Quarters"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "skilled",
+            "indices": [
+              "w",
+              "sk",
+              "q"
+            ],
+            "lag": -1
+          },
+          "right": {
+            "type": "variable",
+            "name": "skilled",
+            "indices": [
+              "w",
+              "sk",
+              "q"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "train_to_skill": {
+        "domain": [
+          "Workers",
+          "Skills",
+          "Quarters"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "train",
+            "indices": [
+              "w",
+              "sk",
+              "q"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "skilled",
+            "indices": [
+              "w",
+              "sk",
+              "q"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "skill_link": {
+        "domain": [
+          "Workers",
+          "Skills",
+          "Quarters"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "skilled",
+            "indices": [
+              "w",
+              "sk",
+              "q"
+            ]
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "skilled",
+              "indices": [
+                "w",
+                "sk",
+                "q"
+              ],
+              "lag": -1
+            },
+            "right": {
+              "type": "variable",
+              "name": "train",
+              "indices": [
+                "w",
+                "sk",
+                "q"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "skill_link_init": {
+        "domain": [
+          "Workers",
+          "Skills"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "skilled",
+            "indices": [
+              "w",
+              "sk",
+              "Quarters[0]"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "train",
+            "indices": [
+              "w",
+              "sk",
+              "Quarters[0]"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "skill_demand_met": {
+        "domain": [
+          "Skills",
+          "Quarters"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Workers:w"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "skilled",
+              "indices": [
+                "w",
+                "sk",
+                "q"
+              ]
+            }
+          },
+          "right": {
+            "type": "parameter",
+            "name": "skill_demand",
+            "indices": [
+              "sk",
+              "q"
+            ]
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "training_capacity": {
+        "domain": [
+          "Quarters"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Workers:w",
+              "Skills:sk"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "train",
+              "indices": [
+                "w",
+                "sk",
+                "q"
+              ]
+            }
+          },
+          "right": {
+            "type": "parameter",
+            "name": "training_cap",
+            "indices": [
+              "q"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Workers:w",
+          "Skills:sk",
+          "Quarters:q"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "type": "parameter",
+            "name": "training_cost",
+            "indices": [
+              "w",
+              "sk"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "train",
+            "indices": [
+              "w",
+              "sk",
+              "q"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

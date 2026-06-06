@@ -1,0 +1,427 @@
+{
+  "problem": {
+    "title": "Retail Shelf Space Allocation",
+    "description": "A retailer allocates shelf space (facings) to products across store sections. A binary carry variable determines if a product is stocked. If carried, the product must receive at least min_facing and at most max_facing total facings across all sections. Each section has limited capacity. At most max_products distinct products can be carried. Maximize total profit (profit per facing times total facings allocated).",
+    "problem_type": "mixed_integer",
+    "objective": "maximize",
+    "objective_description": "Total profit = sum over products and sections of profit_per_space * allocate",
+    "constraints": [
+      {
+        "description": "Section capacity: total facings in each section cannot exceed section capacity"
+      },
+      {
+        "description": "Min facing: total facings per product >= min_facing if product is carried"
+      },
+      {
+        "description": "Max facing: total facings per product <= max_facing * carry"
+      },
+      {
+        "description": "Max products: at most max_products products can be carried"
+      }
+    ],
+    "decision_variables": [
+      "allocate[Products, Sections]: facing units allocated to product in section (continuous, non-negative)",
+      "carry[Products]: 1 if product is stocked (binary)"
+    ],
+    "parameters": [
+      "profit_per_space[Products]: profit per facing allocated",
+      "min_facing[Products]: minimum total facings if product is carried",
+      "max_facing[Products]: maximum useful total facings",
+      "section_cap[Sections]: total facing capacity per section",
+      "max_products: maximum number of distinct products to carry"
+    ],
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "products": "products.csv",
+      "sections": "sections.csv",
+      "params": "params.csv"
+    }
+  },
+  "ir_patterns": [
+    "binary variable",
+    "big-M linking",
+    "scalar parameter",
+    "maximize profit"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "products",
+        "element": "pr1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "products",
+          "sections"
+        ],
+        "element": [
+          "pr1",
+          "pr2",
+          "pr3",
+          "pr4",
+          "pr5",
+          "s1",
+          "s2",
+          "s3"
+        ]
+      }
+    },
+    "products": {
+      "columns": {
+        "product_id": "str",
+        "profit_per_space": "float",
+        "min_facing": "float",
+        "max_facing": "float"
+      },
+      "sample": {
+        "product_id": "pr1",
+        "profit_per_space": 5.0,
+        "min_facing": 2.0,
+        "max_facing": 10.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "product_id": [
+          "pr1",
+          "pr2",
+          "pr3",
+          "pr4",
+          "pr5"
+        ]
+      }
+    },
+    "sections": {
+      "columns": {
+        "section_id": "str",
+        "section_cap": "float"
+      },
+      "sample": {
+        "section_id": "s1",
+        "section_cap": 20.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "section_id": [
+          "s1",
+          "s2",
+          "s3"
+        ],
+        "section_cap": [
+          "15.0",
+          "18.0",
+          "20.0"
+        ]
+      }
+    },
+    "params": {
+      "columns": {
+        "max_products": "float"
+      },
+      "sample": {
+        "max_products": 4.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "max_products": [
+          "4.0"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "RetailSpaceAllocation",
+    "model_type": "Mixed Integer Program",
+    "sense": "maximize",
+    "sets": {
+      "Products": {
+        "size": null,
+        "index_symbol": "p",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "products",
+        "ordered": false
+      },
+      "Sections": {
+        "size": null,
+        "index_symbol": "s",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "sections",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "profit_per_space": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "products.csv",
+        "column": "profit_per_space",
+        "index_columns": [
+          "product_id"
+        ],
+        "missing_default": "zero"
+      },
+      "min_facing": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "products.csv",
+        "column": "min_facing",
+        "index_columns": [
+          "product_id"
+        ],
+        "missing_default": "zero"
+      },
+      "max_facing": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "products.csv",
+        "column": "max_facing",
+        "index_columns": [
+          "product_id"
+        ],
+        "missing_default": "zero"
+      },
+      "section_cap": {
+        "domain": [
+          "Sections"
+        ],
+        "type": "float",
+        "source": "sections.csv",
+        "column": "section_cap",
+        "index_columns": [
+          "section_id"
+        ],
+        "missing_default": "zero"
+      },
+      "max_products": {
+        "domain": [],
+        "type": "float",
+        "source": "params.csv",
+        "column": "max_products",
+        "index_columns": null,
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "allocate": {
+        "description": "Facing units allocated to product p in section s",
+        "label": "space_allocations",
+        "domain": [
+          "Products",
+          "Sections"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "carry": {
+        "description": "1 if product p is stocked",
+        "label": "carry_decisions",
+        "domain": [
+          "Products"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "section_capacity": {
+        "domain": [
+          "Sections"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Products:p"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "allocate",
+              "indices": [
+                "p",
+                "s"
+              ]
+            }
+          },
+          "right": {
+            "type": "parameter",
+            "name": "section_cap",
+            "indices": [
+              "s"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "min_facing_total": {
+        "domain": [
+          "Products"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "min_facing",
+              "indices": [
+                "p"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "carry",
+              "indices": [
+                "p"
+              ]
+            }
+          },
+          "right": {
+            "operation": "indexed_sum",
+            "over": [
+              "Sections:s"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "allocate",
+              "indices": [
+                "p",
+                "s"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "max_facing_total": {
+        "domain": [
+          "Products"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Sections:s"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "allocate",
+              "indices": [
+                "p",
+                "s"
+              ]
+            }
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "max_facing",
+              "indices": [
+                "p"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "carry",
+              "indices": [
+                "p"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "max_products_limit": {
+        "domain": [],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Products:p"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "carry",
+              "indices": [
+                "p"
+              ]
+            }
+          },
+          "right": {
+            "type": "parameter",
+            "name": "max_products",
+            "indices": []
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "maximize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Products:p",
+          "Sections:s"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "type": "parameter",
+            "name": "profit_per_space",
+            "indices": [
+              "p"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "allocate",
+            "indices": [
+              "p",
+              "s"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

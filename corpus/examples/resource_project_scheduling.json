@@ -1,0 +1,366 @@
+{
+  "problem": {
+    "title": "Resource-Constrained Project Scheduling",
+    "description": "Schedule 6 tasks over 8 time periods. Each task has a duration, value, and resource requirements. Each task must be started in exactly one period and runs for its full duration. Resource availability limits concurrent tasks. Maximize total value of completed tasks.",
+    "problem_type": "integer_programming",
+    "objective": "maximize",
+    "objective_description": "Total value of scheduled tasks",
+    "constraints": [
+      {
+        "description": "Each task is started in exactly one period (feasible start window)"
+      },
+      {
+        "description": "Tasks cannot start so late that they cannot complete within the horizon"
+      },
+      {
+        "description": "Resource usage in each period does not exceed availability"
+      }
+    ],
+    "decision_variables": [
+      "start[t,p]: 1 if task t starts in period p (binary)"
+    ],
+    "parameters": [
+      "duration[t]: number of periods task t takes",
+      "value[t]: reward for completing task t",
+      "usage[t,r]: resource units of type r consumed by task t while active",
+      "availability[r]: maximum units of resource r available per period",
+      "horizon: total number of periods (scalar)"
+    ],
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "tasks": "tasks.csv",
+      "resource_use": "resource_use.csv",
+      "resources": "resources.csv",
+      "horizon": "horizon.csv"
+    }
+  },
+  "ir_patterns": [
+    "binary variable",
+    "domain filter (feasible start window)",
+    "resource constraint with sparse usage",
+    "scalar parameter"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "tasks",
+        "element": "t1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "tasks",
+          "resources",
+          "periods"
+        ],
+        "element": [
+          "t1",
+          "t2",
+          "t3",
+          "t4",
+          "t5",
+          "t6",
+          "r1",
+          "r2",
+          "p1",
+          "p2",
+          "p3",
+          "p4",
+          "p5",
+          "p6",
+          "p7",
+          "p8"
+        ]
+      }
+    },
+    "tasks": {
+      "columns": {
+        "task_id": "str",
+        "duration": "float",
+        "value": "float"
+      },
+      "sample": {
+        "task_id": "t1",
+        "duration": 2.0,
+        "value": 10.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "task_id": [
+          "t1",
+          "t2",
+          "t3",
+          "t4",
+          "t5",
+          "t6"
+        ]
+      }
+    },
+    "resource_use": {
+      "columns": {
+        "task_id": "str",
+        "resource_id": "str",
+        "usage": "float"
+      },
+      "sample": {
+        "task_id": "t1",
+        "resource_id": "r1",
+        "usage": 2.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "task_id": [
+          "t1",
+          "t2",
+          "t3",
+          "t4",
+          "t5",
+          "t6"
+        ],
+        "resource_id": [
+          "r1",
+          "r2"
+        ]
+      }
+    },
+    "resources": {
+      "columns": {
+        "resource_id": "str",
+        "availability": "float"
+      },
+      "sample": {
+        "resource_id": "r1",
+        "availability": 4.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "resource_id": [
+          "r1",
+          "r2"
+        ]
+      }
+    },
+    "horizon": {
+      "columns": {
+        "periods": "float"
+      },
+      "sample": {
+        "periods": 8.0
+      },
+      "optional": false,
+      "distinct_values": {}
+    }
+  },
+  "ir": {
+    "problem_class": "ResourceConstrainedProjectScheduling",
+    "model_type": "Mixed Integer Program",
+    "sense": "maximize",
+    "sets": {
+      "Tasks": {
+        "size": null,
+        "index_symbol": "t",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "tasks",
+        "ordered": false
+      },
+      "Resources": {
+        "size": null,
+        "index_symbol": "r",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "resources",
+        "ordered": false
+      },
+      "Periods": {
+        "size": null,
+        "index_symbol": "p",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "periods",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "duration": {
+        "domain": [
+          "Tasks"
+        ],
+        "type": "float",
+        "source": "tasks.csv",
+        "column": "duration",
+        "index_columns": [
+          "task_id"
+        ],
+        "missing_default": "inf"
+      },
+      "value": {
+        "domain": [
+          "Tasks"
+        ],
+        "type": "float",
+        "source": "tasks.csv",
+        "column": "value",
+        "index_columns": [
+          "task_id"
+        ],
+        "missing_default": "zero"
+      },
+      "usage": {
+        "domain": [
+          "Tasks",
+          "Resources"
+        ],
+        "type": "float",
+        "source": "resource_use.csv",
+        "column": "usage",
+        "index_columns": [
+          "task_id",
+          "resource_id"
+        ],
+        "missing_default": "zero"
+      },
+      "availability": {
+        "domain": [
+          "Resources"
+        ],
+        "type": "float",
+        "source": "resources.csv",
+        "column": "availability",
+        "index_columns": [
+          "resource_id"
+        ],
+        "missing_default": "inf"
+      },
+      "horizon": {
+        "domain": [],
+        "type": "float",
+        "source": "horizon.csv",
+        "column": "periods",
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "start": {
+        "description": "1 if task t starts in period p",
+        "label": "task_starts",
+        "domain": [
+          "Tasks",
+          "Periods"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "task_scheduled_once": {
+        "domain": [
+          "Tasks"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Periods:p"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "start",
+            "indices": [
+              "t",
+              "p"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 1
+        }
+      },
+      "resource_limit": {
+        "domain": [
+          "Resources",
+          "Periods"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Tasks:t"
+            ],
+            "body": {
+              "operation": "multiply",
+              "left": {
+                "type": "parameter",
+                "name": "usage",
+                "indices": [
+                  "t",
+                  "r"
+                ]
+              },
+              "right": {
+                "type": "variable",
+                "name": "start",
+                "indices": [
+                  "t",
+                  "p"
+                ]
+              }
+            }
+          },
+          "right": {
+            "type": "parameter",
+            "name": "availability",
+            "indices": [
+              "r"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "maximize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Tasks:t",
+          "Periods:p"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "type": "parameter",
+            "name": "value",
+            "indices": [
+              "t"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "start",
+            "indices": [
+              "t",
+              "p"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

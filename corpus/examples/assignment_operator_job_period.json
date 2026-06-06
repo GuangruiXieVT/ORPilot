@@ -1,0 +1,351 @@
+{
+  "problem": {
+    "title": "Operator-Job-Period Assignment with Eligibility",
+    "description": "A production facility must assign six operators to eight jobs across four shifts. Operators are qualified for only certain jobs (based on their certifications and training), defining eligible (operator, job) pairs. Each (job, shift) pair that requires coverage must have exactly one operator assigned to it. An operator can handle at most a maximum number of jobs per shift. Each eligible (operator, job) pair has a known cost per shift. Minimize total assignment cost while covering all required job-shift slots and respecting operator qualifications and workload limits.",
+    "problem_type": "integer_programming",
+    "objective": "minimize",
+    "objective_description": "Total cost of operator-job-period assignments",
+    "constraints": [
+      {
+        "description": "For each (job, shift) pair that requires coverage, exactly one eligible operator must be assigned"
+      },
+      {
+        "description": "For each operator in each shift, the total number of jobs assigned must not exceed their maximum jobs per shift"
+      }
+    ],
+    "decision_variables": [
+      "assign[o,j,p]: 1 if operator o is assigned to job j in period p (only for eligible operator-job pairs), 0 otherwise (binary)"
+    ],
+    "parameters": [
+      "cost_per_shift[o,j]: cost per shift of assigning operator o to job j (only defined for eligible pairs)",
+      "job_required[j,p]: 1 if job j needs coverage in period p, 0 otherwise",
+      "max_jobs_per_shift[o]: maximum number of jobs operator o can handle in any single shift"
+    ],
+    "additional_notes": "The assign variable is 3-dimensional with domain filtering on the (operator, job) dimension — only certified (operator, job) pairs are included. The job_required parameter defines which (job, period) slots need to be covered.",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "eligible_operators": "eligible_operators.csv",
+      "operators": "operators.csv",
+      "job_requirements": "job_requirements.csv"
+    }
+  },
+  "ir_patterns": [
+    "binary variable",
+    "domain filter",
+    "sparse filter"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "operators",
+        "element": "op1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "operators",
+          "jobs",
+          "periods"
+        ],
+        "element": [
+          "op1",
+          "op2",
+          "op3",
+          "op4",
+          "op5",
+          "op6",
+          "job1",
+          "job2",
+          "job3",
+          "job4",
+          "job5",
+          "job6",
+          "job7",
+          "job8",
+          "shift1",
+          "shift2",
+          "shift3",
+          "shift4"
+        ]
+      }
+    },
+    "eligible_operators": {
+      "columns": {
+        "operator_id": "str",
+        "job_id": "str",
+        "cost_per_shift": "float"
+      },
+      "sample": {
+        "operator_id": "op1",
+        "job_id": "job1",
+        "cost_per_shift": 25.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "operator_id": [
+          "op1",
+          "op2",
+          "op3",
+          "op4",
+          "op5",
+          "op6"
+        ],
+        "job_id": [
+          "job1",
+          "job2",
+          "job3",
+          "job4",
+          "job5",
+          "job6",
+          "job7",
+          "job8"
+        ]
+      }
+    },
+    "operators": {
+      "columns": {
+        "operator_id": "str",
+        "max_jobs_per_shift": "int"
+      },
+      "sample": {
+        "operator_id": "op1",
+        "max_jobs_per_shift": 2
+      },
+      "optional": false,
+      "distinct_values": {
+        "operator_id": [
+          "op1",
+          "op2",
+          "op3",
+          "op4",
+          "op5",
+          "op6"
+        ],
+        "max_jobs_per_shift": [
+          "2"
+        ]
+      }
+    },
+    "job_requirements": {
+      "columns": {
+        "job_id": "str",
+        "period_id": "str",
+        "required": "int"
+      },
+      "sample": {
+        "job_id": "job1",
+        "period_id": "shift1",
+        "required": 1
+      },
+      "optional": false,
+      "distinct_values": {
+        "job_id": [
+          "job1",
+          "job2",
+          "job3",
+          "job4",
+          "job5",
+          "job6",
+          "job7",
+          "job8"
+        ],
+        "period_id": [
+          "shift1",
+          "shift2",
+          "shift3",
+          "shift4"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "AssignmentProblem",
+    "model_type": "Mixed Integer Program",
+    "sense": "minimize",
+    "sets": {
+      "Operators": {
+        "size": null,
+        "index_symbol": "o",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "operators",
+        "ordered": false
+      },
+      "Jobs": {
+        "size": null,
+        "index_symbol": "j",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "jobs",
+        "ordered": false
+      },
+      "Periods": {
+        "size": null,
+        "index_symbol": "p",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "periods",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "cost_per_shift": {
+        "domain": [
+          "Operators",
+          "Jobs"
+        ],
+        "type": "float",
+        "source": "eligible_operators.csv",
+        "column": "cost_per_shift",
+        "index_columns": [
+          "operator_id",
+          "job_id"
+        ],
+        "missing_default": "inf"
+      },
+      "job_required": {
+        "domain": [
+          "Jobs",
+          "Periods"
+        ],
+        "type": "float",
+        "source": "job_requirements.csv",
+        "column": "required",
+        "index_columns": [
+          "job_id",
+          "period_id"
+        ],
+        "missing_default": "zero"
+      },
+      "max_jobs_per_shift": {
+        "domain": [
+          "Operators"
+        ],
+        "type": "float",
+        "source": "operators.csv",
+        "column": "max_jobs_per_shift",
+        "index_columns": [
+          "operator_id"
+        ],
+        "missing_default": "inf"
+      }
+    },
+    "variables": {
+      "assign": {
+        "description": "1 if operator o is assigned to job j in period p (eligible pairs only), 0 otherwise",
+        "label": "operator_assignments",
+        "domain": [
+          "Operators",
+          "Jobs",
+          "Periods"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false,
+        "domain_filter": "cost_per_shift"
+      }
+    },
+    "constraints": {
+      "job_coverage": {
+        "domain": [
+          "Jobs",
+          "Periods"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Operators:o"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "assign",
+            "indices": [
+              "o",
+              "j",
+              "p"
+            ]
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "parameter",
+          "name": "job_required",
+          "indices": [
+            "j",
+            "p"
+          ]
+        },
+        "sparse_filter": "job_required"
+      },
+      "operator_workload": {
+        "domain": [
+          "Operators",
+          "Periods"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Jobs:j"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "assign",
+            "indices": [
+              "o",
+              "j",
+              "p"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "parameter",
+          "name": "max_jobs_per_shift",
+          "indices": [
+            "o"
+          ]
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Operators:o",
+          "Jobs:j",
+          "Periods:p"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "type": "parameter",
+            "name": "cost_per_shift",
+            "indices": [
+              "o",
+              "j"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "assign",
+            "indices": [
+              "o",
+              "j",
+              "p"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

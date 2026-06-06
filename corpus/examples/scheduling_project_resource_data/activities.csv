@@ -1,0 +1,7 @@
+activity_id,earliest_start,latest_start
+a1,w1,w3
+a2,w1,w2
+a3,w2,w4
+a4,w3,w5
+a5,w3,w6
+a6,w4,w6

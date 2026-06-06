@@ -1,0 +1,322 @@
+{
+  "problem": {
+    "title": "Call Center Shift Scheduling",
+    "description": "A call center must staff a set of daily shifts using a pool of available employees. Each shift requires a minimum number of workers on duty to handle expected call volume. Each employee has a known cost associated with working each particular shift — reflecting overtime rates, preferences, or seniority differentials. No employee should work more than a specified maximum number of shifts per week to comply with labor regulations. Determine the minimum-cost schedule that assigns employees to shifts such that all minimum staffing requirements are met and no employee exceeds their weekly shift limit.",
+    "problem_type": "integer_programming",
+    "objective": "minimize",
+    "objective_description": "Total labor cost across all employee-shift assignments where an employee is scheduled to work",
+    "constraints": [
+      {
+        "description": "For each shift, the total number of employees scheduled to work that shift must meet or exceed the minimum required staffing level"
+      },
+      {
+        "description": "For each employee, the total number of shifts they are scheduled to work must not exceed the maximum allowed shifts per week"
+      }
+    ],
+    "decision_variables": [
+      "work[e,s]: 1 if employee e is scheduled to work shift s, 0 otherwise (binary)"
+    ],
+    "parameters": [
+      "shift_cost[e,s]: cost of scheduling employee e to work shift s",
+      "min_coverage[s]: minimum number of employees required on shift s",
+      "max_shifts_per_employee: maximum number of shifts any employee may work per week"
+    ],
+    "additional_notes": "",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "shifts": "shifts.csv",
+      "shift_costs": "shift_costs.csv",
+      "policy": "policy.csv"
+    }
+  },
+  "ir_patterns": [
+    "binary variable",
+    "scalar parameter"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "employees",
+        "element": "emp_1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "employees",
+          "shifts"
+        ],
+        "element": [
+          "emp_1",
+          "emp_2",
+          "emp_3",
+          "emp_4",
+          "emp_5",
+          "emp_6",
+          "shift_mon_am",
+          "shift_mon_pm",
+          "shift_tue_am",
+          "shift_tue_pm",
+          "shift_wed_am",
+          "shift_wed_pm",
+          "shift_thu_am",
+          "shift_thu_pm",
+          "shift_fri_am",
+          "shift_fri_pm"
+        ]
+      }
+    },
+    "shifts": {
+      "columns": {
+        "id": "str",
+        "min_workers": "int"
+      },
+      "sample": {
+        "id": "shift_mon_am",
+        "min_workers": 3
+      },
+      "optional": false,
+      "distinct_values": {
+        "id": [
+          "shift_mon_am",
+          "shift_mon_pm",
+          "shift_tue_am",
+          "shift_tue_pm",
+          "shift_wed_am",
+          "shift_wed_pm",
+          "shift_thu_am",
+          "shift_thu_pm",
+          "shift_fri_am",
+          "shift_fri_pm"
+        ],
+        "min_workers": [
+          "2",
+          "3",
+          "4"
+        ]
+      }
+    },
+    "shift_costs": {
+      "columns": {
+        "employee_id": "str",
+        "shift_id": "str",
+        "cost": "float"
+      },
+      "sample": {
+        "employee_id": "emp_1",
+        "shift_id": "shift_mon_am",
+        "cost": 12.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "employee_id": [
+          "emp_1",
+          "emp_2",
+          "emp_3",
+          "emp_4",
+          "emp_5",
+          "emp_6"
+        ],
+        "shift_id": [
+          "shift_mon_am",
+          "shift_mon_pm",
+          "shift_tue_am",
+          "shift_tue_pm",
+          "shift_wed_am",
+          "shift_wed_pm",
+          "shift_thu_am",
+          "shift_thu_pm",
+          "shift_fri_am",
+          "shift_fri_pm"
+        ],
+        "cost": [
+          "10.0",
+          "11.0",
+          "12.0",
+          "13.0",
+          "14.0",
+          "15.0",
+          "16.0",
+          "18.0",
+          "20.0"
+        ]
+      }
+    },
+    "policy": {
+      "columns": {
+        "max_shifts": "int"
+      },
+      "sample": {
+        "max_shifts": 5
+      },
+      "optional": false,
+      "distinct_values": {
+        "max_shifts": [
+          "5"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "WorkforceScheduling",
+    "model_type": "Mixed Integer Program",
+    "sense": "minimize",
+    "sets": {
+      "Employees": {
+        "size": null,
+        "index_symbol": "e",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "employees",
+        "ordered": false
+      },
+      "Shifts": {
+        "size": null,
+        "index_symbol": "s",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "shifts",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "shift_cost": {
+        "domain": [
+          "Employees",
+          "Shifts"
+        ],
+        "type": "float",
+        "source": "shift_costs.csv",
+        "column": "cost",
+        "index_columns": [
+          "employee_id",
+          "shift_id"
+        ],
+        "missing_default": "inf"
+      },
+      "min_coverage": {
+        "domain": [
+          "Shifts"
+        ],
+        "type": "float",
+        "source": "shifts.csv",
+        "column": "min_workers",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "zero"
+      },
+      "max_shifts_per_employee": {
+        "domain": [],
+        "type": "float",
+        "source": "policy.csv",
+        "column": "max_shifts",
+        "index_columns": null,
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "work": {
+        "description": "1 if employee e is scheduled to work shift s, 0 otherwise",
+        "label": "shift_schedule",
+        "domain": [
+          "Employees",
+          "Shifts"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "shift_covered": {
+        "domain": [
+          "Shifts"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Employees:e"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "work",
+            "indices": [
+              "e",
+              "s"
+            ]
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "parameter",
+          "name": "min_coverage",
+          "indices": [
+            "s"
+          ]
+        }
+      },
+      "employee_limit": {
+        "domain": [
+          "Employees"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Shifts:s"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "work",
+            "indices": [
+              "e",
+              "s"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "parameter",
+          "name": "max_shifts_per_employee",
+          "indices": []
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Employees:e",
+          "Shifts:s"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "type": "parameter",
+            "name": "shift_cost",
+            "indices": [
+              "e",
+              "s"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "work",
+            "indices": [
+              "e",
+              "s"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

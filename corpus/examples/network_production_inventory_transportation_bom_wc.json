@@ -1,0 +1,1945 @@
+{
+  "problem": {
+    "title": "Multi-Period Production-Inventory-Distribution Network with BOM and Work Centers",
+    "description": "A manufacturer operates a three-tier distribution network — plants, warehouses, and retailers — over multiple time periods, producing multiple finished products. Each plant contains two types of work centers: component work centers (CompWCs) and finished-product work centers (FinWCs). Component work centers produce raw material components in-house; each has its own per-period capacity (total units across all components) and a per-unit production cost. Finished-product work centers assemble finished goods from components; each has its own per-period capacity (total units across all products) and a per-unit assembly cost. Each plant may have a different number of work centers of each type. Plants may also procure components from external suppliers at a per-unit purchase cost. Component inventory is held at the plant level between periods at a per-unit holding cost per period. Finished goods produced at a plant's work centers flow into the plant's finished-goods inventory before being shipped to warehouses. Finished goods inventory at each plant incurs a per-unit holding cost. Shipments from plants to warehouses travel over established lanes (a sparse arc set), each with a per-unit shipping cost and a per-period throughput capacity shared across all products. Warehouses hold finished goods inventory with a per-unit holding cost and a shared storage capacity. Warehouse-to-retailer shipments travel over another sparse arc set with per-unit costs and capacities. Each retailer has a known demand for each product each period that must be exactly fulfilled. The goal is to choose internal component production quantities at each work center, external component purchase quantities, production quantities at each finished-product work center, inter-tier shipments, and inventory levels to minimise total cost.",
+    "problem_type": "linear_programming",
+    "objective": "minimize",
+    "objective_description": "Total cost: external component procurement costs, internal component production costs at component work centers, component holding costs at plants, finished-goods assembly costs at finished-product work centers, finished-goods holding costs at plants and warehouses, and per-unit shipping costs on all plant-to-warehouse and warehouse-to-retailer arcs, summed across all products and periods",
+    "constraints": [
+      {
+        "description": "Component inventory balance for the first period at each plant: ending component inventory equals initial inventory plus internally produced components plus externally purchased components minus components consumed in production (BOM quantity times units produced at all finished-product work centers, summed over all finished products)"
+      },
+      {
+        "description": "Component inventory balance for subsequent periods: ending component inventory at each plant equals prior-period ending inventory plus internally produced plus externally purchased minus components consumed"
+      },
+      {
+        "description": "Finished-goods inventory balance for the first period at each plant: ending finished-goods inventory of each product equals initial inventory plus production at all finished-product work centers minus total shipments out to warehouses"
+      },
+      {
+        "description": "Finished-goods inventory balance for subsequent periods at each plant: ending inventory equals prior-period ending inventory plus production minus shipments out"
+      },
+      {
+        "description": "Warehouse inventory balance for the first period: ending inventory of each product at each warehouse equals initial inventory plus total inflow from plants minus total outflow to retailers"
+      },
+      {
+        "description": "Warehouse inventory balance for subsequent periods: ending inventory equals prior-period ending inventory plus inflow from plants minus outflow to retailers"
+      },
+      {
+        "description": "For each component work center in each period, total units of all components produced must not exceed the work center's per-period capacity"
+      },
+      {
+        "description": "For each finished-product work center in each period, total units of all products assembled must not exceed the work center's per-period capacity"
+      },
+      {
+        "description": "Total finished-goods inventory across all products at each warehouse at the end of each period must not exceed the warehouse's storage capacity"
+      },
+      {
+        "description": "For each retailer, product, and period, total inflow from all connected warehouses must exactly equal the retailer's demand"
+      },
+      {
+        "description": "For each plant-to-warehouse arc in each period, total flow across all products must not exceed the arc's per-period throughput capacity"
+      },
+      {
+        "description": "For each warehouse-to-retailer arc in each period, total flow across all products must not exceed the arc's per-period throughput capacity"
+      }
+    ],
+    "decision_variables": [
+      "comp_produce[i,cwc,c,t]: units of component c produced at component work center cwc in plant i in period t (continuous, non-negative, defined only for valid plant-cwc assignments)",
+      "comp_purchase[i,c,t]: units of component c purchased externally at plant i in period t (continuous, non-negative)",
+      "comp_inventory[i,c,t]: units of component c held at plant i at end of period t (continuous, non-negative)",
+      "produce[i,fwc,p,t]: units of finished product p assembled at finished-product work center fwc in plant i in period t (continuous, non-negative, defined only for valid plant-fwc assignments)",
+      "inventory_plant[i,p,t]: units of finished product p held at plant i at end of period t (continuous, non-negative)",
+      "inventory_wh[w,p,t]: units of finished product p held at warehouse w at end of period t (continuous, non-negative)",
+      "flow_pw[i,w,p,t]: units of product p shipped from plant i to warehouse w in period t (continuous, non-negative, defined only for valid arcs)",
+      "flow_wr[w,r,p,t]: units of product p shipped from warehouse w to retailer r in period t (continuous, non-negative, defined only for valid arcs)"
+    ],
+    "parameters": [
+      "bom[c,p]: units of component c required per unit of finished product p",
+      "comp_cost[c]: per-unit external procurement cost for component c",
+      "comp_hold_cost[c]: per-unit holding cost per period for component c at any plant",
+      "initial_comp_inv[i,c]: initial inventory of component c at plant i",
+      "cwc_capacity[i,cwc]: per-period capacity of component work center cwc at plant i (total component units across all types; defined only for valid plant-cwc assignments)",
+      "cwc_prod_cost[i,cwc]: per-unit production cost at component work center cwc in plant i (defined only for valid plant-cwc assignments)",
+      "fwc_capacity[i,fwc]: per-period capacity of finished-product work center fwc at plant i (total product units across all types; defined only for valid plant-fwc assignments)",
+      "fwc_prod_cost[i,fwc]: per-unit assembly cost at finished-product work center fwc in plant i (defined only for valid plant-fwc assignments)",
+      "hold_cost_plant[i]: per-unit holding cost per period for finished goods at plant i",
+      "initial_inv_plant[i,p]: initial inventory of finished product p at plant i",
+      "hold_cost_wh[w]: per-unit holding cost per period for finished goods at warehouse w",
+      "wh_capacity[w]: maximum total units across all products storable at warehouse w per period",
+      "initial_inv_wh[w,p]: initial inventory of finished product p at warehouse w",
+      "demand[r,p,t]: units of product p required by retailer r in period t",
+      "cost_pw[i,w]: per-unit shipping cost from plant i to warehouse w (defined only for valid arcs)",
+      "cost_wr[w,r]: per-unit shipping cost from warehouse w to retailer r (defined only for valid arcs)",
+      "cap_pw[i,w]: per-period arc capacity from plant i to warehouse w (defined only for valid arcs)",
+      "cap_wr[w,r]: per-period arc capacity from warehouse w to retailer r (defined only for valid arcs)"
+    ],
+    "additional_notes": "Each plant may have multiple work centers of each type. A component work center cwc belongs to plant i if an entry (i, cwc) exists in the cwc_capacity table; similarly for finished-product work centers. The BOM table is sparse: only component-product pairs with non-zero consumption need to appear. Arc parameters are defined only for established shipping lanes. Component procurement is unconstrained in quantity; the model optimises the split between internal production (bounded by work-center capacity) and external purchase.",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "plants": "plants.csv",
+      "components": "components.csv",
+      "bom": "bom.csv",
+      "comp_init_inv": "comp_init_inv.csv",
+      "plant_init_inv": "plant_init_inv.csv",
+      "comp_wcs": "comp_wcs.csv",
+      "fin_wcs": "fin_wcs.csv",
+      "warehouses": "warehouses.csv",
+      "wh_init_inv": "wh_init_inv.csv",
+      "demand_data": "demand_data.csv",
+      "arc_costs_pw": "arc_costs_pw.csv",
+      "arc_costs_wr": "arc_costs_wr.csv",
+      "arc_caps_pw": "arc_caps_pw.csv",
+      "arc_caps_wr": "arc_caps_wr.csv"
+    }
+  },
+  "ir_patterns": [
+    "domain filter",
+    "sparse filter",
+    "ordered set",
+    "temporal lag",
+    "init constraint",
+    "BOM parameter"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "plants",
+        "element": "p1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "plants",
+          "warehouses",
+          "retailers",
+          "periods",
+          "products",
+          "components",
+          "comp_wcs",
+          "fin_wcs"
+        ],
+        "element": [
+          "p1",
+          "p2",
+          "p3",
+          "w1",
+          "w2",
+          "w3",
+          "r1",
+          "r2",
+          "r3",
+          "r4",
+          "t1",
+          "t2",
+          "t3",
+          "prod_A",
+          "prod_B",
+          "comp_1",
+          "comp_2",
+          "comp_3",
+          "cwc1",
+          "cwc2",
+          "cwc3",
+          "cwc4",
+          "fwc1",
+          "fwc2",
+          "fwc3",
+          "fwc4"
+        ]
+      }
+    },
+    "plants": {
+      "columns": {
+        "id": "str",
+        "hold_cost": "float"
+      },
+      "sample": {
+        "id": "p1",
+        "hold_cost": 0.5
+      },
+      "optional": false,
+      "distinct_values": {
+        "id": [
+          "p1",
+          "p2",
+          "p3"
+        ],
+        "hold_cost": [
+          "0.4",
+          "0.5",
+          "0.6"
+        ]
+      }
+    },
+    "components": {
+      "columns": {
+        "id": "str",
+        "comp_cost": "float",
+        "comp_hold_cost": "float"
+      },
+      "sample": {
+        "id": "comp_1",
+        "comp_cost": 3.0,
+        "comp_hold_cost": 0.2
+      },
+      "optional": false,
+      "distinct_values": {
+        "id": [
+          "comp_1",
+          "comp_2",
+          "comp_3"
+        ],
+        "comp_cost": [
+          "2.0",
+          "3.0",
+          "4.0"
+        ],
+        "comp_hold_cost": [
+          "0.15",
+          "0.20",
+          "0.25"
+        ]
+      }
+    },
+    "bom": {
+      "columns": {
+        "component_id": "str",
+        "product_id": "str",
+        "quantity": "float"
+      },
+      "sample": {
+        "component_id": "comp_1",
+        "product_id": "prod_A",
+        "quantity": 2.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "component_id": [
+          "comp_1",
+          "comp_2",
+          "comp_3"
+        ],
+        "product_id": [
+          "prod_A",
+          "prod_B"
+        ],
+        "quantity": [
+          "1.0",
+          "2.0"
+        ]
+      }
+    },
+    "comp_init_inv": {
+      "columns": {
+        "plant_id": "str",
+        "component_id": "str",
+        "initial_inventory": "float"
+      },
+      "sample": {
+        "plant_id": "p1",
+        "component_id": "comp_1",
+        "initial_inventory": 50.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "plant_id": [
+          "p1",
+          "p2",
+          "p3"
+        ],
+        "component_id": [
+          "comp_1",
+          "comp_2",
+          "comp_3"
+        ],
+        "initial_inventory": [
+          "20.0",
+          "25.0",
+          "30.0",
+          "40.0",
+          "50.0"
+        ]
+      }
+    },
+    "plant_init_inv": {
+      "columns": {
+        "plant_id": "str",
+        "product_id": "str",
+        "initial_inventory": "float"
+      },
+      "sample": {
+        "plant_id": "p1",
+        "product_id": "prod_A",
+        "initial_inventory": 0.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "plant_id": [
+          "p1",
+          "p2",
+          "p3"
+        ],
+        "product_id": [
+          "prod_A",
+          "prod_B"
+        ],
+        "initial_inventory": [
+          "0.0"
+        ]
+      }
+    },
+    "comp_wcs": {
+      "columns": {
+        "plant_id": "str",
+        "cwc_id": "str",
+        "capacity": "float",
+        "prod_cost_per_unit": "float"
+      },
+      "sample": {
+        "plant_id": "p1",
+        "cwc_id": "cwc1",
+        "capacity": 80.0,
+        "prod_cost_per_unit": 0.5
+      },
+      "optional": false,
+      "distinct_values": {
+        "plant_id": [
+          "p1",
+          "p2",
+          "p3"
+        ],
+        "cwc_id": [
+          "cwc1",
+          "cwc2",
+          "cwc3",
+          "cwc4"
+        ],
+        "capacity": [
+          "60.0",
+          "70.0",
+          "80.0",
+          "100.0"
+        ],
+        "prod_cost_per_unit": [
+          "0.4",
+          "0.5",
+          "0.6"
+        ]
+      }
+    },
+    "fin_wcs": {
+      "columns": {
+        "plant_id": "str",
+        "fwc_id": "str",
+        "capacity": "float",
+        "prod_cost_per_unit": "float"
+      },
+      "sample": {
+        "plant_id": "p1",
+        "fwc_id": "fwc1",
+        "capacity": 120.0,
+        "prod_cost_per_unit": 1.5
+      },
+      "optional": false,
+      "distinct_values": {
+        "plant_id": [
+          "p1",
+          "p2",
+          "p3"
+        ],
+        "fwc_id": [
+          "fwc1",
+          "fwc2",
+          "fwc3",
+          "fwc4"
+        ],
+        "capacity": [
+          "80.0",
+          "90.0",
+          "100.0",
+          "120.0"
+        ],
+        "prod_cost_per_unit": [
+          "1.5",
+          "1.8",
+          "2.0",
+          "2.2"
+        ]
+      }
+    },
+    "warehouses": {
+      "columns": {
+        "id": "str",
+        "hold_cost": "float",
+        "capacity": "float"
+      },
+      "sample": {
+        "id": "w1",
+        "hold_cost": 0.3,
+        "capacity": 150.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "id": [
+          "w1",
+          "w2",
+          "w3"
+        ],
+        "hold_cost": [
+          "0.25",
+          "0.30",
+          "0.35"
+        ],
+        "capacity": [
+          "120.0",
+          "150.0",
+          "200.0"
+        ]
+      }
+    },
+    "wh_init_inv": {
+      "columns": {
+        "warehouse_id": "str",
+        "product_id": "str",
+        "initial_inventory": "float"
+      },
+      "sample": {
+        "warehouse_id": "w1",
+        "product_id": "prod_A",
+        "initial_inventory": 15.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "warehouse_id": [
+          "w1",
+          "w2",
+          "w3"
+        ],
+        "product_id": [
+          "prod_A",
+          "prod_B"
+        ],
+        "initial_inventory": [
+          "8.0",
+          "10.0",
+          "12.0",
+          "15.0"
+        ]
+      }
+    },
+    "demand_data": {
+      "columns": {
+        "retailer_id": "str",
+        "product_id": "str",
+        "period_id": "str",
+        "demand": "float"
+      },
+      "sample": {
+        "retailer_id": "r1",
+        "product_id": "prod_A",
+        "period_id": "t1",
+        "demand": 25.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "retailer_id": [
+          "r1",
+          "r2",
+          "r3",
+          "r4"
+        ],
+        "product_id": [
+          "prod_A",
+          "prod_B"
+        ],
+        "period_id": [
+          "t1",
+          "t2",
+          "t3"
+        ],
+        "demand": [
+          "20.0",
+          "25.0",
+          "30.0",
+          "35.0"
+        ]
+      }
+    },
+    "arc_costs_pw": {
+      "columns": {
+        "plant_id": "str",
+        "warehouse_id": "str",
+        "cost_per_unit": "float"
+      },
+      "sample": {
+        "plant_id": "p1",
+        "warehouse_id": "w1",
+        "cost_per_unit": 2.5
+      },
+      "optional": false,
+      "distinct_values": {
+        "plant_id": [
+          "p1",
+          "p2",
+          "p3"
+        ],
+        "warehouse_id": [
+          "w1",
+          "w2",
+          "w3"
+        ],
+        "cost_per_unit": [
+          "2.0",
+          "2.5",
+          "3.0",
+          "3.5"
+        ]
+      }
+    },
+    "arc_costs_wr": {
+      "columns": {
+        "warehouse_id": "str",
+        "retailer_id": "str",
+        "cost_per_unit": "float"
+      },
+      "sample": {
+        "warehouse_id": "w1",
+        "retailer_id": "r1",
+        "cost_per_unit": 1.5
+      },
+      "optional": false,
+      "distinct_values": {
+        "warehouse_id": [
+          "w1",
+          "w2",
+          "w3"
+        ],
+        "retailer_id": [
+          "r1",
+          "r2",
+          "r3",
+          "r4"
+        ],
+        "cost_per_unit": [
+          "1.0",
+          "1.5",
+          "2.0",
+          "2.5"
+        ]
+      }
+    },
+    "arc_caps_pw": {
+      "columns": {
+        "plant_id": "str",
+        "warehouse_id": "str",
+        "capacity": "float"
+      },
+      "sample": {
+        "plant_id": "p1",
+        "warehouse_id": "w1",
+        "capacity": 120.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "plant_id": [
+          "p1",
+          "p2",
+          "p3"
+        ],
+        "warehouse_id": [
+          "w1",
+          "w2",
+          "w3"
+        ],
+        "capacity": [
+          "80.0",
+          "90.0",
+          "100.0",
+          "110.0",
+          "120.0"
+        ]
+      }
+    },
+    "arc_caps_wr": {
+      "columns": {
+        "warehouse_id": "str",
+        "retailer_id": "str",
+        "capacity": "float"
+      },
+      "sample": {
+        "warehouse_id": "w1",
+        "retailer_id": "r1",
+        "capacity": 80.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "warehouse_id": [
+          "w1",
+          "w2",
+          "w3"
+        ],
+        "retailer_id": [
+          "r1",
+          "r2",
+          "r3",
+          "r4"
+        ],
+        "capacity": [
+          "60.0",
+          "70.0",
+          "80.0",
+          "90.0"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "ProductionInventoryNetworkBOMWorkCenters",
+    "model_type": "Linear Program",
+    "sense": "minimize",
+    "sets": {
+      "Plants": {
+        "size": null,
+        "index_symbol": "i",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "plants",
+        "ordered": false
+      },
+      "Warehouses": {
+        "size": null,
+        "index_symbol": "w",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "warehouses",
+        "ordered": false
+      },
+      "Retailers": {
+        "size": null,
+        "index_symbol": "r",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "retailers",
+        "ordered": false
+      },
+      "Periods": {
+        "size": null,
+        "index_symbol": "t",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "periods",
+        "ordered": true
+      },
+      "Products": {
+        "size": null,
+        "index_symbol": "p",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "products",
+        "ordered": false
+      },
+      "Components": {
+        "size": null,
+        "index_symbol": "c",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "components",
+        "ordered": false
+      },
+      "CompWCs": {
+        "size": null,
+        "index_symbol": "cwc",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "comp_wcs",
+        "ordered": false
+      },
+      "FinWCs": {
+        "size": null,
+        "index_symbol": "fwc",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "fin_wcs",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "bom": {
+        "domain": [
+          "Components",
+          "Products"
+        ],
+        "type": "float",
+        "source": "bom.csv",
+        "column": "quantity",
+        "index_columns": [
+          "component_id",
+          "product_id"
+        ],
+        "missing_default": "zero"
+      },
+      "comp_cost": {
+        "domain": [
+          "Components"
+        ],
+        "type": "float",
+        "source": "components.csv",
+        "column": "comp_cost",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "inf"
+      },
+      "comp_hold_cost": {
+        "domain": [
+          "Components"
+        ],
+        "type": "float",
+        "source": "components.csv",
+        "column": "comp_hold_cost",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "inf"
+      },
+      "initial_comp_inv": {
+        "domain": [
+          "Plants",
+          "Components"
+        ],
+        "type": "float",
+        "source": "comp_init_inv.csv",
+        "column": "initial_inventory",
+        "index_columns": [
+          "plant_id",
+          "component_id"
+        ],
+        "missing_default": "zero"
+      },
+      "cwc_capacity": {
+        "domain": [
+          "Plants",
+          "CompWCs"
+        ],
+        "type": "float",
+        "source": "comp_wcs.csv",
+        "column": "capacity",
+        "index_columns": [
+          "plant_id",
+          "cwc_id"
+        ],
+        "missing_default": "inf"
+      },
+      "cwc_prod_cost": {
+        "domain": [
+          "Plants",
+          "CompWCs"
+        ],
+        "type": "float",
+        "source": "comp_wcs.csv",
+        "column": "prod_cost_per_unit",
+        "index_columns": [
+          "plant_id",
+          "cwc_id"
+        ],
+        "missing_default": "inf"
+      },
+      "fwc_capacity": {
+        "domain": [
+          "Plants",
+          "FinWCs"
+        ],
+        "type": "float",
+        "source": "fin_wcs.csv",
+        "column": "capacity",
+        "index_columns": [
+          "plant_id",
+          "fwc_id"
+        ],
+        "missing_default": "inf"
+      },
+      "fwc_prod_cost": {
+        "domain": [
+          "Plants",
+          "FinWCs"
+        ],
+        "type": "float",
+        "source": "fin_wcs.csv",
+        "column": "prod_cost_per_unit",
+        "index_columns": [
+          "plant_id",
+          "fwc_id"
+        ],
+        "missing_default": "inf"
+      },
+      "hold_cost_plant": {
+        "domain": [
+          "Plants"
+        ],
+        "type": "float",
+        "source": "plants.csv",
+        "column": "hold_cost",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "inf"
+      },
+      "initial_inv_plant": {
+        "domain": [
+          "Plants",
+          "Products"
+        ],
+        "type": "float",
+        "source": "plant_init_inv.csv",
+        "column": "initial_inventory",
+        "index_columns": [
+          "plant_id",
+          "product_id"
+        ],
+        "missing_default": "zero"
+      },
+      "hold_cost_wh": {
+        "domain": [
+          "Warehouses"
+        ],
+        "type": "float",
+        "source": "warehouses.csv",
+        "column": "hold_cost",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "inf"
+      },
+      "wh_capacity": {
+        "domain": [
+          "Warehouses"
+        ],
+        "type": "float",
+        "source": "warehouses.csv",
+        "column": "capacity",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "inf"
+      },
+      "initial_inv_wh": {
+        "domain": [
+          "Warehouses",
+          "Products"
+        ],
+        "type": "float",
+        "source": "wh_init_inv.csv",
+        "column": "initial_inventory",
+        "index_columns": [
+          "warehouse_id",
+          "product_id"
+        ],
+        "missing_default": "zero"
+      },
+      "demand": {
+        "domain": [
+          "Retailers",
+          "Products",
+          "Periods"
+        ],
+        "type": "float",
+        "source": "demand_data.csv",
+        "column": "demand",
+        "index_columns": [
+          "retailer_id",
+          "product_id",
+          "period_id"
+        ],
+        "missing_default": "zero"
+      },
+      "cost_pw": {
+        "domain": [
+          "Plants",
+          "Warehouses"
+        ],
+        "type": "float",
+        "source": "arc_costs_pw.csv",
+        "column": "cost_per_unit",
+        "index_columns": [
+          "plant_id",
+          "warehouse_id"
+        ],
+        "missing_default": "inf"
+      },
+      "cost_wr": {
+        "domain": [
+          "Warehouses",
+          "Retailers"
+        ],
+        "type": "float",
+        "source": "arc_costs_wr.csv",
+        "column": "cost_per_unit",
+        "index_columns": [
+          "warehouse_id",
+          "retailer_id"
+        ],
+        "missing_default": "inf"
+      },
+      "cap_pw": {
+        "domain": [
+          "Plants",
+          "Warehouses"
+        ],
+        "type": "float",
+        "source": "arc_caps_pw.csv",
+        "column": "capacity",
+        "index_columns": [
+          "plant_id",
+          "warehouse_id"
+        ],
+        "missing_default": "inf"
+      },
+      "cap_wr": {
+        "domain": [
+          "Warehouses",
+          "Retailers"
+        ],
+        "type": "float",
+        "source": "arc_caps_wr.csv",
+        "column": "capacity",
+        "index_columns": [
+          "warehouse_id",
+          "retailer_id"
+        ],
+        "missing_default": "inf"
+      }
+    },
+    "variables": {
+      "comp_produce": {
+        "description": "Units of component c produced at component work center cwc in plant i in period t",
+        "label": "component_production",
+        "domain": [
+          "Plants",
+          "CompWCs",
+          "Components",
+          "Periods"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false,
+        "domain_filter": "cwc_capacity"
+      },
+      "comp_purchase": {
+        "description": "Units of component c purchased externally at plant i in period t",
+        "label": "component_purchases",
+        "domain": [
+          "Plants",
+          "Components",
+          "Periods"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "comp_inventory": {
+        "description": "Units of component c held at plant i at end of period t",
+        "label": "component_inventory",
+        "domain": [
+          "Plants",
+          "Components",
+          "Periods"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "produce": {
+        "description": "Units of finished product p assembled at finished-product work center fwc in plant i in period t",
+        "label": "production_quantities",
+        "domain": [
+          "Plants",
+          "FinWCs",
+          "Products",
+          "Periods"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false,
+        "domain_filter": "fwc_capacity"
+      },
+      "inventory_plant": {
+        "description": "Units of finished product p held at plant i at end of period t",
+        "label": "plant_inventory",
+        "domain": [
+          "Plants",
+          "Products",
+          "Periods"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "inventory_wh": {
+        "description": "Units of finished product p held at warehouse w at end of period t",
+        "label": "warehouse_inventory",
+        "domain": [
+          "Warehouses",
+          "Products",
+          "Periods"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "flow_pw": {
+        "description": "Units of product p shipped from plant i to warehouse w in period t along a valid arc",
+        "label": "plant_to_warehouse_flow",
+        "domain": [
+          "Plants",
+          "Warehouses",
+          "Products",
+          "Periods"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false,
+        "domain_filter": "cost_pw"
+      },
+      "flow_wr": {
+        "description": "Units of product p shipped from warehouse w to retailer r in period t along a valid arc",
+        "label": "warehouse_to_retailer_flow",
+        "domain": [
+          "Warehouses",
+          "Retailers",
+          "Products",
+          "Periods"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false,
+        "domain_filter": "cost_wr"
+      }
+    },
+    "constraints": {
+      "comp_inv_balance_init": {
+        "domain": [
+          "Plants",
+          "Components"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "subtract",
+            "left": {
+              "operation": "sum",
+              "left": {
+                "type": "variable",
+                "name": "comp_inventory",
+                "indices": [
+                  "i",
+                  "c",
+                  "Periods[0]"
+                ]
+              },
+              "right": {
+                "operation": "indexed_sum",
+                "over": [
+                  "FinWCs:fwc",
+                  "Products:p"
+                ],
+                "body": {
+                  "operation": "multiply",
+                  "left": {
+                    "type": "parameter",
+                    "name": "bom",
+                    "indices": [
+                      "c",
+                      "p"
+                    ]
+                  },
+                  "right": {
+                    "type": "variable",
+                    "name": "produce",
+                    "indices": [
+                      "i",
+                      "fwc",
+                      "p",
+                      "Periods[0]"
+                    ]
+                  }
+                }
+              }
+            },
+            "right": {
+              "operation": "indexed_sum",
+              "over": [
+                "CompWCs:cwc"
+              ],
+              "body": {
+                "type": "variable",
+                "name": "comp_produce",
+                "indices": [
+                  "i",
+                  "cwc",
+                  "c",
+                  "Periods[0]"
+                ]
+              }
+            }
+          },
+          "right": {
+            "type": "variable",
+            "name": "comp_purchase",
+            "indices": [
+              "i",
+              "c",
+              "Periods[0]"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "parameter",
+          "name": "initial_comp_inv",
+          "indices": [
+            "i",
+            "c"
+          ]
+        }
+      },
+      "comp_inv_balance": {
+        "domain": [
+          "Plants",
+          "Components",
+          "Periods"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "subtract",
+            "left": {
+              "operation": "sum",
+              "left": {
+                "operation": "subtract",
+                "left": {
+                  "type": "variable",
+                  "name": "comp_inventory",
+                  "indices": [
+                    "i",
+                    "c",
+                    "t"
+                  ]
+                },
+                "right": {
+                  "type": "variable",
+                  "name": "comp_inventory",
+                  "indices": [
+                    "i",
+                    "c",
+                    "t"
+                  ],
+                  "lag": -1
+                }
+              },
+              "right": {
+                "operation": "indexed_sum",
+                "over": [
+                  "FinWCs:fwc",
+                  "Products:p"
+                ],
+                "body": {
+                  "operation": "multiply",
+                  "left": {
+                    "type": "parameter",
+                    "name": "bom",
+                    "indices": [
+                      "c",
+                      "p"
+                    ]
+                  },
+                  "right": {
+                    "type": "variable",
+                    "name": "produce",
+                    "indices": [
+                      "i",
+                      "fwc",
+                      "p",
+                      "t"
+                    ]
+                  }
+                }
+              }
+            },
+            "right": {
+              "operation": "indexed_sum",
+              "over": [
+                "CompWCs:cwc"
+              ],
+              "body": {
+                "type": "variable",
+                "name": "comp_produce",
+                "indices": [
+                  "i",
+                  "cwc",
+                  "c",
+                  "t"
+                ]
+              }
+            }
+          },
+          "right": {
+            "type": "variable",
+            "name": "comp_purchase",
+            "indices": [
+              "i",
+              "c",
+              "t"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "plant_inv_balance_init": {
+        "domain": [
+          "Plants",
+          "Products"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "inventory_plant",
+              "indices": [
+                "i",
+                "p",
+                "Periods[0]"
+              ]
+            },
+            "right": {
+              "operation": "indexed_sum",
+              "over": [
+                "Warehouses:w"
+              ],
+              "body": {
+                "type": "variable",
+                "name": "flow_pw",
+                "indices": [
+                  "i",
+                  "w",
+                  "p",
+                  "Periods[0]"
+                ]
+              }
+            }
+          },
+          "right": {
+            "operation": "indexed_sum",
+            "over": [
+              "FinWCs:fwc"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "produce",
+              "indices": [
+                "i",
+                "fwc",
+                "p",
+                "Periods[0]"
+              ]
+            }
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "parameter",
+          "name": "initial_inv_plant",
+          "indices": [
+            "i",
+            "p"
+          ]
+        }
+      },
+      "plant_inv_balance": {
+        "domain": [
+          "Plants",
+          "Products",
+          "Periods"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "operation": "subtract",
+              "left": {
+                "type": "variable",
+                "name": "inventory_plant",
+                "indices": [
+                  "i",
+                  "p",
+                  "t"
+                ]
+              },
+              "right": {
+                "type": "variable",
+                "name": "inventory_plant",
+                "indices": [
+                  "i",
+                  "p",
+                  "t"
+                ],
+                "lag": -1
+              }
+            },
+            "right": {
+              "operation": "indexed_sum",
+              "over": [
+                "Warehouses:w"
+              ],
+              "body": {
+                "type": "variable",
+                "name": "flow_pw",
+                "indices": [
+                  "i",
+                  "w",
+                  "p",
+                  "t"
+                ]
+              }
+            }
+          },
+          "right": {
+            "operation": "indexed_sum",
+            "over": [
+              "FinWCs:fwc"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "produce",
+              "indices": [
+                "i",
+                "fwc",
+                "p",
+                "t"
+              ]
+            }
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "wh_inv_balance_init": {
+        "domain": [
+          "Warehouses",
+          "Products"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "inventory_wh",
+              "indices": [
+                "w",
+                "p",
+                "Periods[0]"
+              ]
+            },
+            "right": {
+              "operation": "indexed_sum",
+              "over": [
+                "Retailers:r"
+              ],
+              "body": {
+                "type": "variable",
+                "name": "flow_wr",
+                "indices": [
+                  "w",
+                  "r",
+                  "p",
+                  "Periods[0]"
+                ]
+              }
+            }
+          },
+          "right": {
+            "operation": "indexed_sum",
+            "over": [
+              "Plants:i"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "flow_pw",
+              "indices": [
+                "i",
+                "w",
+                "p",
+                "Periods[0]"
+              ]
+            }
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "parameter",
+          "name": "initial_inv_wh",
+          "indices": [
+            "w",
+            "p"
+          ]
+        }
+      },
+      "wh_inv_balance": {
+        "domain": [
+          "Warehouses",
+          "Products",
+          "Periods"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "operation": "subtract",
+              "left": {
+                "type": "variable",
+                "name": "inventory_wh",
+                "indices": [
+                  "w",
+                  "p",
+                  "t"
+                ]
+              },
+              "right": {
+                "type": "variable",
+                "name": "inventory_wh",
+                "indices": [
+                  "w",
+                  "p",
+                  "t"
+                ],
+                "lag": -1
+              }
+            },
+            "right": {
+              "operation": "indexed_sum",
+              "over": [
+                "Retailers:r"
+              ],
+              "body": {
+                "type": "variable",
+                "name": "flow_wr",
+                "indices": [
+                  "w",
+                  "r",
+                  "p",
+                  "t"
+                ]
+              }
+            }
+          },
+          "right": {
+            "operation": "indexed_sum",
+            "over": [
+              "Plants:i"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "flow_pw",
+              "indices": [
+                "i",
+                "w",
+                "p",
+                "t"
+              ]
+            }
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "comp_wc_cap_limit": {
+        "domain": [
+          "Plants",
+          "CompWCs",
+          "Periods"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Components:c"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "comp_produce",
+            "indices": [
+              "i",
+              "cwc",
+              "c",
+              "t"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "parameter",
+          "name": "cwc_capacity",
+          "indices": [
+            "i",
+            "cwc"
+          ]
+        },
+        "sparse_filter": "cwc_capacity"
+      },
+      "fin_wc_cap_limit": {
+        "domain": [
+          "Plants",
+          "FinWCs",
+          "Periods"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Products:p"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "produce",
+            "indices": [
+              "i",
+              "fwc",
+              "p",
+              "t"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "parameter",
+          "name": "fwc_capacity",
+          "indices": [
+            "i",
+            "fwc"
+          ]
+        },
+        "sparse_filter": "fwc_capacity"
+      },
+      "wh_cap_limit": {
+        "domain": [
+          "Warehouses",
+          "Periods"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Products:p"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "inventory_wh",
+            "indices": [
+              "w",
+              "p",
+              "t"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "parameter",
+          "name": "wh_capacity",
+          "indices": [
+            "w"
+          ]
+        }
+      },
+      "demand_satisfaction": {
+        "domain": [
+          "Retailers",
+          "Products",
+          "Periods"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Warehouses:w"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "flow_wr",
+            "indices": [
+              "w",
+              "r",
+              "p",
+              "t"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "parameter",
+          "name": "demand",
+          "indices": [
+            "r",
+            "p",
+            "t"
+          ]
+        }
+      },
+      "arc_cap_pw": {
+        "domain": [
+          "Plants",
+          "Warehouses",
+          "Periods"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Products:p"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "flow_pw",
+            "indices": [
+              "i",
+              "w",
+              "p",
+              "t"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "parameter",
+          "name": "cap_pw",
+          "indices": [
+            "i",
+            "w"
+          ]
+        },
+        "sparse_filter": "cap_pw"
+      },
+      "arc_cap_wr": {
+        "domain": [
+          "Warehouses",
+          "Retailers",
+          "Periods"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Products:p"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "flow_wr",
+            "indices": [
+              "w",
+              "r",
+              "p",
+              "t"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "parameter",
+          "name": "cap_wr",
+          "indices": [
+            "w",
+            "r"
+          ]
+        },
+        "sparse_filter": "cap_wr"
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "sum",
+        "left": {
+          "operation": "sum",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "operation": "sum",
+              "left": {
+                "operation": "sum",
+                "left": {
+                  "operation": "sum",
+                  "left": {
+                    "operation": "sum",
+                    "left": {
+                      "operation": "indexed_sum",
+                      "over": [
+                        "Plants:i",
+                        "Components:c",
+                        "Periods:t"
+                      ],
+                      "body": {
+                        "operation": "multiply",
+                        "left": {
+                          "type": "parameter",
+                          "name": "comp_cost",
+                          "indices": [
+                            "c"
+                          ]
+                        },
+                        "right": {
+                          "type": "variable",
+                          "name": "comp_purchase",
+                          "indices": [
+                            "i",
+                            "c",
+                            "t"
+                          ]
+                        }
+                      }
+                    },
+                    "right": {
+                      "operation": "indexed_sum",
+                      "over": [
+                        "Plants:i",
+                        "CompWCs:cwc",
+                        "Components:c",
+                        "Periods:t"
+                      ],
+                      "body": {
+                        "operation": "multiply",
+                        "left": {
+                          "type": "parameter",
+                          "name": "cwc_prod_cost",
+                          "indices": [
+                            "i",
+                            "cwc"
+                          ]
+                        },
+                        "right": {
+                          "type": "variable",
+                          "name": "comp_produce",
+                          "indices": [
+                            "i",
+                            "cwc",
+                            "c",
+                            "t"
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  "right": {
+                    "operation": "indexed_sum",
+                    "over": [
+                      "Plants:i",
+                      "Components:c",
+                      "Periods:t"
+                    ],
+                    "body": {
+                      "operation": "multiply",
+                      "left": {
+                        "type": "parameter",
+                        "name": "comp_hold_cost",
+                        "indices": [
+                          "c"
+                        ]
+                      },
+                      "right": {
+                        "type": "variable",
+                        "name": "comp_inventory",
+                        "indices": [
+                          "i",
+                          "c",
+                          "t"
+                        ]
+                      }
+                    }
+                  }
+                },
+                "right": {
+                  "operation": "indexed_sum",
+                  "over": [
+                    "Plants:i",
+                    "FinWCs:fwc",
+                    "Products:p",
+                    "Periods:t"
+                  ],
+                  "body": {
+                    "operation": "multiply",
+                    "left": {
+                      "type": "parameter",
+                      "name": "fwc_prod_cost",
+                      "indices": [
+                        "i",
+                        "fwc"
+                      ]
+                    },
+                    "right": {
+                      "type": "variable",
+                      "name": "produce",
+                      "indices": [
+                        "i",
+                        "fwc",
+                        "p",
+                        "t"
+                      ]
+                    }
+                  }
+                }
+              },
+              "right": {
+                "operation": "indexed_sum",
+                "over": [
+                  "Plants:i",
+                  "Products:p",
+                  "Periods:t"
+                ],
+                "body": {
+                  "operation": "multiply",
+                  "left": {
+                    "type": "parameter",
+                    "name": "hold_cost_plant",
+                    "indices": [
+                      "i"
+                    ]
+                  },
+                  "right": {
+                    "type": "variable",
+                    "name": "inventory_plant",
+                    "indices": [
+                      "i",
+                      "p",
+                      "t"
+                    ]
+                  }
+                }
+              }
+            },
+            "right": {
+              "operation": "indexed_sum",
+              "over": [
+                "Warehouses:w",
+                "Products:p",
+                "Periods:t"
+              ],
+              "body": {
+                "operation": "multiply",
+                "left": {
+                  "type": "parameter",
+                  "name": "hold_cost_wh",
+                  "indices": [
+                    "w"
+                  ]
+                },
+                "right": {
+                  "type": "variable",
+                  "name": "inventory_wh",
+                  "indices": [
+                    "w",
+                    "p",
+                    "t"
+                  ]
+                }
+              }
+            }
+          },
+          "right": {
+            "operation": "indexed_sum",
+            "over": [
+              "Plants:i",
+              "Warehouses:w",
+              "Products:p",
+              "Periods:t"
+            ],
+            "body": {
+              "operation": "multiply",
+              "left": {
+                "type": "parameter",
+                "name": "cost_pw",
+                "indices": [
+                  "i",
+                  "w"
+                ]
+              },
+              "right": {
+                "type": "variable",
+                "name": "flow_pw",
+                "indices": [
+                  "i",
+                  "w",
+                  "p",
+                  "t"
+                ]
+              }
+            }
+          }
+        },
+        "right": {
+          "operation": "indexed_sum",
+          "over": [
+            "Warehouses:w",
+            "Retailers:r",
+            "Products:p",
+            "Periods:t"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "cost_wr",
+              "indices": [
+                "w",
+                "r"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "flow_wr",
+              "indices": [
+                "w",
+                "r",
+                "p",
+                "t"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

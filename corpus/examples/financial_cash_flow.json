@@ -1,0 +1,617 @@
+{
+  "problem": {
+    "title": "Financial Cash Flow Management",
+    "description": "A company plans borrowing and investment decisions over 8 months. Each month has a known net operating cash flow. The company can borrow short-term at an interest rate or invest surplus cash at a return rate. It must maintain a minimum cash balance each month and stay within a maximum loan limit. Minimize total net interest cost (borrowing cost minus investment return).",
+    "problem_type": "linear_programming",
+    "objective": "minimize",
+    "objective_description": "Total net interest cost = sum over months of (borrow_rate * loan_balance - invest_rate * invest_balance). Investment balance is capped at max_invest to keep the model bounded.",
+    "constraints": [
+      {
+        "description": "loan_balance_update_init: first-month loan balance equals new borrowing minus repayment"
+      },
+      {
+        "description": "loan_balance_update: each month's loan balance equals previous balance plus new borrowing minus repayment (temporal lag)"
+      },
+      {
+        "description": "invest_balance_update_init: first-month investment balance equals new investment minus withdrawals"
+      },
+      {
+        "description": "invest_balance_update: each month's investment balance equals previous balance plus new investment minus withdrawals (temporal lag)"
+      },
+      {
+        "description": "cash_flow_balance: operating cash flow plus borrowing minus repayment plus withdrawals minus investment must meet minimum cash requirement"
+      },
+      {
+        "description": "max_loan_limit: outstanding loan balance must not exceed maximum loan limit"
+      },
+      {
+        "description": "max_invest_limit: investment portfolio balance must not exceed maximum investment limit"
+      }
+    ],
+    "decision_variables": [
+      "borrow[Months]: short-term borrowing in month t (continuous, non-negative)",
+      "repay[Months]: loan repayment in month t (continuous, non-negative)",
+      "invest[Months]: surplus investment in month t (continuous, non-negative)",
+      "withdraw[Months]: investment withdrawal in month t (continuous, non-negative)",
+      "loan_balance[Months]: outstanding loan at end of month t (continuous, non-negative)",
+      "invest_balance[Months]: investment portfolio at end of month t (continuous, non-negative)"
+    ],
+    "parameters": [
+      "net_cash[Months]: operating cash flow each month (can be negative)",
+      "borrow_rate: monthly interest rate on loans (scalar)",
+      "invest_rate: monthly return on investments (scalar)",
+      "max_loan: maximum outstanding loan balance (scalar)",
+      "min_cash: minimum required cash balance each month (scalar)",
+      "max_invest: maximum investment portfolio balance each month (scalar)"
+    ],
+    "additional_notes": "Cash flows: [-50,-30,20,80,60,-40,30,50]. borrow_rate=0.015, invest_rate=0.008, max_loan=200, min_cash=10.",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "cashflows": "cashflows.csv",
+      "params": "params.csv"
+    }
+  },
+  "ir_patterns": [
+    "ordered set",
+    "temporal lag",
+    "init constraint",
+    "scalar parameter",
+    "multi-variable temporal balance"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "months",
+        "element": "m1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "months"
+        ],
+        "element": [
+          "m1",
+          "m2",
+          "m3",
+          "m4",
+          "m5",
+          "m6",
+          "m7",
+          "m8"
+        ]
+      }
+    },
+    "cashflows": {
+      "columns": {
+        "month_id": "str",
+        "net_cash": "float"
+      },
+      "sample": {
+        "month_id": "m1",
+        "net_cash": -50.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "month_id": [
+          "m1",
+          "m2",
+          "m3",
+          "m4",
+          "m5",
+          "m6",
+          "m7",
+          "m8"
+        ]
+      }
+    },
+    "params": {
+      "columns": {
+        "borrow_rate": "float",
+        "invest_rate": "float",
+        "max_loan": "float",
+        "min_cash": "float",
+        "initial_loan": "float",
+        "initial_invest": "float"
+      },
+      "sample": {
+        "borrow_rate": 0.015,
+        "invest_rate": 0.008,
+        "max_loan": 200.0,
+        "min_cash": 10.0,
+        "initial_loan": 0.0,
+        "initial_invest": 0.0,
+        "max_invest": 150.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "borrow_rate": [
+          "0.015"
+        ],
+        "invest_rate": [
+          "0.008"
+        ],
+        "max_loan": [
+          "200.0"
+        ],
+        "min_cash": [
+          "10.0"
+        ],
+        "max_invest": [
+          "150.0"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "FinancialCashFlow",
+    "model_type": "Linear Program",
+    "sense": "minimize",
+    "sets": {
+      "Months": {
+        "size": null,
+        "index_symbol": "t",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "months",
+        "ordered": true
+      }
+    },
+    "parameters": {
+      "net_cash": {
+        "domain": [
+          "Months"
+        ],
+        "type": "float",
+        "source": "cashflows.csv",
+        "column": "net_cash",
+        "index_columns": [
+          "month_id"
+        ],
+        "missing_default": "zero"
+      },
+      "borrow_rate": {
+        "domain": [],
+        "type": "float",
+        "source": "params.csv",
+        "column": "borrow_rate",
+        "index_columns": null,
+        "missing_default": "zero"
+      },
+      "invest_rate": {
+        "domain": [],
+        "type": "float",
+        "source": "params.csv",
+        "column": "invest_rate",
+        "index_columns": null,
+        "missing_default": "zero"
+      },
+      "max_loan": {
+        "domain": [],
+        "type": "float",
+        "source": "params.csv",
+        "column": "max_loan",
+        "index_columns": null,
+        "missing_default": "inf"
+      },
+      "min_cash": {
+        "domain": [],
+        "type": "float",
+        "source": "params.csv",
+        "column": "min_cash",
+        "index_columns": null,
+        "missing_default": "zero"
+      },
+      "max_invest": {
+        "domain": [],
+        "type": "float",
+        "source": "params.csv",
+        "column": "max_invest",
+        "index_columns": null,
+        "missing_default": "inf"
+      }
+    },
+    "variables": {
+      "borrow": {
+        "description": "Short-term borrowing in month t",
+        "label": "borrowing",
+        "domain": [
+          "Months"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "repay": {
+        "description": "Loan repayment in month t",
+        "label": "repayments",
+        "domain": [
+          "Months"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "invest": {
+        "description": "Surplus investment in month t",
+        "label": "investments",
+        "domain": [
+          "Months"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "withdraw": {
+        "description": "Investment withdrawal in month t",
+        "label": "withdrawals",
+        "domain": [
+          "Months"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "loan_balance": {
+        "description": "Outstanding loan balance at end of month t",
+        "label": "loan_balances",
+        "domain": [
+          "Months"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "invest_balance": {
+        "description": "Investment portfolio balance at end of month t",
+        "label": "invest_balances",
+        "domain": [
+          "Months"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "loan_balance_update_init": {
+        "domain": [],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "loan_balance",
+              "indices": [
+                "Months[0]"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "repay",
+              "indices": [
+                "Months[0]"
+              ]
+            }
+          },
+          "right": {
+            "type": "variable",
+            "name": "borrow",
+            "indices": [
+              "Months[0]"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "loan_balance_update": {
+        "domain": [
+          "Months"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "loan_balance",
+              "indices": [
+                "t"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "repay",
+              "indices": [
+                "t"
+              ]
+            }
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "loan_balance",
+              "indices": [
+                "t"
+              ],
+              "lag": -1
+            },
+            "right": {
+              "type": "variable",
+              "name": "borrow",
+              "indices": [
+                "t"
+              ]
+            }
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "invest_balance_update_init": {
+        "domain": [],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "invest_balance",
+              "indices": [
+                "Months[0]"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "withdraw",
+              "indices": [
+                "Months[0]"
+              ]
+            }
+          },
+          "right": {
+            "type": "variable",
+            "name": "invest",
+            "indices": [
+              "Months[0]"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "invest_balance_update": {
+        "domain": [
+          "Months"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "invest_balance",
+              "indices": [
+                "t"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "withdraw",
+              "indices": [
+                "t"
+              ]
+            }
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "invest_balance",
+              "indices": [
+                "t"
+              ],
+              "lag": -1
+            },
+            "right": {
+              "type": "variable",
+              "name": "invest",
+              "indices": [
+                "t"
+              ]
+            }
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "cash_flow_balance": {
+        "domain": [
+          "Months"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "subtract",
+            "left": {
+              "operation": "sum",
+              "left": {
+                "operation": "sum",
+                "left": {
+                  "type": "parameter",
+                  "name": "net_cash",
+                  "indices": [
+                    "t"
+                  ]
+                },
+                "right": {
+                  "type": "variable",
+                  "name": "borrow",
+                  "indices": [
+                    "t"
+                  ]
+                }
+              },
+              "right": {
+                "type": "variable",
+                "name": "withdraw",
+                "indices": [
+                  "t"
+                ]
+              }
+            },
+            "right": {
+              "type": "variable",
+              "name": "repay",
+              "indices": [
+                "t"
+              ]
+            }
+          },
+          "right": {
+            "type": "variable",
+            "name": "invest",
+            "indices": [
+              "t"
+            ]
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "parameter",
+          "name": "min_cash",
+          "indices": []
+        }
+      },
+      "max_loan_limit": {
+        "domain": [
+          "Months"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "loan_balance",
+            "indices": [
+              "t"
+            ]
+          },
+          "right": {
+            "type": "parameter",
+            "name": "max_loan",
+            "indices": []
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "max_invest_limit": {
+        "domain": [
+          "Months"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "invest_balance",
+            "indices": [
+              "t"
+            ]
+          },
+          "right": {
+            "type": "parameter",
+            "name": "max_invest",
+            "indices": []
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "subtract",
+        "left": {
+          "operation": "indexed_sum",
+          "over": [
+            "Months:t"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "borrow_rate",
+              "indices": []
+            },
+            "right": {
+              "type": "variable",
+              "name": "loan_balance",
+              "indices": [
+                "t"
+              ]
+            }
+          }
+        },
+        "right": {
+          "operation": "indexed_sum",
+          "over": [
+            "Months:t"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "invest_rate",
+              "indices": []
+            },
+            "right": {
+              "type": "variable",
+              "name": "invest_balance",
+              "indices": [
+                "t"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,398 @@
+{
+  "problem": {
+    "title": "Single-Source Supplier Selection",
+    "description": "A manufacturer must source raw materials for a set of factories from a set of approved suppliers. Due to a quality-control policy, each factory must source all of its material from exactly one supplier — split orders across multiple suppliers are not allowed. Each supplier has a total supply capacity that limits the total quantity it can ship to all factories. The unit sourcing cost from each supplier to each factory is known. Choose which supplier serves each factory and how much is shipped to minimize total sourcing cost, while satisfying all factory demands, respecting supplier capacities, and enforcing the single-source assignment rule.",
+    "problem_type": "mixed_integer",
+    "objective": "minimize",
+    "objective_description": "Total sourcing cost = sum of per-unit costs times quantities shipped, over all supplier-factory pairs",
+    "constraints": [
+      {
+        "description": "Each factory must be assigned to exactly one supplier (single-source constraint)"
+      },
+      {
+        "description": "For each factory, total material received from all suppliers must exactly equal the factory's demand"
+      },
+      {
+        "description": "For each supplier, total quantity shipped to all factories must not exceed the supplier's capacity"
+      },
+      {
+        "description": "For each supplier-factory pair, quantity shipped cannot exceed the factory's demand times whether that supplier is assigned to that factory (big-M flow linking: no flow from an unassigned supplier)"
+      }
+    ],
+    "decision_variables": [
+      "source_from[s,f]: 1 if factory f is assigned to source from supplier s, 0 otherwise (binary)",
+      "flow[s,f]: quantity of material shipped from supplier s to factory f (continuous, non-negative)"
+    ],
+    "parameters": [
+      "unit_cost[s,f]: per-unit sourcing cost from supplier s to factory f",
+      "demand[f]: total material required by factory f",
+      "supply_capacity[s]: maximum total quantity supplier s can ship to all factories"
+    ],
+    "additional_notes": "",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "suppliers": "suppliers.csv",
+      "factories": "factories.csv",
+      "sourcing_costs": "sourcing_costs.csv"
+    }
+  },
+  "ir_patterns": [
+    "binary variable",
+    "domain filter",
+    "big-M linking"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "suppliers",
+        "element": "sup_1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "suppliers",
+          "factories"
+        ],
+        "element": [
+          "sup_1",
+          "sup_2",
+          "sup_3",
+          "fac_1",
+          "fac_2",
+          "fac_3",
+          "fac_4"
+        ]
+      }
+    },
+    "suppliers": {
+      "columns": {
+        "id": "str",
+        "capacity": "float"
+      },
+      "sample": {
+        "id": "sup_1",
+        "capacity": 400.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "id": [
+          "sup_1",
+          "sup_2",
+          "sup_3"
+        ],
+        "capacity": [
+          "300.0",
+          "350.0",
+          "400.0"
+        ]
+      }
+    },
+    "factories": {
+      "columns": {
+        "id": "str",
+        "demand": "float"
+      },
+      "sample": {
+        "id": "fac_1",
+        "demand": 80.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "id": [
+          "fac_1",
+          "fac_2",
+          "fac_3",
+          "fac_4"
+        ],
+        "demand": [
+          "60.0",
+          "70.0",
+          "80.0",
+          "100.0"
+        ]
+      }
+    },
+    "sourcing_costs": {
+      "columns": {
+        "supplier_id": "str",
+        "factory_id": "str",
+        "cost_per_unit": "float"
+      },
+      "sample": {
+        "supplier_id": "sup_1",
+        "factory_id": "fac_1",
+        "cost_per_unit": 4.5
+      },
+      "optional": false,
+      "distinct_values": {
+        "supplier_id": [
+          "sup_1",
+          "sup_2",
+          "sup_3"
+        ],
+        "factory_id": [
+          "fac_1",
+          "fac_2",
+          "fac_3",
+          "fac_4"
+        ],
+        "cost_per_unit": [
+          "3.0",
+          "3.5",
+          "4.0",
+          "4.5",
+          "5.0",
+          "5.5",
+          "6.0"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "SingleSourceSupplierSelection",
+    "model_type": "Mixed Integer Program",
+    "sense": "minimize",
+    "sets": {
+      "Suppliers": {
+        "size": null,
+        "index_symbol": "s",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "suppliers",
+        "ordered": false
+      },
+      "Factories": {
+        "size": null,
+        "index_symbol": "f",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "factories",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "unit_cost": {
+        "domain": [
+          "Suppliers",
+          "Factories"
+        ],
+        "type": "float",
+        "source": "sourcing_costs.csv",
+        "column": "cost_per_unit",
+        "index_columns": [
+          "supplier_id",
+          "factory_id"
+        ],
+        "missing_default": "inf"
+      },
+      "demand": {
+        "domain": [
+          "Factories"
+        ],
+        "type": "float",
+        "source": "factories.csv",
+        "column": "demand",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "zero"
+      },
+      "supply_capacity": {
+        "domain": [
+          "Suppliers"
+        ],
+        "type": "float",
+        "source": "suppliers.csv",
+        "column": "capacity",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "inf"
+      }
+    },
+    "variables": {
+      "source_from": {
+        "description": "1 if factory f is assigned to source from supplier s, 0 otherwise",
+        "label": "source_assignments",
+        "domain": [
+          "Suppliers",
+          "Factories"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "flow": {
+        "description": "Quantity of material shipped from supplier s to factory f",
+        "label": "sourcing_flows",
+        "domain": [
+          "Suppliers",
+          "Factories"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false,
+        "domain_filter": "unit_cost"
+      }
+    },
+    "constraints": {
+      "single_source": {
+        "domain": [
+          "Factories"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Suppliers:s"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "source_from",
+            "indices": [
+              "s",
+              "f"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 1
+        }
+      },
+      "demand_met": {
+        "domain": [
+          "Factories"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Suppliers:s"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "flow",
+            "indices": [
+              "s",
+              "f"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "parameter",
+          "name": "demand",
+          "indices": [
+            "f"
+          ]
+        }
+      },
+      "supplier_capacity": {
+        "domain": [
+          "Suppliers"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Factories:f"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "flow",
+            "indices": [
+              "s",
+              "f"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "parameter",
+          "name": "supply_capacity",
+          "indices": [
+            "s"
+          ]
+        }
+      },
+      "flow_link_upper": {
+        "domain": [
+          "Suppliers",
+          "Factories"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "flow",
+            "indices": [
+              "s",
+              "f"
+            ]
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "demand",
+              "indices": [
+                "f"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "source_from",
+              "indices": [
+                "s",
+                "f"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Suppliers:s",
+          "Factories:f"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "type": "parameter",
+            "name": "unit_cost",
+            "indices": [
+              "s",
+              "f"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "flow",
+            "indices": [
+              "s",
+              "f"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

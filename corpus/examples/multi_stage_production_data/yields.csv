@@ -1,0 +1,10 @@
+product_id,stage_id,yield_rate
+A,s1,0.9
+A,s2,0.85
+A,s3,1.0
+B,s1,0.8
+B,s2,0.9
+B,s3,1.0
+C,s1,0.95
+C,s2,0.88
+C,s3,1.0

@@ -1,0 +1,9 @@
+id,value,weight
+tent,3.0,0.2
+sleeping_bag,5.0,0.5
+stove,6.0,1.0
+food,7.0,1.5
+water_filter,8.0,2.0
+first_aid,9.0,2.5
+map,10.0,3.0
+rain_jacket,3.0,3.5

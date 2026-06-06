@@ -1,0 +1,404 @@
+{
+  "problem": {
+    "title": "Farm Crop Planning",
+    "description": "A farm allocates land to different crops across 3 growing seasons (spring, summer, fall). Each crop-season combination has a known yield and water requirement (sparse - not all crops can be planted each season). Water is limited each season. Total land used each season cannot exceed the farm's capacity. Maximize total revenue.",
+    "problem_type": "linear_programming",
+    "objective": "maximize",
+    "objective_description": "Total revenue = sum over crops and seasons of yield_per_acre * sell_price * plant",
+    "constraints": [
+      {
+        "description": "Land limit: total acres planted each season cannot exceed total_land"
+      },
+      {
+        "description": "Water limit: total water usage each season cannot exceed water availability"
+      }
+    ],
+    "decision_variables": [
+      "plant[Crops, Seasons]: acres planted for each crop in each season (continuous, non-negative, sparse)"
+    ],
+    "parameters": [
+      "yield_per_acre[Crops, Seasons]: yield per acre (sparse - not all crop-season pairs valid)",
+      "water_req[Crops, Seasons]: water units per acre (sparse)",
+      "sell_price[Crops]: revenue per unit yield",
+      "water_avail[Seasons]: total water available per season",
+      "total_land: total farmland available per season"
+    ],
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "yields": "yields.csv",
+      "water_reqs": "water_reqs.csv",
+      "sell_price": "sell_price.csv",
+      "water": "water.csv",
+      "params": "params.csv"
+    }
+  },
+  "ir_patterns": [
+    "domain filter",
+    "multiply two parameters",
+    "sparse crop-season",
+    "scalar parameter"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "crops",
+        "element": "wheat"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "crops",
+          "seasons"
+        ],
+        "element": [
+          "wheat",
+          "corn",
+          "soy",
+          "cotton",
+          "sp",
+          "su",
+          "fa"
+        ]
+      }
+    },
+    "yields": {
+      "columns": {
+        "crop": "str",
+        "season": "str",
+        "yield_per_acre": "float"
+      },
+      "sample": {
+        "crop": "wheat",
+        "season": "sp",
+        "yield_per_acre": 3.5
+      },
+      "optional": false,
+      "distinct_values": {
+        "crop": [
+          "wheat",
+          "corn",
+          "soy",
+          "cotton"
+        ],
+        "season": [
+          "sp",
+          "su",
+          "fa"
+        ]
+      }
+    },
+    "water_reqs": {
+      "columns": {
+        "crop": "str",
+        "season": "str",
+        "water_req": "float"
+      },
+      "sample": {
+        "crop": "wheat",
+        "season": "sp",
+        "water_req": 2.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "crop": [
+          "wheat",
+          "corn",
+          "soy",
+          "cotton"
+        ],
+        "season": [
+          "sp",
+          "su",
+          "fa"
+        ]
+      }
+    },
+    "sell_price": {
+      "columns": {
+        "crop": "str",
+        "sell_price": "float"
+      },
+      "sample": {
+        "crop": "wheat",
+        "sell_price": 150.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "crop": [
+          "wheat",
+          "corn",
+          "soy",
+          "cotton"
+        ],
+        "sell_price": [
+          "120.0",
+          "150.0",
+          "180.0",
+          "200.0"
+        ]
+      }
+    },
+    "water": {
+      "columns": {
+        "season": "str",
+        "water_avail": "float"
+      },
+      "sample": {
+        "season": "sp",
+        "water_avail": 800.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "season": [
+          "sp",
+          "su",
+          "fa"
+        ],
+        "water_avail": [
+          "600.0",
+          "700.0",
+          "800.0"
+        ]
+      }
+    },
+    "params": {
+      "columns": {
+        "total_land": "float"
+      },
+      "sample": {
+        "total_land": 500.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "total_land": [
+          "500.0"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "CropPlanning",
+    "model_type": "Linear Program",
+    "sense": "maximize",
+    "sets": {
+      "Crops": {
+        "size": null,
+        "index_symbol": "c",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "crops",
+        "ordered": false
+      },
+      "Seasons": {
+        "size": null,
+        "index_symbol": "s",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "seasons",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "yield_per_acre": {
+        "domain": [
+          "Crops",
+          "Seasons"
+        ],
+        "type": "float",
+        "source": "yields.csv",
+        "column": "yield_per_acre",
+        "index_columns": [
+          "crop",
+          "season"
+        ],
+        "missing_default": "zero"
+      },
+      "water_req": {
+        "domain": [
+          "Crops",
+          "Seasons"
+        ],
+        "type": "float",
+        "source": "water_reqs.csv",
+        "column": "water_req",
+        "index_columns": [
+          "crop",
+          "season"
+        ],
+        "missing_default": "zero"
+      },
+      "sell_price": {
+        "domain": [
+          "Crops"
+        ],
+        "type": "float",
+        "source": "sell_price.csv",
+        "column": "sell_price",
+        "index_columns": [
+          "crop"
+        ],
+        "missing_default": "zero"
+      },
+      "water_avail": {
+        "domain": [
+          "Seasons"
+        ],
+        "type": "float",
+        "source": "water.csv",
+        "column": "water_avail",
+        "index_columns": [
+          "season"
+        ],
+        "missing_default": "zero"
+      },
+      "total_land": {
+        "domain": [],
+        "type": "float",
+        "source": "params.csv",
+        "column": "total_land",
+        "index_columns": null,
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "plant": {
+        "description": "Acres planted for crop c in season s",
+        "label": "planting_acres",
+        "domain": [
+          "Crops",
+          "Seasons"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false,
+        "domain_filter": "yield_per_acre"
+      }
+    },
+    "constraints": {
+      "land_limit": {
+        "domain": [
+          "Seasons"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Crops:c"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "plant",
+              "indices": [
+                "c",
+                "s"
+              ]
+            }
+          },
+          "right": {
+            "type": "parameter",
+            "name": "total_land",
+            "indices": []
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "water_limit": {
+        "domain": [
+          "Seasons"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Crops:c"
+            ],
+            "body": {
+              "operation": "multiply",
+              "left": {
+                "type": "parameter",
+                "name": "water_req",
+                "indices": [
+                  "c",
+                  "s"
+                ]
+              },
+              "right": {
+                "type": "variable",
+                "name": "plant",
+                "indices": [
+                  "c",
+                  "s"
+                ]
+              }
+            }
+          },
+          "right": {
+            "type": "parameter",
+            "name": "water_avail",
+            "indices": [
+              "s"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "maximize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Crops:c",
+          "Seasons:s"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "yield_per_acre",
+              "indices": [
+                "c",
+                "s"
+              ]
+            },
+            "right": {
+              "type": "parameter",
+              "name": "sell_price",
+              "indices": [
+                "c"
+              ]
+            }
+          },
+          "right": {
+            "type": "variable",
+            "name": "plant",
+            "indices": [
+              "c",
+              "s"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

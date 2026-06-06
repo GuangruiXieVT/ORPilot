@@ -1,0 +1,11 @@
+crop,season,water_req
+wheat,sp,2
+wheat,su,2.5
+wheat,fa,1.5
+corn,sp,4
+corn,su,5
+soy,su,3
+soy,fa,2
+cotton,sp,3
+cotton,su,4
+cotton,fa,2.5

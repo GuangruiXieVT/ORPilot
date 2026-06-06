@@ -1,0 +1,629 @@
+{
+  "problem": {
+    "title": "Capacitated Lot Sizing with Backlogging",
+    "description": "A manufacturer produces multiple products on a shared machine over 5 periods, with demand backlogging allowed. Unmet demand is backlogged at a per-unit penalty cost and fulfilled in later periods. A binary setup variable controls whether production runs (incurring a fixed setup cost). Machine capacity is shared across all products. Minimize total production, holding, setup, and backlog penalty costs.",
+    "problem_type": "mixed_integer",
+    "objective": "minimize",
+    "objective_description": "Total cost = production + holding + backlog penalty + setup costs across all products and periods",
+    "constraints": [
+      {
+        "description": "Inventory-backlog balance initialization: net position at first period = produce - demand (zero initial stock)"
+      },
+      {
+        "description": "Inventory-backlog balance: net position change per period = produce - demand (temporal lag)"
+      },
+      {
+        "description": "Setup link: production only occurs if machine is set up (big-M constraint)"
+      },
+      {
+        "description": "Machine capacity: total production across all products per period cannot exceed machine capacity"
+      }
+    ],
+    "decision_variables": [
+      "produce[Products, Periods]: units produced (continuous, non-negative)",
+      "inventory[Products, Periods]: positive stock at end of period (continuous, non-negative)",
+      "backlog[Products, Periods]: unfulfilled demand at end of period (continuous, non-negative)",
+      "setup[Products, Periods]: 1 if machine is set up for product p in period t (binary)"
+    ],
+    "parameters": [
+      "demand[Products, Periods]: known demand per product per period",
+      "production_cost[Products]: variable production cost per unit",
+      "holding_cost[Products]: holding cost per unit per period",
+      "backlog_cost[Products]: penalty cost per unit backordered per period",
+      "setup_cost[Products]: fixed cost when machine is set up",
+      "max_production[Products]: maximum units producible per period if set up (big-M)",
+      "machine_capacity: total machine capacity per period (shared)"
+    ],
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "products": "products.csv",
+      "demand": "demand.csv",
+      "params": "params.csv"
+    }
+  },
+  "ir_patterns": [
+    "binary variable",
+    "ordered set",
+    "temporal lag",
+    "init constraint",
+    "backlogging",
+    "scalar parameter",
+    "big-M linking"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "products",
+        "element": "p1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "products",
+          "periods"
+        ],
+        "element": [
+          "p1",
+          "p2",
+          "p3",
+          "t1",
+          "t2",
+          "t3",
+          "t4",
+          "t5"
+        ]
+      }
+    },
+    "products": {
+      "columns": {
+        "product_id": "str",
+        "production_cost": "float",
+        "holding_cost": "float",
+        "backlog_cost": "float",
+        "setup_cost": "float",
+        "max_production": "float"
+      },
+      "sample": {
+        "product_id": "p1",
+        "production_cost": 5.0,
+        "holding_cost": 1.0,
+        "backlog_cost": 8.0,
+        "setup_cost": 50.0,
+        "max_production": 200.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "product_id": [
+          "p1",
+          "p2",
+          "p3"
+        ],
+        "production_cost": [
+          "4.0",
+          "5.0",
+          "6.0"
+        ],
+        "holding_cost": [
+          "1.0",
+          "1.5",
+          "2.0"
+        ],
+        "backlog_cost": [
+          "8.0",
+          "10.0",
+          "12.0"
+        ],
+        "setup_cost": [
+          "40.0",
+          "50.0",
+          "60.0"
+        ],
+        "max_production": [
+          "150.0",
+          "180.0",
+          "200.0"
+        ]
+      }
+    },
+    "demand": {
+      "columns": {
+        "product_id": "str",
+        "period_id": "str",
+        "demand": "float"
+      },
+      "sample": {
+        "product_id": "p1",
+        "period_id": "t1",
+        "demand": 50.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "product_id": [
+          "p1",
+          "p2",
+          "p3"
+        ],
+        "period_id": [
+          "t1",
+          "t2",
+          "t3",
+          "t4",
+          "t5"
+        ]
+      }
+    },
+    "params": {
+      "columns": {
+        "machine_capacity": "float"
+      },
+      "sample": {
+        "machine_capacity": 350.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "machine_capacity": [
+          "350.0"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "LotSizingBacklog",
+    "model_type": "Mixed Integer Program",
+    "sense": "minimize",
+    "sets": {
+      "Products": {
+        "size": null,
+        "index_symbol": "p",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "products",
+        "ordered": false
+      },
+      "Periods": {
+        "size": null,
+        "index_symbol": "t",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "periods",
+        "ordered": true
+      }
+    },
+    "parameters": {
+      "demand": {
+        "domain": [
+          "Products",
+          "Periods"
+        ],
+        "type": "float",
+        "source": "demand.csv",
+        "column": "demand",
+        "index_columns": [
+          "product_id",
+          "period_id"
+        ],
+        "missing_default": "zero"
+      },
+      "production_cost": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "products.csv",
+        "column": "production_cost",
+        "index_columns": [
+          "product_id"
+        ],
+        "missing_default": "inf"
+      },
+      "holding_cost": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "products.csv",
+        "column": "holding_cost",
+        "index_columns": [
+          "product_id"
+        ],
+        "missing_default": "inf"
+      },
+      "backlog_cost": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "products.csv",
+        "column": "backlog_cost",
+        "index_columns": [
+          "product_id"
+        ],
+        "missing_default": "inf"
+      },
+      "setup_cost": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "products.csv",
+        "column": "setup_cost",
+        "index_columns": [
+          "product_id"
+        ],
+        "missing_default": "inf"
+      },
+      "max_production": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "products.csv",
+        "column": "max_production",
+        "index_columns": [
+          "product_id"
+        ],
+        "missing_default": "zero"
+      },
+      "machine_capacity": {
+        "domain": [],
+        "type": "float",
+        "source": "params.csv",
+        "column": "machine_capacity",
+        "index_columns": null,
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "produce": {
+        "description": "Units produced for product p in period t",
+        "label": "production_quantities",
+        "domain": [
+          "Products",
+          "Periods"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "inventory": {
+        "description": "Positive stock at end of period t for product p",
+        "label": "inventory_levels",
+        "domain": [
+          "Products",
+          "Periods"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "backlog": {
+        "description": "Unfulfilled demand at end of period t for product p",
+        "label": "backlog_levels",
+        "domain": [
+          "Products",
+          "Periods"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "setup": {
+        "description": "1 if machine is set up for product p in period t",
+        "label": "setup_decisions",
+        "domain": [
+          "Products",
+          "Periods"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "balance_init": {
+        "domain": [
+          "Products"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "inventory",
+              "indices": [
+                "p",
+                "Periods[0]"
+              ]
+            },
+            "right": {
+              "type": "parameter",
+              "name": "demand",
+              "indices": [
+                "p",
+                "Periods[0]"
+              ]
+            }
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "backlog",
+              "indices": [
+                "p",
+                "Periods[0]"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "produce",
+              "indices": [
+                "p",
+                "Periods[0]"
+              ]
+            }
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "balance": {
+        "domain": [
+          "Products",
+          "Periods"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "operation": "subtract",
+              "left": {
+                "type": "variable",
+                "name": "inventory",
+                "indices": [
+                  "p",
+                  "t"
+                ]
+              },
+              "right": {
+                "type": "variable",
+                "name": "backlog",
+                "indices": [
+                  "p",
+                  "t"
+                ]
+              }
+            },
+            "right": {
+              "type": "parameter",
+              "name": "demand",
+              "indices": [
+                "p",
+                "t"
+              ]
+            }
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "operation": "subtract",
+              "left": {
+                "type": "variable",
+                "name": "inventory",
+                "indices": [
+                  "p",
+                  "t"
+                ],
+                "lag": -1
+              },
+              "right": {
+                "type": "variable",
+                "name": "backlog",
+                "indices": [
+                  "p",
+                  "t"
+                ],
+                "lag": -1
+              }
+            },
+            "right": {
+              "type": "variable",
+              "name": "produce",
+              "indices": [
+                "p",
+                "t"
+              ]
+            }
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "setup_link": {
+        "domain": [
+          "Products",
+          "Periods"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "produce",
+            "indices": [
+              "p",
+              "t"
+            ]
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "max_production",
+              "indices": [
+                "p"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "setup",
+              "indices": [
+                "p",
+                "t"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "machine_cap": {
+        "domain": [
+          "Periods"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Products:p"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "produce",
+              "indices": [
+                "p",
+                "t"
+              ]
+            }
+          },
+          "right": {
+            "type": "parameter",
+            "name": "machine_capacity",
+            "indices": []
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Products:p",
+          "Periods:t"
+        ],
+        "body": {
+          "operation": "sum",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "operation": "sum",
+              "left": {
+                "operation": "multiply",
+                "left": {
+                  "type": "parameter",
+                  "name": "production_cost",
+                  "indices": [
+                    "p"
+                  ]
+                },
+                "right": {
+                  "type": "variable",
+                  "name": "produce",
+                  "indices": [
+                    "p",
+                    "t"
+                  ]
+                }
+              },
+              "right": {
+                "operation": "multiply",
+                "left": {
+                  "type": "parameter",
+                  "name": "holding_cost",
+                  "indices": [
+                    "p"
+                  ]
+                },
+                "right": {
+                  "type": "variable",
+                  "name": "inventory",
+                  "indices": [
+                    "p",
+                    "t"
+                  ]
+                }
+              }
+            },
+            "right": {
+              "operation": "multiply",
+              "left": {
+                "type": "parameter",
+                "name": "backlog_cost",
+                "indices": [
+                  "p"
+                ]
+              },
+              "right": {
+                "type": "variable",
+                "name": "backlog",
+                "indices": [
+                  "p",
+                  "t"
+                ]
+              }
+            }
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "setup_cost",
+              "indices": [
+                "p"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "setup",
+              "indices": [
+                "p",
+                "t"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

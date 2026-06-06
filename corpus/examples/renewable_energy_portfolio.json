@@ -1,0 +1,472 @@
+{
+  "problem": {
+    "title": "Renewable Energy Portfolio Planning",
+    "description": "An energy company builds solar, wind, and storage capacity over 5 years to meet growing demand. Capacity is cumulative (builds from year to year). Generation is limited by installed capacity times capacity factor. Minimize total investment and operating costs.",
+    "problem_type": "linear_program",
+    "objective": "minimize",
+    "objective_description": "Total build costs plus operating costs across all technologies and years",
+    "constraints": [
+      {
+        "description": "Cumulative capacity accumulates from year to year (temporal lag)"
+      },
+      {
+        "description": "Generation is limited by installed capacity times capacity factor"
+      },
+      {
+        "description": "Total generation meets annual energy demand"
+      },
+      {
+        "description": "Build rate does not exceed technology-specific maximum"
+      }
+    ],
+    "decision_variables": [
+      "build[tech,yr]: MW of capacity built this year (continuous >= 0)",
+      "capacity[tech,yr]: cumulative installed MW at end of year (continuous >= 0)",
+      "generate[tech,yr]: MWh generated this year (continuous >= 0)"
+    ],
+    "parameters": [
+      "build_cost[tech]: capital cost per MW built",
+      "operating_cost[tech]: operating cost per MWh generated",
+      "capacity_factor[tech]: fraction of installed capacity available for generation",
+      "energy_demand[yr]: annual energy demand in MWh",
+      "max_build_rate[tech]: maximum MW buildable per year"
+    ],
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "tech": "tech.csv",
+      "demand": "demand.csv"
+    }
+  },
+  "ir_patterns": [
+    "temporal lag",
+    "init constraint",
+    "capacity accumulation",
+    "ordered set"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "technologies",
+        "element": "solar"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "technologies",
+          "years"
+        ],
+        "element": [
+          "solar",
+          "wind",
+          "storage",
+          "yr1",
+          "yr2",
+          "yr3",
+          "yr4",
+          "yr5"
+        ]
+      }
+    },
+    "tech": {
+      "columns": {
+        "tech_id": "str",
+        "build_cost": "float",
+        "operating_cost": "float",
+        "capacity_factor": "float",
+        "max_build_rate": "float"
+      },
+      "sample": {
+        "tech_id": "solar",
+        "build_cost": 1000.0,
+        "operating_cost": 5.0,
+        "capacity_factor": 0.25,
+        "max_build_rate": 500.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "tech_id": [
+          "solar",
+          "wind",
+          "storage"
+        ]
+      }
+    },
+    "demand": {
+      "columns": {
+        "year_id": "str",
+        "energy_demand": "float"
+      },
+      "sample": {
+        "year_id": "yr1",
+        "energy_demand": 10000.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "year_id": [
+          "yr1",
+          "yr2",
+          "yr3",
+          "yr4",
+          "yr5"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "RenewableEnergyPortfolio",
+    "model_type": "Linear Program",
+    "sense": "minimize",
+    "sets": {
+      "Technologies": {
+        "size": null,
+        "index_symbol": "tech",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "technologies",
+        "ordered": false
+      },
+      "Years": {
+        "size": null,
+        "index_symbol": "yr",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "years",
+        "ordered": true
+      }
+    },
+    "parameters": {
+      "build_cost": {
+        "domain": [
+          "Technologies"
+        ],
+        "type": "float",
+        "source": "tech.csv",
+        "column": "build_cost",
+        "index_columns": [
+          "tech_id"
+        ],
+        "missing_default": "inf"
+      },
+      "operating_cost": {
+        "domain": [
+          "Technologies"
+        ],
+        "type": "float",
+        "source": "tech.csv",
+        "column": "operating_cost",
+        "index_columns": [
+          "tech_id"
+        ],
+        "missing_default": "inf"
+      },
+      "capacity_factor": {
+        "domain": [
+          "Technologies"
+        ],
+        "type": "float",
+        "source": "tech.csv",
+        "column": "capacity_factor",
+        "index_columns": [
+          "tech_id"
+        ],
+        "missing_default": "inf"
+      },
+      "energy_demand": {
+        "domain": [
+          "Years"
+        ],
+        "type": "float",
+        "source": "demand.csv",
+        "column": "energy_demand",
+        "index_columns": [
+          "year_id"
+        ],
+        "missing_default": "zero"
+      },
+      "max_build_rate": {
+        "domain": [
+          "Technologies"
+        ],
+        "type": "float",
+        "source": "tech.csv",
+        "column": "max_build_rate",
+        "index_columns": [
+          "tech_id"
+        ],
+        "missing_default": "inf"
+      }
+    },
+    "variables": {
+      "build": {
+        "description": "MW of new capacity built for technology tech in year yr",
+        "label": "capacity_builds",
+        "domain": [
+          "Technologies",
+          "Years"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "capacity": {
+        "description": "Cumulative installed MW for technology tech at end of year yr",
+        "label": "installed_capacity",
+        "domain": [
+          "Technologies",
+          "Years"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "generate": {
+        "description": "MWh generated by technology tech in year yr",
+        "label": "energy_generation",
+        "domain": [
+          "Technologies",
+          "Years"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "capacity_accumulation_init": {
+        "domain": [
+          "Technologies"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "capacity",
+            "indices": [
+              "tech",
+              "Years[0]"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "build",
+            "indices": [
+              "tech",
+              "Years[0]"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "capacity_accumulation": {
+        "domain": [
+          "Technologies",
+          "Years"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "subtract",
+            "left": {
+              "type": "variable",
+              "name": "capacity",
+              "indices": [
+                "tech",
+                "yr"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "capacity",
+              "indices": [
+                "tech",
+                "yr"
+              ],
+              "lag": -1
+            }
+          },
+          "right": {
+            "type": "variable",
+            "name": "build",
+            "indices": [
+              "tech",
+              "yr"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "generation_limit": {
+        "domain": [
+          "Technologies",
+          "Years"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "generate",
+            "indices": [
+              "tech",
+              "yr"
+            ]
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "capacity_factor",
+              "indices": [
+                "tech"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "capacity",
+              "indices": [
+                "tech",
+                "yr"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "demand_met": {
+        "domain": [
+          "Years"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Technologies:tech"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "generate",
+              "indices": [
+                "tech",
+                "yr"
+              ]
+            }
+          },
+          "right": {
+            "type": "parameter",
+            "name": "energy_demand",
+            "indices": [
+              "yr"
+            ]
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "build_limit": {
+        "domain": [
+          "Technologies",
+          "Years"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "build",
+            "indices": [
+              "tech",
+              "yr"
+            ]
+          },
+          "right": {
+            "type": "parameter",
+            "name": "max_build_rate",
+            "indices": [
+              "tech"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Technologies:tech",
+          "Years:yr"
+        ],
+        "body": {
+          "operation": "sum",
+          "left": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "build_cost",
+              "indices": [
+                "tech"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "build",
+              "indices": [
+                "tech",
+                "yr"
+              ]
+            }
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "operating_cost",
+              "indices": [
+                "tech"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "generate",
+              "indices": [
+                "tech",
+                "yr"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

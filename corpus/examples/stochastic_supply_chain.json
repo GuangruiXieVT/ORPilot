@@ -1,0 +1,549 @@
+{
+  "problem": {
+    "title": "Stochastic Supply Chain with Uncertain Delivery",
+    "description": "A retailer orders products from multiple suppliers before the season. Each supplier may deliver less than ordered depending on the scenario (supply uncertainty). After delivery, the retailer sells up to the demand. Three scenarios with different supplier reliability levels. Maximize expected profit (revenue minus ordering cost).",
+    "problem_type": "linear_programming",
+    "objective": "maximize",
+    "objective_description": "Expected profit = E[revenue - ordering costs] = sum_sc probability[sc] * sell_revenue[sc] - total_order_cost",
+    "constraints": [
+      {
+        "description": "Receive link: received quantity = supply_fraction * order quantity per scenario"
+      },
+      {
+        "description": "Sell limit (stock): cannot sell more than received from all suppliers"
+      },
+      {
+        "description": "Sell limit (demand): cannot sell more than demand"
+      },
+      {
+        "description": "Inventory balance: sell + leftover = total received"
+      }
+    ],
+    "decision_variables": [
+      "order[Suppliers, Products]: first-stage order quantity (continuous, non-negative)",
+      "receive[Suppliers, Products, Scenarios]: actually received per scenario (continuous, non-negative)",
+      "sell[Products, Scenarios]: units sold per scenario (continuous, non-negative)",
+      "leftover[Products, Scenarios]: unsold inventory per scenario (continuous, non-negative)"
+    ],
+    "parameters": [
+      "order_cost[Suppliers, Products]: cost per unit ordered",
+      "sell_price[Products]: revenue per unit sold",
+      "supply_fraction[Suppliers, Scenarios]: fraction of order delivered in scenario",
+      "probability[Scenarios]: scenario probabilities",
+      "demand[Products]: deterministic demand"
+    ],
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "order_costs": "order_costs.csv",
+      "products": "products.csv",
+      "supply_fractions": "supply_fractions.csv",
+      "scenarios": "scenarios.csv"
+    }
+  },
+  "ir_patterns": [
+    "stochastic two-stage",
+    "scenario weighted sum",
+    "receive link constraint",
+    "first-stage vs second-stage variables"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "suppliers",
+        "element": "sup1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "suppliers",
+          "products",
+          "scenarios"
+        ],
+        "element": [
+          "sup1",
+          "sup2",
+          "sup3",
+          "pr1",
+          "pr2",
+          "pr3",
+          "sc1",
+          "sc2",
+          "sc3"
+        ]
+      }
+    },
+    "order_costs": {
+      "columns": {
+        "supplier_id": "str",
+        "product_id": "str",
+        "order_cost": "float"
+      },
+      "sample": {
+        "supplier_id": "sup1",
+        "product_id": "pr1",
+        "order_cost": 8.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "supplier_id": [
+          "sup1",
+          "sup2",
+          "sup3"
+        ],
+        "product_id": [
+          "pr1",
+          "pr2",
+          "pr3"
+        ]
+      }
+    },
+    "products": {
+      "columns": {
+        "product_id": "str",
+        "sell_price": "float",
+        "demand": "float"
+      },
+      "sample": {
+        "product_id": "pr1",
+        "sell_price": 25.0,
+        "demand": 80.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "product_id": [
+          "pr1",
+          "pr2",
+          "pr3"
+        ]
+      }
+    },
+    "supply_fractions": {
+      "columns": {
+        "supplier_id": "str",
+        "scenario_id": "str",
+        "supply_fraction": "float"
+      },
+      "sample": {
+        "supplier_id": "sup1",
+        "scenario_id": "sc1",
+        "supply_fraction": 1.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "supplier_id": [
+          "sup1",
+          "sup2",
+          "sup3"
+        ],
+        "scenario_id": [
+          "sc1",
+          "sc2",
+          "sc3"
+        ]
+      }
+    },
+    "scenarios": {
+      "columns": {
+        "scenario_id": "str",
+        "probability": "float"
+      },
+      "sample": {
+        "scenario_id": "sc1",
+        "probability": 0.333
+      },
+      "optional": false,
+      "distinct_values": {
+        "scenario_id": [
+          "sc1",
+          "sc2",
+          "sc3"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "StochasticSupplyChain",
+    "model_type": "Linear Program",
+    "sense": "maximize",
+    "sets": {
+      "Suppliers": {
+        "size": null,
+        "index_symbol": "sup",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "suppliers",
+        "ordered": false
+      },
+      "Products": {
+        "size": null,
+        "index_symbol": "pr",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "products",
+        "ordered": false
+      },
+      "Scenarios": {
+        "size": null,
+        "index_symbol": "sc",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "scenarios",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "order_cost": {
+        "domain": [
+          "Suppliers",
+          "Products"
+        ],
+        "type": "float",
+        "source": "order_costs.csv",
+        "column": "order_cost",
+        "index_columns": [
+          "supplier_id",
+          "product_id"
+        ],
+        "missing_default": "inf"
+      },
+      "sell_price": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "products.csv",
+        "column": "sell_price",
+        "index_columns": [
+          "product_id"
+        ],
+        "missing_default": "zero"
+      },
+      "supply_fraction": {
+        "domain": [
+          "Suppliers",
+          "Scenarios"
+        ],
+        "type": "float",
+        "source": "supply_fractions.csv",
+        "column": "supply_fraction",
+        "index_columns": [
+          "supplier_id",
+          "scenario_id"
+        ],
+        "missing_default": "zero"
+      },
+      "probability": {
+        "domain": [
+          "Scenarios"
+        ],
+        "type": "float",
+        "source": "scenarios.csv",
+        "column": "probability",
+        "index_columns": [
+          "scenario_id"
+        ],
+        "missing_default": "zero"
+      },
+      "demand": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "products.csv",
+        "column": "demand",
+        "index_columns": [
+          "product_id"
+        ],
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "order": {
+        "description": "First-stage order quantity for supplier sup and product pr",
+        "label": "order_quantities",
+        "domain": [
+          "Suppliers",
+          "Products"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "receive": {
+        "description": "Quantity received from supplier sup for product pr in scenario sc",
+        "label": "received_quantities",
+        "domain": [
+          "Suppliers",
+          "Products",
+          "Scenarios"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "sell": {
+        "description": "Units sold of product pr in scenario sc",
+        "label": "sales_quantities",
+        "domain": [
+          "Products",
+          "Scenarios"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "leftover": {
+        "description": "Unsold inventory of product pr in scenario sc",
+        "label": "leftover_quantities",
+        "domain": [
+          "Products",
+          "Scenarios"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "receive_link": {
+        "domain": [
+          "Suppliers",
+          "Products",
+          "Scenarios"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "receive",
+            "indices": [
+              "sup",
+              "pr",
+              "sc"
+            ]
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "supply_fraction",
+              "indices": [
+                "sup",
+                "sc"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "order",
+              "indices": [
+                "sup",
+                "pr"
+              ]
+            }
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "sell_limit_stock": {
+        "domain": [
+          "Products",
+          "Scenarios"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "sell",
+            "indices": [
+              "pr",
+              "sc"
+            ]
+          },
+          "right": {
+            "operation": "indexed_sum",
+            "over": [
+              "Suppliers:sup"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "receive",
+              "indices": [
+                "sup",
+                "pr",
+                "sc"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "sell_limit_demand": {
+        "domain": [
+          "Products",
+          "Scenarios"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "sell",
+            "indices": [
+              "pr",
+              "sc"
+            ]
+          },
+          "right": {
+            "type": "parameter",
+            "name": "demand",
+            "indices": [
+              "pr"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "inventory_balance": {
+        "domain": [
+          "Products",
+          "Scenarios"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "sell",
+              "indices": [
+                "pr",
+                "sc"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "leftover",
+              "indices": [
+                "pr",
+                "sc"
+              ]
+            }
+          },
+          "right": {
+            "operation": "indexed_sum",
+            "over": [
+              "Suppliers:sup"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "receive",
+              "indices": [
+                "sup",
+                "pr",
+                "sc"
+              ]
+            }
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "maximize",
+      "expression": {
+        "operation": "subtract",
+        "left": {
+          "operation": "indexed_sum",
+          "over": [
+            "Scenarios:sc",
+            "Products:pr"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "probability",
+              "indices": [
+                "sc"
+              ]
+            },
+            "right": {
+              "operation": "multiply",
+              "left": {
+                "type": "parameter",
+                "name": "sell_price",
+                "indices": [
+                  "pr"
+                ]
+              },
+              "right": {
+                "type": "variable",
+                "name": "sell",
+                "indices": [
+                  "pr",
+                  "sc"
+                ]
+              }
+            }
+          }
+        },
+        "right": {
+          "operation": "indexed_sum",
+          "over": [
+            "Suppliers:sup",
+            "Products:pr"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "order_cost",
+              "indices": [
+                "sup",
+                "pr"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "order",
+              "indices": [
+                "sup",
+                "pr"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

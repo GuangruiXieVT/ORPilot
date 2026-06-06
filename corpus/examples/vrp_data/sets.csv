@@ -1,0 +1,15 @@
+set_name,element
+locations,depot
+locations,cust_1
+locations,cust_2
+locations,cust_3
+locations,cust_4
+locations,cust_5
+customers,cust_1
+customers,cust_2
+customers,cust_3
+customers,cust_4
+customers,cust_5
+vehicles,veh_1
+vehicles,veh_2
+vehicles,veh_3

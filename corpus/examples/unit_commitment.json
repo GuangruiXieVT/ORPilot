@@ -1,0 +1,527 @@
+{
+  "problem": {
+    "title": "Unit Commitment Problem",
+    "description": "A power system operator schedules three generators over 8 hours. Each generator has minimum and maximum output limits, a fuel cost per MWh, and a startup cost when brought online. A binary commit variable determines if a generator is online each hour. Generation is only possible when committed (big-M linking). A binary startup variable captures when a generator transitions from off to on. Power balance must be met each hour. Minimize total fuel plus startup costs.",
+    "problem_type": "mixed_integer_programming",
+    "objective": "minimize",
+    "objective_description": "Total cost = sum of fuel costs (fuel_cost[g]*generate[g,t]) plus startup costs (startup_cost[g]*startup[g,t]) over all generators and hours",
+    "constraints": [
+      {
+        "description": "Power balance: total generation equals demand each hour"
+      },
+      {
+        "description": "Minimum generation: when committed, generate at least min_output (big-M lower bound)"
+      },
+      {
+        "description": "Maximum generation: when committed, generate at most max_output (big-M upper bound)"
+      },
+      {
+        "description": "Startup link init: startup[g,h1] >= commit[g,h1] (first period, no previous state)"
+      },
+      {
+        "description": "Startup link: startup[g,t] >= commit[g,t] - commit[g,t-1] for subsequent periods (temporal lag)"
+      }
+    ],
+    "decision_variables": [
+      "commit[g,t]: 1 if generator g is online in hour t (binary)",
+      "generate[g,t]: MW output of generator g in hour t (continuous, non-negative)",
+      "startup[g,t]: 1 if generator g starts up at hour t (binary)"
+    ],
+    "parameters": [
+      "fuel_cost[g]: cost per MWh for generator g",
+      "startup_cost[g]: fixed cost when generator g starts up",
+      "min_output[g]: minimum MW output when generator g is online",
+      "max_output[g]: maximum MW output when generator g is online",
+      "demand[t]: MW demand in hour t"
+    ],
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "generators": "generators.csv",
+      "demand": "demand.csv"
+    }
+  },
+  "ir_patterns": [
+    "binary variable",
+    "ordered set",
+    "temporal lag",
+    "init constraint",
+    "big-M linking",
+    "scalar parameter"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "generators",
+        "element": "g1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "generators",
+          "periods"
+        ],
+        "element": [
+          "g1",
+          "g2",
+          "g3",
+          "h1",
+          "h2",
+          "h3",
+          "h4",
+          "h5",
+          "h6",
+          "h7",
+          "h8"
+        ]
+      },
+      "row_count": 11
+    },
+    "generators": {
+      "columns": {
+        "generator_id": "str",
+        "fuel_cost": "float",
+        "startup_cost": "float",
+        "min_output": "float",
+        "max_output": "float"
+      },
+      "sample": {
+        "generator_id": "g1",
+        "fuel_cost": 20.0,
+        "startup_cost": 100.0,
+        "min_output": 50.0,
+        "max_output": 200.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "generator_id": [
+          "g1",
+          "g2",
+          "g3"
+        ],
+        "fuel_cost": [
+          "20.0",
+          "35.0",
+          "55.0"
+        ],
+        "startup_cost": [
+          "100.0",
+          "50.0",
+          "20.0"
+        ],
+        "min_output": [
+          "50.0",
+          "20.0",
+          "10.0"
+        ],
+        "max_output": [
+          "200.0",
+          "150.0",
+          "80.0"
+        ]
+      },
+      "row_count": 3
+    },
+    "demand": {
+      "columns": {
+        "period_id": "str",
+        "demand": "float"
+      },
+      "sample": {
+        "period_id": "h1",
+        "demand": 120.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "period_id": [
+          "h1",
+          "h2",
+          "h3",
+          "h4",
+          "h5",
+          "h6",
+          "h7",
+          "h8"
+        ],
+        "demand": [
+          "120.0",
+          "150.0",
+          "200.0",
+          "280.0",
+          "300.0",
+          "260.0",
+          "200.0",
+          "140.0"
+        ]
+      },
+      "row_count": 8
+    }
+  },
+  "ir": {
+    "problem_class": "UnitCommitment",
+    "model_type": "Mixed Integer Program",
+    "sense": "minimize",
+    "sets": {
+      "Generators": {
+        "size": null,
+        "index_symbol": "g",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "generators",
+        "ordered": false
+      },
+      "Periods": {
+        "size": null,
+        "index_symbol": "t",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "periods",
+        "ordered": true
+      }
+    },
+    "parameters": {
+      "fuel_cost": {
+        "domain": [
+          "Generators"
+        ],
+        "type": "float",
+        "source": "generators.csv",
+        "column": "fuel_cost",
+        "index_columns": [
+          "generator_id"
+        ],
+        "missing_default": "inf"
+      },
+      "startup_cost": {
+        "domain": [
+          "Generators"
+        ],
+        "type": "float",
+        "source": "generators.csv",
+        "column": "startup_cost",
+        "index_columns": [
+          "generator_id"
+        ],
+        "missing_default": "inf"
+      },
+      "min_output": {
+        "domain": [
+          "Generators"
+        ],
+        "type": "float",
+        "source": "generators.csv",
+        "column": "min_output",
+        "index_columns": [
+          "generator_id"
+        ],
+        "missing_default": "zero"
+      },
+      "max_output": {
+        "domain": [
+          "Generators"
+        ],
+        "type": "float",
+        "source": "generators.csv",
+        "column": "max_output",
+        "index_columns": [
+          "generator_id"
+        ],
+        "missing_default": "zero"
+      },
+      "demand": {
+        "domain": [
+          "Periods"
+        ],
+        "type": "float",
+        "source": "demand.csv",
+        "column": "demand",
+        "index_columns": [
+          "period_id"
+        ],
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "commit": {
+        "description": "1 if generator g is online in hour t",
+        "label": "commitment_decisions",
+        "domain": [
+          "Generators",
+          "Periods"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "generate": {
+        "description": "MW output of generator g in hour t",
+        "label": "generation_levels",
+        "domain": [
+          "Generators",
+          "Periods"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "startup": {
+        "description": "1 if generator g starts up at hour t",
+        "label": "startup_decisions",
+        "domain": [
+          "Generators",
+          "Periods"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "power_balance": {
+        "domain": [
+          "Periods"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Generators:g"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "generate",
+              "indices": [
+                "g",
+                "t"
+              ]
+            }
+          },
+          "right": {
+            "type": "parameter",
+            "name": "demand",
+            "indices": [
+              "t"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "min_generation": {
+        "domain": [
+          "Generators",
+          "Periods"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "generate",
+            "indices": [
+              "g",
+              "t"
+            ]
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "min_output",
+              "indices": [
+                "g"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "commit",
+              "indices": [
+                "g",
+                "t"
+              ]
+            }
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "max_generation": {
+        "domain": [
+          "Generators",
+          "Periods"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "generate",
+            "indices": [
+              "g",
+              "t"
+            ]
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "max_output",
+              "indices": [
+                "g"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "commit",
+              "indices": [
+                "g",
+                "t"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "startup_link_init": {
+        "domain": [
+          "Generators"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "startup",
+            "indices": [
+              "g",
+              "Periods[0]"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "commit",
+            "indices": [
+              "g",
+              "Periods[0]"
+            ]
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "startup_link": {
+        "domain": [
+          "Generators",
+          "Periods"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "startup",
+            "indices": [
+              "g",
+              "t"
+            ]
+          },
+          "right": {
+            "operation": "subtract",
+            "left": {
+              "type": "variable",
+              "name": "commit",
+              "indices": [
+                "g",
+                "t"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "commit",
+              "indices": [
+                "g",
+                "t"
+              ],
+              "lag": -1
+            }
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Generators:g",
+          "Periods:t"
+        ],
+        "body": {
+          "operation": "sum",
+          "left": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "startup_cost",
+              "indices": [
+                "g"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "startup",
+              "indices": [
+                "g",
+                "t"
+              ]
+            }
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "fuel_cost",
+              "indices": [
+                "g"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "generate",
+              "indices": [
+                "g",
+                "t"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

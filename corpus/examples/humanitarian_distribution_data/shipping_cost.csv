@@ -1,0 +1,9 @@
+depot_id,area_id,cost
+dp1,a1,2
+dp1,a2,4
+dp1,a3,3
+dp2,a2,2
+dp2,a4,3
+dp2,a5,5
+dp3,a3,4
+dp3,a5,3

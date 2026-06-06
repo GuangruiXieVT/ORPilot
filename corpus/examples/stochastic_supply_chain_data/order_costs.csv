@@ -1,0 +1,10 @@
+supplier_id,product_id,order_cost
+sup1,pr1,8
+sup1,pr2,12
+sup1,pr3,10
+sup2,pr1,9
+sup2,pr2,11
+sup2,pr3,9
+sup3,pr1,10
+sup3,pr2,13
+sup3,pr3,11

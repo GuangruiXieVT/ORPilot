@@ -1,0 +1,359 @@
+{
+  "problem": {
+    "title": "Bill-of-Materials Production Planning with Alternative BOMs",
+    "description": "A factory produces a set of finished products. Each finished product can be assembled using one or more alternative Bill of Materials (BOM) configurations. Producing one unit of product p using BOM b requires a known quantity of each component c as specified by that BOM. Different BOMs for the same product may use different components or different quantities, for example substituting one raw material for another. Each component has a limited available supply shared across all products and BOMs. Each product has a known market demand cap (maximum total units the market will absorb, regardless of which BOM is used). Each product has a per-unit profit that does not depend on which BOM is used. Decide how many units of each product to produce under each BOM to maximize total profit, subject to not exceeding component supply limits and market demand caps.",
+    "problem_type": "linear_programming",
+    "objective": "maximize",
+    "objective_description": "Total profit from production, summed over all products and recipes weighted by units produced",
+    "constraints": [
+      {
+        "description": "For each product, the total units produced across all recipes must not exceed that product's market demand cap"
+      },
+      {
+        "description": "For each component, the total component consumption across all products and recipes (according to BOM quantities) must not exceed the available component supply"
+      }
+    ],
+    "decision_variables": [
+      "produce[p,b]: units of product p produced using BOM recipe b (continuous, non-negative)"
+    ],
+    "parameters": [
+      "profit[p]: profit per unit of product p produced (independent of recipe)",
+      "max_demand[p]: maximum total units of product p that the market will absorb across all recipes",
+      "bom[c,p,b]: units of component c required to produce one unit of product p using recipe b",
+      "component_supply[c]: total available supply of component c"
+    ],
+    "additional_notes": "The BOM table is sparse: only (component, product, recipe) triples with non-zero consumption need to appear. Missing entries default to zero consumption. The demand cap applies to the sum of production across all recipes for a given product.",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "products": "products.csv",
+      "components": "components.csv",
+      "bom": "bom.csv"
+    }
+  },
+  "ir_patterns": [
+    "BOM parameter"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "products",
+        "element": "prod_X"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "products",
+          "components",
+          "boms"
+        ],
+        "element": [
+          "prod_X",
+          "prod_Y",
+          "prod_Z",
+          "comp_1",
+          "comp_2",
+          "comp_3",
+          "comp_4",
+          "bom_1",
+          "bom_2"
+        ]
+      }
+    },
+    "products": {
+      "columns": {
+        "id": "str",
+        "profit_per_unit": "float",
+        "max_demand": "float"
+      },
+      "sample": {
+        "id": "prod_X",
+        "profit_per_unit": 25.0,
+        "max_demand": 100.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "id": [
+          "prod_X",
+          "prod_Y",
+          "prod_Z"
+        ],
+        "profit_per_unit": [
+          "20.0",
+          "25.0",
+          "30.0"
+        ],
+        "max_demand": [
+          "80.0",
+          "100.0",
+          "120.0"
+        ]
+      }
+    },
+    "components": {
+      "columns": {
+        "id": "str",
+        "available_supply": "float"
+      },
+      "sample": {
+        "id": "comp_1",
+        "available_supply": 400.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "id": [
+          "comp_1",
+          "comp_2",
+          "comp_3",
+          "comp_4"
+        ],
+        "available_supply": [
+          "300.0",
+          "350.0",
+          "400.0",
+          "500.0"
+        ]
+      }
+    },
+    "bom": {
+      "columns": {
+        "component_id": "str",
+        "product_id": "str",
+        "bom_id": "str",
+        "quantity": "float"
+      },
+      "sample": {
+        "component_id": "comp_1",
+        "product_id": "prod_X",
+        "bom_id": "bom_1",
+        "quantity": 2.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "component_id": [
+          "comp_1",
+          "comp_2",
+          "comp_3",
+          "comp_4"
+        ],
+        "product_id": [
+          "prod_X",
+          "prod_Y",
+          "prod_Z"
+        ],
+        "bom_id": [
+          "bom_1",
+          "bom_2"
+        ],
+        "quantity": [
+          "1.0",
+          "2.0",
+          "3.0"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "BOMProductionPlanningAlternative",
+    "model_type": "Linear Program",
+    "sense": "maximize",
+    "sets": {
+      "Products": {
+        "size": null,
+        "index_symbol": "p",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "products",
+        "ordered": false
+      },
+      "Components": {
+        "size": null,
+        "index_symbol": "c",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "components",
+        "ordered": false
+      },
+      "BOMs": {
+        "size": null,
+        "index_symbol": "b",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "boms",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "profit": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "products.csv",
+        "column": "profit_per_unit",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "zero"
+      },
+      "max_demand": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "products.csv",
+        "column": "max_demand",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "zero"
+      },
+      "bom": {
+        "domain": [
+          "Components",
+          "Products",
+          "BOMs"
+        ],
+        "type": "float",
+        "source": "bom.csv",
+        "column": "quantity",
+        "index_columns": [
+          "component_id",
+          "product_id",
+          "bom_id"
+        ],
+        "missing_default": "zero"
+      },
+      "component_supply": {
+        "domain": [
+          "Components"
+        ],
+        "type": "float",
+        "source": "components.csv",
+        "column": "available_supply",
+        "index_columns": [
+          "id"
+        ],
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "produce": {
+        "description": "Units of product p produced using BOM recipe b",
+        "label": "production_quantities",
+        "domain": [
+          "Products",
+          "BOMs"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "demand_limit": {
+        "domain": [
+          "Products"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "BOMs:b"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "produce",
+            "indices": [
+              "p",
+              "b"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "parameter",
+          "name": "max_demand",
+          "indices": [
+            "p"
+          ]
+        }
+      },
+      "bom_availability": {
+        "domain": [
+          "Components"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Products:p",
+            "BOMs:b"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "bom",
+              "indices": [
+                "c",
+                "p",
+                "b"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "produce",
+              "indices": [
+                "p",
+                "b"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "parameter",
+          "name": "component_supply",
+          "indices": [
+            "c"
+          ]
+        }
+      }
+    },
+    "objective": {
+      "sense": "maximize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Products:p",
+          "BOMs:b"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "type": "parameter",
+            "name": "profit",
+            "indices": [
+              "p"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "produce",
+            "indices": [
+              "p",
+              "b"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,550 @@
+{
+  "problem": {
+    "title": "Food Factory Weekly Production Scheduling",
+    "description": "A food factory plans weekly production of bread, cake, and cookies over 5 days. Each product requires specific ingredients per batch (recipe). Ingredient supply is limited each day. Produced goods can be stored with holding cost and must meet daily demand. Minimize total production and holding costs.",
+    "problem_type": "linear_programming",
+    "objective": "minimize",
+    "objective_description": "Total cost = sum over products and days of (prod_cost * produce + hold_cost * inventory)",
+    "constraints": [
+      {
+        "description": "Inventory balance init: first-day inventory = production - demand (zero initial stock)"
+      },
+      {
+        "description": "Inventory balance: each day, inventory = previous inventory + production - demand (temporal lag)"
+      },
+      {
+        "description": "Ingredient use link: ingredient used = recipe quantity * batches produced"
+      },
+      {
+        "description": "Ingredient supply limit: total ingredient usage per day cannot exceed available supply"
+      }
+    ],
+    "decision_variables": [
+      "produce[Products, Days]: batches produced per product per day (continuous, non-negative)",
+      "inventory[Products, Days]: stock at end of each day (continuous, non-negative)",
+      "use[Ingredients, Products, Days]: ingredient units consumed (continuous, non-negative)"
+    ],
+    "parameters": [
+      "recipe[Ingredients, Products]: ingredient units per batch",
+      "ingredient_supply[Ingredients, Days]: ingredient supply per day",
+      "demand[Products, Days]: daily demand per product",
+      "prod_cost[Products]: production cost per batch",
+      "hold_cost[Products]: holding cost per batch per day"
+    ],
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "recipe": "recipe.csv",
+      "ingredient_supply": "ingredient_supply.csv",
+      "demand": "demand.csv",
+      "prod_costs": "prod_costs.csv"
+    }
+  },
+  "ir_patterns": [
+    "ordered set",
+    "temporal lag",
+    "init constraint",
+    "3D variable",
+    "BOM constraint",
+    "ingredient supply"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "products",
+        "element": "bread"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "products",
+          "ingredients",
+          "days"
+        ],
+        "element": [
+          "bread",
+          "cake",
+          "cookie",
+          "flour",
+          "sugar",
+          "eggs",
+          "mon",
+          "tue",
+          "wed",
+          "thu",
+          "fri"
+        ]
+      }
+    },
+    "recipe": {
+      "columns": {
+        "ingredient_id": "str",
+        "product_id": "str",
+        "recipe": "float"
+      },
+      "sample": {
+        "ingredient_id": "flour",
+        "product_id": "bread",
+        "recipe": 2.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "ingredient_id": [
+          "flour",
+          "sugar",
+          "eggs"
+        ],
+        "product_id": [
+          "bread",
+          "cake",
+          "cookie"
+        ]
+      }
+    },
+    "ingredient_supply": {
+      "columns": {
+        "ingredient_id": "str",
+        "day_id": "str",
+        "ingredient_supply": "float"
+      },
+      "sample": {
+        "ingredient_id": "flour",
+        "day_id": "mon",
+        "ingredient_supply": 50.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "ingredient_id": [
+          "flour",
+          "sugar",
+          "eggs"
+        ],
+        "day_id": [
+          "mon",
+          "tue",
+          "wed",
+          "thu",
+          "fri"
+        ]
+      }
+    },
+    "demand": {
+      "columns": {
+        "product_id": "str",
+        "day_id": "str",
+        "demand": "float"
+      },
+      "sample": {
+        "product_id": "bread",
+        "day_id": "mon",
+        "demand": 8.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "product_id": [
+          "bread",
+          "cake",
+          "cookie"
+        ],
+        "day_id": [
+          "mon",
+          "tue",
+          "wed",
+          "thu",
+          "fri"
+        ]
+      }
+    },
+    "prod_costs": {
+      "columns": {
+        "product_id": "str",
+        "prod_cost": "float",
+        "hold_cost": "float"
+      },
+      "sample": {
+        "product_id": "bread",
+        "prod_cost": 3.0,
+        "hold_cost": 0.5
+      },
+      "optional": false,
+      "distinct_values": {
+        "product_id": [
+          "bread",
+          "cake",
+          "cookie"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "FoodProductionScheduling",
+    "model_type": "Linear Program",
+    "sense": "minimize",
+    "sets": {
+      "Products": {
+        "size": null,
+        "index_symbol": "p",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "products",
+        "ordered": false
+      },
+      "Ingredients": {
+        "size": null,
+        "index_symbol": "ing",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "ingredients",
+        "ordered": false
+      },
+      "Days": {
+        "size": null,
+        "index_symbol": "d",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "days",
+        "ordered": true
+      }
+    },
+    "parameters": {
+      "recipe": {
+        "domain": [
+          "Ingredients",
+          "Products"
+        ],
+        "type": "float",
+        "source": "recipe.csv",
+        "column": "recipe",
+        "index_columns": [
+          "ingredient_id",
+          "product_id"
+        ],
+        "missing_default": "zero"
+      },
+      "ingredient_supply": {
+        "domain": [
+          "Ingredients",
+          "Days"
+        ],
+        "type": "float",
+        "source": "ingredient_supply.csv",
+        "column": "ingredient_supply",
+        "index_columns": [
+          "ingredient_id",
+          "day_id"
+        ],
+        "missing_default": "zero"
+      },
+      "demand": {
+        "domain": [
+          "Products",
+          "Days"
+        ],
+        "type": "float",
+        "source": "demand.csv",
+        "column": "demand",
+        "index_columns": [
+          "product_id",
+          "day_id"
+        ],
+        "missing_default": "zero"
+      },
+      "prod_cost": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "prod_costs.csv",
+        "column": "prod_cost",
+        "index_columns": [
+          "product_id"
+        ],
+        "missing_default": "inf"
+      },
+      "hold_cost": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "prod_costs.csv",
+        "column": "hold_cost",
+        "index_columns": [
+          "product_id"
+        ],
+        "missing_default": "inf"
+      }
+    },
+    "variables": {
+      "produce": {
+        "description": "Batches produced for product p on day d",
+        "label": "production_batches",
+        "domain": [
+          "Products",
+          "Days"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "inventory": {
+        "description": "Stock of product p at end of day d",
+        "label": "inventory_levels",
+        "domain": [
+          "Products",
+          "Days"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "use": {
+        "description": "Units of ingredient ing used for product p on day d",
+        "label": "ingredient_use",
+        "domain": [
+          "Ingredients",
+          "Products",
+          "Days"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "inventory_balance_init": {
+        "domain": [
+          "Products"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "produce",
+            "indices": [
+              "p",
+              "Days[0]"
+            ]
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "type": "parameter",
+              "name": "demand",
+              "indices": [
+                "p",
+                "Days[0]"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "inventory",
+              "indices": [
+                "p",
+                "Days[0]"
+              ]
+            }
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "inventory_balance": {
+        "domain": [
+          "Products",
+          "Days"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "inventory",
+              "indices": [
+                "p",
+                "d"
+              ],
+              "lag": -1
+            },
+            "right": {
+              "type": "variable",
+              "name": "produce",
+              "indices": [
+                "p",
+                "d"
+              ]
+            }
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "type": "parameter",
+              "name": "demand",
+              "indices": [
+                "p",
+                "d"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "inventory",
+              "indices": [
+                "p",
+                "d"
+              ]
+            }
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "ingredient_use_link": {
+        "domain": [
+          "Ingredients",
+          "Products",
+          "Days"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "use",
+            "indices": [
+              "ing",
+              "p",
+              "d"
+            ]
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "recipe",
+              "indices": [
+                "ing",
+                "p"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "produce",
+              "indices": [
+                "p",
+                "d"
+              ]
+            }
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "ingredient_supply_limit": {
+        "domain": [
+          "Ingredients",
+          "Days"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Products:p"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "use",
+              "indices": [
+                "ing",
+                "p",
+                "d"
+              ]
+            }
+          },
+          "right": {
+            "type": "parameter",
+            "name": "ingredient_supply",
+            "indices": [
+              "ing",
+              "d"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Products:p",
+          "Days:d"
+        ],
+        "body": {
+          "operation": "sum",
+          "left": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "prod_cost",
+              "indices": [
+                "p"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "produce",
+              "indices": [
+                "p",
+                "d"
+              ]
+            }
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "hold_cost",
+              "indices": [
+                "p"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "inventory",
+              "indices": [
+                "p",
+                "d"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,258 @@
+{
+  "problem": {
+    "title": "Set Partitioning for Service Routes",
+    "description": "A logistics company must partition its customer set into non-overlapping service routes. Each possible route serves a subset of customers and has a cost. Each customer must be served by exactly one selected route. Minimize total route cost.",
+    "problem_type": "integer_programming",
+    "objective": "minimize",
+    "objective_description": "Total cost of selected routes",
+    "constraints": [
+      {
+        "description": "Each customer is served by exactly one selected route"
+      }
+    ],
+    "decision_variables": [
+      "use_route[rt]: 1 if route rt is selected (binary)"
+    ],
+    "parameters": [
+      "route_cost[rt]: cost of using route rt",
+      "serves[rt,c]: 1 if route rt serves customer c"
+    ],
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "routes": "routes.csv",
+      "serving": "serving.csv"
+    }
+  },
+  "ir_patterns": [
+    "binary variable",
+    "set partitioning equality",
+    "sparse coverage parameter"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "routes",
+        "element": "rt1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "routes",
+          "customers"
+        ],
+        "element": [
+          "rt1",
+          "rt2",
+          "rt3",
+          "rt4",
+          "rt5",
+          "rt6",
+          "rt7",
+          "rt8",
+          "c1",
+          "c2",
+          "c3",
+          "c4",
+          "c5",
+          "c6"
+        ]
+      }
+    },
+    "routes": {
+      "columns": {
+        "route_id": "str",
+        "route_cost": "float"
+      },
+      "sample": {
+        "route_id": "rt1",
+        "route_cost": 120.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "route_id": [
+          "rt1",
+          "rt2",
+          "rt3",
+          "rt4",
+          "rt5",
+          "rt6",
+          "rt7",
+          "rt8"
+        ]
+      }
+    },
+    "serving": {
+      "columns": {
+        "route_id": "str",
+        "customer_id": "str",
+        "serves": "int"
+      },
+      "sample": {
+        "route_id": "rt1",
+        "customer_id": "c1",
+        "serves": 1
+      },
+      "optional": false,
+      "distinct_values": {
+        "route_id": [
+          "rt1",
+          "rt2",
+          "rt3",
+          "rt4",
+          "rt5",
+          "rt6",
+          "rt7",
+          "rt8"
+        ],
+        "customer_id": [
+          "c1",
+          "c2",
+          "c3",
+          "c4",
+          "c5",
+          "c6"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "SetPartitioning",
+    "model_type": "Mixed Integer Program",
+    "sense": "minimize",
+    "sets": {
+      "Routes": {
+        "size": null,
+        "index_symbol": "rt",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "routes",
+        "ordered": false
+      },
+      "Customers": {
+        "size": null,
+        "index_symbol": "c",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "customers",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "route_cost": {
+        "domain": [
+          "Routes"
+        ],
+        "type": "float",
+        "source": "routes.csv",
+        "column": "route_cost",
+        "index_columns": [
+          "route_id"
+        ],
+        "missing_default": "inf"
+      },
+      "serves": {
+        "domain": [
+          "Routes",
+          "Customers"
+        ],
+        "type": "float",
+        "source": "serving.csv",
+        "column": "serves",
+        "index_columns": [
+          "route_id",
+          "customer_id"
+        ],
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "use_route": {
+        "description": "1 if route rt is selected for the delivery plan",
+        "label": "route_selections",
+        "domain": [
+          "Routes"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "customer_exactly_once": {
+        "domain": [
+          "Customers"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Routes:rt"
+            ],
+            "body": {
+              "operation": "multiply",
+              "left": {
+                "type": "parameter",
+                "name": "serves",
+                "indices": [
+                  "rt",
+                  "c"
+                ]
+              },
+              "right": {
+                "type": "variable",
+                "name": "use_route",
+                "indices": [
+                  "rt"
+                ]
+              }
+            }
+          },
+          "right": {
+            "type": "constant",
+            "value": 1
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Routes:rt"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "type": "parameter",
+            "name": "route_cost",
+            "indices": [
+              "rt"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "use_route",
+            "indices": [
+              "rt"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

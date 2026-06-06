@@ -1,0 +1,435 @@
+{
+  "problem": {
+    "title": "Project Portfolio Selection with Resource Constraints",
+    "description": "Select which projects to fund and in which period to start them. Each project has a net present value (NPV) and can be started at most once. Starting a project in a period consumes capital budget and resources. Resource and capital budgets constrain how many projects can be started per period. Maximize total NPV of selected projects.",
+    "problem_type": "mixed_integer",
+    "objective": "maximize",
+    "objective_description": "Total NPV = sum over projects and periods of npv[pj] * start[pj, y]",
+    "constraints": [
+      {
+        "description": "Start at most once: each project can be started in at most one period"
+      },
+      {
+        "description": "Capital limit: total capital cost of projects started per period cannot exceed budget"
+      },
+      {
+        "description": "Resource limit: total resource usage of projects started per period-resource cannot exceed capacity"
+      }
+    ],
+    "decision_variables": [
+      "start[Projects, Periods]: 1 if project pj is started in period y (binary)"
+    ],
+    "parameters": [
+      "npv[Projects]: net present value of project",
+      "capital_cost[Projects]: one-time capital cost when started",
+      "resource_use[Projects, Resources]: resource consumed per period when active",
+      "resource_cap[Periods, Resources]: resource available per period per resource type",
+      "capital_budget[Periods]: capital budget available per period"
+    ],
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "projects": "projects.csv",
+      "resource_use": "resource_use.csv",
+      "resource_cap": "resource_cap.csv",
+      "capital": "capital.csv"
+    }
+  },
+  "ir_patterns": [
+    "binary variable",
+    "resource constraints",
+    "project selection",
+    "maximize NPV"
+  ],
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "projects",
+        "element": "pj1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "projects",
+          "periods",
+          "resources"
+        ],
+        "element": [
+          "pj1",
+          "pj2",
+          "pj3",
+          "pj4",
+          "pj5",
+          "y1",
+          "y2",
+          "y3",
+          "y4",
+          "r1",
+          "r2"
+        ]
+      }
+    },
+    "projects": {
+      "columns": {
+        "project_id": "str",
+        "npv": "float",
+        "investment": "float"
+      },
+      "sample": {
+        "project_id": "pj1",
+        "npv": 500.0,
+        "investment": 200.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "project_id": [
+          "pj1",
+          "pj2",
+          "pj3",
+          "pj4",
+          "pj5"
+        ]
+      }
+    },
+    "resource_use": {
+      "columns": {
+        "project_id": "str",
+        "resource_id": "str",
+        "resource_use": "float"
+      },
+      "sample": {
+        "project_id": "pj1",
+        "resource_id": "r1",
+        "resource_use": 3.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "project_id": [
+          "pj1",
+          "pj2",
+          "pj3",
+          "pj4",
+          "pj5"
+        ],
+        "resource_id": [
+          "r1",
+          "r2"
+        ]
+      }
+    },
+    "resource_cap": {
+      "columns": {
+        "period_id": "str",
+        "resource_id": "str",
+        "resource_cap": "float"
+      },
+      "sample": {
+        "period_id": "y1",
+        "resource_id": "r1",
+        "resource_cap": 8.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "period_id": [
+          "y1",
+          "y2",
+          "y3",
+          "y4"
+        ],
+        "resource_id": [
+          "r1",
+          "r2"
+        ]
+      }
+    },
+    "capital": {
+      "columns": {
+        "period_id": "str",
+        "capital_budget": "float"
+      },
+      "sample": {
+        "period_id": "y1",
+        "capital_budget": 600.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "period_id": [
+          "y1",
+          "y2",
+          "y3",
+          "y4"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "ProjectPortfolioResources",
+    "model_type": "Mixed Integer Program",
+    "sense": "maximize",
+    "sets": {
+      "Projects": {
+        "size": null,
+        "index_symbol": "pj",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "projects",
+        "ordered": false
+      },
+      "Periods": {
+        "size": null,
+        "index_symbol": "y",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "periods",
+        "ordered": false
+      },
+      "Resources": {
+        "size": null,
+        "index_symbol": "r",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "resources",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "npv": {
+        "domain": [
+          "Projects"
+        ],
+        "type": "float",
+        "source": "projects.csv",
+        "column": "npv",
+        "index_columns": [
+          "project_id"
+        ],
+        "missing_default": "zero"
+      },
+      "investment": {
+        "domain": [
+          "Projects"
+        ],
+        "type": "float",
+        "source": "projects.csv",
+        "column": "investment",
+        "index_columns": [
+          "project_id"
+        ],
+        "missing_default": "inf"
+      },
+      "resource_use": {
+        "domain": [
+          "Projects",
+          "Resources"
+        ],
+        "type": "float",
+        "source": "resource_use.csv",
+        "column": "resource_use",
+        "index_columns": [
+          "project_id",
+          "resource_id"
+        ],
+        "missing_default": "zero"
+      },
+      "resource_cap": {
+        "domain": [
+          "Periods",
+          "Resources"
+        ],
+        "type": "float",
+        "source": "resource_cap.csv",
+        "column": "resource_cap",
+        "index_columns": [
+          "period_id",
+          "resource_id"
+        ],
+        "missing_default": "inf"
+      },
+      "capital_budget": {
+        "domain": [
+          "Periods"
+        ],
+        "type": "float",
+        "source": "capital.csv",
+        "column": "capital_budget",
+        "index_columns": [
+          "period_id"
+        ],
+        "missing_default": "inf"
+      }
+    },
+    "variables": {
+      "start": {
+        "description": "1 if project pj is started in period y",
+        "label": "project_starts",
+        "domain": [
+          "Projects",
+          "Periods"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "start_once": {
+        "domain": [
+          "Projects"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Periods:y"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "start",
+              "indices": [
+                "pj",
+                "y"
+              ]
+            }
+          },
+          "right": {
+            "type": "constant",
+            "value": 1
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "capital_limit": {
+        "domain": [
+          "Periods"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Projects:pj"
+            ],
+            "body": {
+              "operation": "multiply",
+              "left": {
+                "type": "parameter",
+                "name": "investment",
+                "indices": [
+                  "pj"
+                ]
+              },
+              "right": {
+                "type": "variable",
+                "name": "start",
+                "indices": [
+                  "pj",
+                  "y"
+                ]
+              }
+            }
+          },
+          "right": {
+            "type": "parameter",
+            "name": "capital_budget",
+            "indices": [
+              "y"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "resource_limit": {
+        "domain": [
+          "Periods",
+          "Resources"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Projects:pj"
+            ],
+            "body": {
+              "operation": "multiply",
+              "left": {
+                "type": "parameter",
+                "name": "resource_use",
+                "indices": [
+                  "pj",
+                  "r"
+                ]
+              },
+              "right": {
+                "type": "variable",
+                "name": "start",
+                "indices": [
+                  "pj",
+                  "y"
+                ]
+              }
+            }
+          },
+          "right": {
+            "type": "parameter",
+            "name": "resource_cap",
+            "indices": [
+              "y",
+              "r"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "maximize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Projects:pj",
+          "Periods:y"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "type": "parameter",
+            "name": "npv",
+            "indices": [
+              "pj"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "start",
+            "indices": [
+              "pj",
+              "y"
+            ]
+          }
+        }
+      }
+    }
+  }
+}
