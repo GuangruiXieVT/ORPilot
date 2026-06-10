@@ -38,12 +38,6 @@
       "route_capacity": "route_capacity.csv"
     }
   },
-  "ir_patterns": [
-    "binary variable",
-    "domain filter",
-    "sparse filter",
-    "big-M linking"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -557,5 +551,11 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "big-M linking",
+    "binary variable",
+    "domain filter",
+    "sparse filter"
+  ]
 }

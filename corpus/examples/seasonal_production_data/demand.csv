@@ -1,0 +1,13 @@
+product_id,month_id,demand
+I,Jul,30000
+I,Aug,30000
+I,Sep,30000
+I,Oct,100000
+I,Nov,100000
+I,Dec,100000
+II,Jul,15000
+II,Aug,15000
+II,Sep,15000
+II,Oct,50000
+II,Nov,50000
+II,Dec,50000

@@ -1,0 +1,423 @@
+{
+  "problem": {
+    "title": "Method Selection MIP: Minimize Weekly Labor Cost with Worker Policy Constraints",
+    "description": "A factory must complete 3 tasks (T1, T2, T3), each with two possible methods (A or B). Exactly one method must be chosen per task. Workers are hired at 100 yuan/week (skilled) or 80 yuan/week (laborers). Constraints: total skilled workers <= 400, total laborers <= 800, skilled workers <= 60% of laborers (policy). Additionally, methods T1-B and T3-A cannot both be selected. Minimize total weekly labor cost.",
+    "problem_type": "mixed_integer_programming",
+    "objective": "minimize",
+    "objective_description": "Total weekly labor cost = sum over tasks and methods of method_cost[t,m] * method[t,m]",
+    "constraints": [
+      {
+        "description": "One method per task: sum over Methods of method[t,m] = 1 for each task"
+      },
+      {
+        "description": "Max 400 skilled workers: sum(skilled_req[t,m]*method[t,m]) <= 400"
+      },
+      {
+        "description": "Max 800 laborers: sum(laborer_req[t,m]*method[t,m]) <= 800"
+      },
+      {
+        "description": "Skilled <= 60% of laborers: sum(skilled_req*method) - 0.6*sum(laborer_req*method) <= 0"
+      },
+      {
+        "description": "Mutual exclusion: method[T1,B] + method[T3,A] <= 1"
+      }
+    ],
+    "decision_variables": [
+      "method[t,m]: binary, 1 if task t is executed using method m, 0 otherwise"
+    ],
+    "parameters": [
+      "method_cost[t,m]: total weekly labor cost if task t uses method m",
+      "skilled_req[t,m]: number of skilled workers required if task t uses method m",
+      "laborer_req[t,m]: number of laborers required if task t uses method m"
+    ],
+    "additional_notes": "Expected obj=84000 (T1-A: 20000, T2-B: 24000, T3-A: 40000). Mutual exclusion constraint uses hardcoded indices method['T1','B'] + method['T3','A'] <= 1 with domain=[]. skilled_policy is a scalar constraint (domain=[]) using two nested indexed_sums over Tasks x Methods.",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "task_methods": "task_methods.csv"
+    }
+  },
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "tasks",
+        "element": "T1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "tasks",
+          "methods"
+        ],
+        "element": [
+          "T1",
+          "T2",
+          "T3",
+          "A",
+          "B"
+        ]
+      }
+    },
+    "task_methods": {
+      "columns": {
+        "task_id": "str",
+        "method_id": "str",
+        "method_cost": "float",
+        "skilled_req": "float",
+        "laborer_req": "float"
+      },
+      "sample": {
+        "task_id": "T1",
+        "method_id": "A",
+        "method_cost": 20000.0,
+        "skilled_req": 200.0,
+        "laborer_req": 0.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "task_id": [
+          "T1",
+          "T2",
+          "T3"
+        ],
+        "method_id": [
+          "A",
+          "B"
+        ],
+        "method_cost": [
+          "20000.0",
+          "52500.0",
+          "25800.0",
+          "24000.0",
+          "40000.0",
+          "40800.0"
+        ],
+        "skilled_req": [
+          "200.0",
+          "258.0",
+          "0.0",
+          "120.0"
+        ],
+        "laborer_req": [
+          "0.0",
+          "400.0",
+          "300.0",
+          "500.0",
+          "360.0"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "MethodSelectionMIP",
+    "model_type": "Mixed Integer Program",
+    "sense": "minimize",
+    "sets": {
+      "Tasks": {
+        "size": null,
+        "index_symbol": "t",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "tasks",
+        "ordered": false
+      },
+      "Methods": {
+        "size": null,
+        "index_symbol": "m",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "methods",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "method_cost": {
+        "domain": [
+          "Tasks",
+          "Methods"
+        ],
+        "type": "float",
+        "source": "task_methods.csv",
+        "column": "method_cost",
+        "index_columns": [
+          "task_id",
+          "method_id"
+        ],
+        "missing_default": "inf"
+      },
+      "skilled_req": {
+        "domain": [
+          "Tasks",
+          "Methods"
+        ],
+        "type": "float",
+        "source": "task_methods.csv",
+        "column": "skilled_req",
+        "index_columns": [
+          "task_id",
+          "method_id"
+        ],
+        "missing_default": "zero"
+      },
+      "laborer_req": {
+        "domain": [
+          "Tasks",
+          "Methods"
+        ],
+        "type": "float",
+        "source": "task_methods.csv",
+        "column": "laborer_req",
+        "index_columns": [
+          "task_id",
+          "method_id"
+        ],
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "method": {
+        "description": "1 if task t is executed using method m, 0 otherwise",
+        "label": "method",
+        "domain": [
+          "Tasks",
+          "Methods"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "task_select": {
+        "domain": [
+          "Tasks"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Methods:m"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "method",
+            "indices": [
+              "t",
+              "m"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 1
+        }
+      },
+      "max_skilled": {
+        "domain": [],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Tasks:t",
+            "Methods:m"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "skilled_req",
+              "indices": [
+                "t",
+                "m"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "method",
+              "indices": [
+                "t",
+                "m"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 400
+        }
+      },
+      "max_laborers": {
+        "domain": [],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Tasks:t",
+            "Methods:m"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "laborer_req",
+              "indices": [
+                "t",
+                "m"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "method",
+              "indices": [
+                "t",
+                "m"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 800
+        }
+      },
+      "skilled_policy": {
+        "domain": [],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Tasks:t",
+              "Methods:m"
+            ],
+            "body": {
+              "operation": "multiply",
+              "left": {
+                "type": "parameter",
+                "name": "skilled_req",
+                "indices": [
+                  "t",
+                  "m"
+                ]
+              },
+              "right": {
+                "type": "variable",
+                "name": "method",
+                "indices": [
+                  "t",
+                  "m"
+                ]
+              }
+            }
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "constant",
+              "value": 0.6
+            },
+            "right": {
+              "operation": "indexed_sum",
+              "over": [
+                "Tasks:t",
+                "Methods:m"
+              ],
+              "body": {
+                "operation": "multiply",
+                "left": {
+                  "type": "parameter",
+                  "name": "laborer_req",
+                  "indices": [
+                    "t",
+                    "m"
+                  ]
+                },
+                "right": {
+                  "type": "variable",
+                  "name": "method",
+                  "indices": [
+                    "t",
+                    "m"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "exclusion": {
+        "domain": [],
+        "expression": {
+          "operation": "sum",
+          "left": {
+            "type": "variable",
+            "name": "method",
+            "indices": [
+              "T1",
+              "B"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "method",
+            "indices": [
+              "T3",
+              "A"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 1
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Tasks:t",
+          "Methods:m"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "type": "parameter",
+            "name": "method_cost",
+            "indices": [
+              "t",
+              "m"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "method",
+            "indices": [
+              "t",
+              "m"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "modeling_patterns": [
+    "binary variable",
+    "mutual exclusion",
+    "ratio constraint"
+  ]
+}

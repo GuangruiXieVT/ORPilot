@@ -35,13 +35,6 @@
       "training_cap": "training_cap.csv"
     }
   },
-  "ir_patterns": [
-    "binary variable",
-    "ordered set",
-    "temporal lag (inequality)",
-    "skill accumulation",
-    "3D variable"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -504,5 +497,9 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "binary variable",
+    "temporal lag"
+  ]
 }

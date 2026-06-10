@@ -1,0 +1,406 @@
+{
+  "problem": {
+    "title": "Production Line Activation MIP: Maximize Profit with Fixed Setup Costs",
+    "description": "A factory can produce 3 products (A1, A2, A3) in a month (22 working days). Each product has a maximum market demand, net profit margin, daily production quota, a fixed activation cost if the production line is started, and a minimum batch size if activated. Decide whether to activate each product's line and how much to produce to maximize total profit (revenue minus production cost minus activation cost).",
+    "problem_type": "mixed_integer_programming",
+    "objective": "maximize",
+    "objective_description": "Total profit = sum over products of (margin[p] * produce[p] - activation_cost[p] * activate[p])",
+    "constraints": [
+      {
+        "description": "Working day limit: sum over products of produce[p] * days_per_unit[p] <= 22 (total production days cannot exceed 22)"
+      },
+      {
+        "description": "Production capacity: if activated, max produce = min(22*quota, max_demand); if not activated, produce = 0"
+      },
+      {
+        "description": "Minimum batch: if activated, produce >= min_batch"
+      },
+      {
+        "description": "Demand cap: produce[p] <= max_demand[p]"
+      }
+    ],
+    "decision_variables": [
+      "produce[p]: units of product p produced (continuous, non-negative)",
+      "activate[p]: 1 if product p line is activated, 0 otherwise (binary)"
+    ],
+    "parameters": [
+      "margin[p]: net profit per unit produced (selling price - production cost)",
+      "quota[p]: max units per day if all 22 days devoted to product p",
+      "activation_cost[p]: fixed cost to activate product p's line",
+      "min_batch[p]: minimum units if product p is activated",
+      "max_demand[p]: maximum market demand for product p",
+      "big_m[p]: min(22*quota[p], max_demand[p]) used as big-M coefficient",
+      "days_per_unit[p]: 1/quota[p], days consumed per unit of product p produced"
+    ],
+    "additional_notes": "Products: A1 (margin=50.70, quota=500, activation=170000, min_batch=20, max_demand=5300, days_per_unit=0.002), A2 (margin=56.10, quota=450, activation=150000, min_batch=20, max_demand=4500, days_per_unit=0.002222), A3 (margin=49.60, quota=550, activation=100000, min_batch=16, max_demand=5400, days_per_unit=0.001818). big_m = min(22*quota, max_demand): A1=5300, A2=4500, A3=5400. Key binding constraint: sum(produce[p]/quota[p]) <= 22. All 3 at max demand requires 5300/500+4500/450+5400/550=10.6+10+9.82=30.42 days (infeasible). Optimal: activate only A2+A3 at max demand. Days used=4500/450+5400/550=10+9.82=19.82 <= 22. Profit=56.10*4500+49.60*5400-150000-100000=252450+267840-250000=270290. Obj=270290.",
+    "csv_file_paths": {
+      "products": "products.csv"
+    }
+  },
+  "csv_schemas": {
+    "products": {
+      "columns": {
+        "product_id": "str",
+        "margin": "float",
+        "quota": "float",
+        "activation_cost": "float",
+        "min_batch": "float",
+        "max_demand": "float",
+        "big_m": "float"
+      },
+      "sample": {
+        "product_id": "A1",
+        "margin": 50.7,
+        "quota": 500,
+        "activation_cost": 170000,
+        "min_batch": 20,
+        "max_demand": 5300,
+        "big_m": 5300,
+        "days_per_unit": 0.002
+      },
+      "optional": false,
+      "distinct_values": {
+        "product_id": [
+          "A1",
+          "A2",
+          "A3"
+        ],
+        "margin": [
+          "50.70",
+          "56.10",
+          "49.60"
+        ],
+        "quota": [
+          "500",
+          "450",
+          "550"
+        ],
+        "activation_cost": [
+          "170000",
+          "150000",
+          "100000"
+        ],
+        "min_batch": [
+          "20",
+          "20",
+          "16"
+        ],
+        "max_demand": [
+          "5300",
+          "4500",
+          "5400"
+        ],
+        "big_m": [
+          "5300",
+          "4500",
+          "5400"
+        ],
+        "days_per_unit": [
+          "0.002",
+          "0.002222222",
+          "0.001818182"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "ProductionSetupMIP",
+    "model_type": "Mixed Integer Program",
+    "sense": "maximize",
+    "sets": {
+      "Products": {
+        "size": null,
+        "index_symbol": "p",
+        "source": "products.csv",
+        "column": "product_id",
+        "filter_column": null,
+        "filter_value": null,
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "margin": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "products.csv",
+        "column": "margin",
+        "index_columns": [
+          "product_id"
+        ],
+        "missing_default": "zero"
+      },
+      "activation_cost": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "products.csv",
+        "column": "activation_cost",
+        "index_columns": [
+          "product_id"
+        ],
+        "missing_default": "inf"
+      },
+      "min_batch": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "products.csv",
+        "column": "min_batch",
+        "index_columns": [
+          "product_id"
+        ],
+        "missing_default": "zero"
+      },
+      "max_demand": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "products.csv",
+        "column": "max_demand",
+        "index_columns": [
+          "product_id"
+        ],
+        "missing_default": "zero"
+      },
+      "big_m": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "products.csv",
+        "column": "big_m",
+        "index_columns": [
+          "product_id"
+        ],
+        "missing_default": "zero"
+      },
+      "days_per_unit": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "products.csv",
+        "column": "days_per_unit",
+        "index_columns": [
+          "product_id"
+        ],
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "produce": {
+        "description": "Units of product p produced",
+        "label": "produce",
+        "domain": [
+          "Products"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "activate": {
+        "description": "1 if product p production line is activated, 0 otherwise",
+        "label": "activate",
+        "domain": [
+          "Products"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "working_days": {
+        "domain": [],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Products:p"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "days_per_unit",
+              "indices": [
+                "p"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "produce",
+              "indices": [
+                "p"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 22
+        }
+      },
+      "cap_limit": {
+        "domain": [
+          "Products"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "produce",
+            "indices": [
+              "p"
+            ]
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "big_m",
+              "indices": [
+                "p"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "activate",
+              "indices": [
+                "p"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "min_prod": {
+        "domain": [
+          "Products"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "min_batch",
+              "indices": [
+                "p"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "activate",
+              "indices": [
+                "p"
+              ]
+            }
+          },
+          "right": {
+            "type": "variable",
+            "name": "produce",
+            "indices": [
+              "p"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "demand_cap": {
+        "domain": [
+          "Products"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "produce",
+            "indices": [
+              "p"
+            ]
+          },
+          "right": {
+            "type": "parameter",
+            "name": "max_demand",
+            "indices": [
+              "p"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "maximize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Products:p"
+        ],
+        "body": {
+          "operation": "subtract",
+          "left": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "margin",
+              "indices": [
+                "p"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "produce",
+              "indices": [
+                "p"
+              ]
+            }
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "activation_cost",
+              "indices": [
+                "p"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "activate",
+              "indices": [
+                "p"
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "modeling_patterns": [
+    "big-M linking",
+    "binary variable"
+  ]
+}

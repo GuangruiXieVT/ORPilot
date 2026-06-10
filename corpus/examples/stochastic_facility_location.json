@@ -32,12 +32,6 @@
       "scenarios": "scenarios.csv"
     }
   },
-  "ir_patterns": [
-    "two-stage stochastic",
-    "binary first-stage",
-    "scenario indexed variable",
-    "expected cost in objective"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -447,5 +441,10 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "binary variable",
+    "scenario weighted sum",
+    "two-stage stochastic"
+  ]
 }

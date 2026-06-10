@@ -26,12 +26,6 @@
       "conflicts": "conflicts.csv"
     }
   },
-  "ir_patterns": [
-    "binary variable",
-    "duplicate set constraint",
-    "sparse conflict parameter",
-    "sparse_filter"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -294,5 +288,10 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "binary variable",
+    "duplicate set",
+    "sparse filter"
+  ]
 }

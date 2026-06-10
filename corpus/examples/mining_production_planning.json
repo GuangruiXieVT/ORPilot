@@ -36,12 +36,6 @@
       "params": "params.csv"
     }
   },
-  "ir_patterns": [
-    "LP",
-    "scalar parameter",
-    "multiply(subtract(param, scalar_param), var) in objective",
-    "grade blending constraint"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -415,5 +409,8 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "ratio constraint"
+  ]
 }

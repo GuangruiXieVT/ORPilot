@@ -37,12 +37,6 @@
       "params": "params.csv"
     }
   },
-  "ir_patterns": [
-    "temporal lag",
-    "init constraint",
-    "buy/sell/hold balance",
-    "ordered set"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -536,5 +530,10 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "balance constraint",
+    "init constraint",
+    "temporal lag"
+  ]
 }

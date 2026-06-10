@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from orpilot.paths import PROJECT_ROOT
+from .structural import ir_fingerprint
 
 CORPUS_DIR: Path = PROJECT_ROOT / "corpus" / "examples"
 INDEX_PATH: Path = PROJECT_ROOT / "corpus" / "rag_index.json"
@@ -86,7 +87,7 @@ def expand_synonyms(text: str) -> str:
 def _example_text(d: dict) -> str:
     """Build the text to embed/index for a corpus example."""
     p = d.get("problem", {})
-    kw = d.get("ir_patterns", [])
+    kw = d.get("modeling_patterns", [])
     lines = [
         f"Title: {p.get('title', '')}",
         f"Keywords: {', '.join(kw)}",
@@ -125,10 +126,11 @@ def build_index(
             "name": json_file.stem,
             "text": text,
             "problem_title": d.get("problem", {}).get("title", ""),
-            "ir_patterns": d.get("ir_patterns", []),
+            "modeling_patterns": d.get("modeling_patterns", []),
             "problem": d.get("problem", {}),
             "csv_schemas": d.get("csv_schemas", {}),
             "ir": d["ir"],
+            "fingerprint": sorted(ir_fingerprint(d)),
         })
 
     # Compute embeddings if an embedder is provided

@@ -32,12 +32,6 @@
       "params": "params.csv"
     }
   },
-  "ir_patterns": [
-    "domain filter",
-    "multiply two parameters",
-    "sparse crop-season",
-    "scalar parameter"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -400,5 +394,9 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "domain filter",
+    "sparse filter"
+  ]
 }

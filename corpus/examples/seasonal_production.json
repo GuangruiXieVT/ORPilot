@@ -1,0 +1,535 @@
+{
+  "problem": {
+    "title": "Seasonal Production Planning with Own and Rented Warehouse Storage",
+    "description": "A manufacturer plans production of two products (I and II) over 6 months (July through December) to minimize total production and storage cost. Monthly demand is low in Jul-Sep and high in Oct-Dec. Combined production capacity is 120,000 units/month. Product I requires 0.2 m3/unit volume and costs 4.5 yuan/unit to produce. Product II requires 0.4 m3/unit and costs 7 yuan/unit. Storage: the company owns a warehouse of 15,000 m3 (cost 1 yuan/m3/month); extra space can be rented at 1.5 yuan/m3/month. Initial inventory is zero.",
+    "problem_type": "linear_programming",
+    "objective": "minimize",
+    "objective_description": "Total cost = prod_cost[p,m]*produce[p,m] + 1*own_vol[m] + 1.5*ext_vol[m], summed over all products and months",
+    "constraints": [
+      {
+        "description": "Inventory balance init (July): inv[p,Jul] = produce[p,Jul] - demand[p,Jul], with zero initial inventory"
+      },
+      {
+        "description": "Inventory balance (Aug-Dec): inv[p,m] = inv[p,m-1] + produce[p,m] - demand[p,m]"
+      },
+      {
+        "description": "Monthly production capacity: sum over products of produce[p,m] <= 120000"
+      },
+      {
+        "description": "Warehouse volume: total volume stored = own_vol[m] + ext_vol[m]"
+      },
+      {
+        "description": "Own warehouse capacity: own_vol[m] <= 15000"
+      }
+    ],
+    "decision_variables": [
+      "produce[p,m]: units of product p produced in month m (continuous, non-negative)",
+      "inv[p,m]: units of product p in inventory at end of month m (continuous, non-negative)",
+      "own_vol[m]: m3 stored in own warehouse at end of month m (continuous, non-negative)",
+      "ext_vol[m]: m3 stored in rented extra warehouse at end of month m (continuous, non-negative)"
+    ],
+    "parameters": [
+      "demand[p,m]: units of product p demanded in month m",
+      "prod_cost[p,m]: production cost per unit of product p in month m",
+      "vol[p]: volume per unit of product p (m3/unit)"
+    ],
+    "additional_notes": "Optimal obj=3160500. balance_init domain=[Products], uses Months[0] for July. balance domain=[Products,Months] with lag:-1 on inv. warehouse constraint domain=[Months]: indexed_sum(vol[p]*inv[p,m] over Products) - own_vol[m] - ext_vol[m] = 0. own_warehouse_cap domain=[Months]: own_vol[m] <= 15000. capacity domain=[Months]: indexed_sum(produce[p,m] over Products) <= 120000.",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "demand": "demand.csv",
+      "prod_cost": "prod_cost.csv",
+      "vol": "vol.csv"
+    }
+  },
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "products",
+        "element": "I"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "products",
+          "months"
+        ],
+        "element": [
+          "I",
+          "II",
+          "Jul",
+          "Aug",
+          "Sep",
+          "Oct",
+          "Nov",
+          "Dec"
+        ]
+      }
+    },
+    "demand": {
+      "columns": {
+        "product_id": "str",
+        "month_id": "str",
+        "demand": "float"
+      },
+      "sample": {
+        "product_id": "I",
+        "month_id": "Jul",
+        "demand": 30000.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "product_id": [
+          "I",
+          "II"
+        ],
+        "month_id": [
+          "Jul",
+          "Aug",
+          "Sep",
+          "Oct",
+          "Nov",
+          "Dec"
+        ],
+        "demand": [
+          "30000.0",
+          "15000.0",
+          "100000.0",
+          "50000.0"
+        ]
+      }
+    },
+    "prod_cost": {
+      "columns": {
+        "product_id": "str",
+        "month_id": "str",
+        "prod_cost": "float"
+      },
+      "sample": {
+        "product_id": "I",
+        "month_id": "Jul",
+        "prod_cost": 4.5
+      },
+      "optional": false,
+      "distinct_values": {
+        "product_id": [
+          "I",
+          "II"
+        ],
+        "month_id": [
+          "Jul",
+          "Aug",
+          "Sep",
+          "Oct",
+          "Nov",
+          "Dec"
+        ],
+        "prod_cost": [
+          "4.5",
+          "7.0"
+        ]
+      }
+    },
+    "vol": {
+      "columns": {
+        "product_id": "str",
+        "vol": "float"
+      },
+      "sample": {
+        "product_id": "I",
+        "vol": 0.2
+      },
+      "optional": false,
+      "distinct_values": {
+        "product_id": [
+          "I",
+          "II"
+        ],
+        "vol": [
+          "0.2",
+          "0.4"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "SeasonalProductionWarehouseLP",
+    "model_type": "Linear Program",
+    "sense": "minimize",
+    "sets": {
+      "Products": {
+        "size": null,
+        "index_symbol": "p",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "products",
+        "ordered": false
+      },
+      "Months": {
+        "size": null,
+        "index_symbol": "m",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "months",
+        "ordered": true
+      }
+    },
+    "parameters": {
+      "demand": {
+        "domain": [
+          "Products",
+          "Months"
+        ],
+        "type": "float",
+        "source": "demand.csv",
+        "column": "demand",
+        "index_columns": [
+          "product_id",
+          "month_id"
+        ],
+        "missing_default": "zero"
+      },
+      "prod_cost": {
+        "domain": [
+          "Products",
+          "Months"
+        ],
+        "type": "float",
+        "source": "prod_cost.csv",
+        "column": "prod_cost",
+        "index_columns": [
+          "product_id",
+          "month_id"
+        ],
+        "missing_default": "inf"
+      },
+      "vol": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "vol.csv",
+        "column": "vol",
+        "index_columns": [
+          "product_id"
+        ],
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "produce": {
+        "description": "Units of product p produced in month m",
+        "label": "produce",
+        "domain": [
+          "Products",
+          "Months"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "inv": {
+        "description": "Units of product p in inventory at end of month m",
+        "label": "inv",
+        "domain": [
+          "Products",
+          "Months"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "own_vol": {
+        "description": "Volume (m3) stored in own warehouse at end of month m",
+        "label": "own_vol",
+        "domain": [
+          "Months"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "ext_vol": {
+        "description": "Volume (m3) stored in rented extra warehouse at end of month m",
+        "label": "ext_vol",
+        "domain": [
+          "Months"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "inv_balance_init": {
+        "domain": [
+          "Products"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "inv",
+              "indices": [
+                "p",
+                "Months[0]"
+              ]
+            },
+            "right": {
+              "type": "parameter",
+              "name": "demand",
+              "indices": [
+                "p",
+                "Months[0]"
+              ]
+            }
+          },
+          "right": {
+            "type": "variable",
+            "name": "produce",
+            "indices": [
+              "p",
+              "Months[0]"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "inv_balance": {
+        "domain": [
+          "Products",
+          "Months"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "operation": "subtract",
+              "left": {
+                "type": "variable",
+                "name": "inv",
+                "indices": [
+                  "p",
+                  "m"
+                ]
+              },
+              "right": {
+                "type": "variable",
+                "name": "inv",
+                "indices": [
+                  "p",
+                  "m"
+                ],
+                "lag": -1
+              }
+            },
+            "right": {
+              "type": "parameter",
+              "name": "demand",
+              "indices": [
+                "p",
+                "m"
+              ]
+            }
+          },
+          "right": {
+            "type": "variable",
+            "name": "produce",
+            "indices": [
+              "p",
+              "m"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "capacity": {
+        "domain": [
+          "Months"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Products:p"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "produce",
+            "indices": [
+              "p",
+              "m"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 120000
+        }
+      },
+      "warehouse_vol": {
+        "domain": [
+          "Months"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Products:p"
+            ],
+            "body": {
+              "operation": "multiply",
+              "left": {
+                "type": "parameter",
+                "name": "vol",
+                "indices": [
+                  "p"
+                ]
+              },
+              "right": {
+                "type": "variable",
+                "name": "inv",
+                "indices": [
+                  "p",
+                  "m"
+                ]
+              }
+            }
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "own_vol",
+              "indices": [
+                "m"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "ext_vol",
+              "indices": [
+                "m"
+              ]
+            }
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "own_cap": {
+        "domain": [
+          "Months"
+        ],
+        "expression": {
+          "type": "variable",
+          "name": "own_vol",
+          "indices": [
+            "m"
+          ]
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 15000
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "sum",
+        "left": {
+          "operation": "indexed_sum",
+          "over": [
+            "Products:p",
+            "Months:m"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "prod_cost",
+              "indices": [
+                "p",
+                "m"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "produce",
+              "indices": [
+                "p",
+                "m"
+              ]
+            }
+          }
+        },
+        "right": {
+          "operation": "indexed_sum",
+          "over": [
+            "Months:m"
+          ],
+          "body": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "own_vol",
+              "indices": [
+                "m"
+              ]
+            },
+            "right": {
+              "operation": "multiply",
+              "left": {
+                "type": "constant",
+                "value": 1.5
+              },
+              "right": {
+                "type": "variable",
+                "name": "ext_vol",
+                "indices": [
+                  "m"
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "modeling_patterns": [
+    "balance constraint",
+    "init constraint",
+    "step cost",
+    "temporal lag"
+  ]
+}

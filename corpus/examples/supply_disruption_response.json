@@ -36,12 +36,6 @@
       "scenarios": "scenarios.csv"
     }
   },
-  "ir_patterns": [
-    "two-stage stochastic",
-    "continuous first-stage",
-    "scenario indexed variable",
-    "fraction linking"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -555,5 +549,10 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "ratio constraint",
+    "scenario weighted sum",
+    "two-stage stochastic"
+  ]
 }

@@ -1,0 +1,317 @@
+{
+  "problem": {
+    "title": "Mall Leasing MIP: Maximize Rental Income with Piecewise Profit per Store Count",
+    "description": "Shopping mall has 5000m² to lease across 5 store types: Jewelry (min 1, max 3 shops, 250m²/shop), Shoes&Hats (min 1, max 2, 350m²), General Merchandise (min 1, max 3, 800m²), Bookstore (min 0, max 2, 400m²), Catering (min 1, max 3, 500m²). Profit per store varies with total count of that type (tiered). Rent = 20% of profit. Each valid (type, count) combination is an 'option'. Exactly one option must be chosen per store type. Maximize total rental income.",
+    "problem_type": "mixed_integer_programming",
+    "objective": "maximize",
+    "objective_description": "Total rental = sum(annual_rental[o] * y[o]) for all options",
+    "constraints": [
+      {
+        "description": "For each store type, exactly one count-level option is chosen: sum(type_match[o,s]*y[o] over Options) = 1 for each StoreType s"
+      },
+      {
+        "description": "Total area: sum(area_used[o]*y[o]) <= 5000"
+      }
+    ],
+    "decision_variables": [
+      "y[o]: binary, 1 if option o (a specific type+count combination) is chosen"
+    ],
+    "parameters": [
+      "annual_rental[o]: rental income for option o = 0.2 * per_store_profit * count",
+      "area_used[o]: total floor area consumed by option o = area_per_shop * count",
+      "type_match[o,s]: 1 if option o belongs to store type s, else 0"
+    ],
+    "additional_notes": "Options: J1/J2/J3=1,2,3 jewelry; SH1/SH2=1,2 shoes; GM1/GM2/GM3=1,2,3 general; BK0/BK1/BK2=0,1,2 bookstore; CT1/CT2/CT3=1,2,3 catering. Profits per store: J=9,8,7; SH=10,9; GM=27,21,20; BK=16,10; CT=17,15,12. Rental=20%*total_profit. Optimal: J2+SH2+GM3+BK1+CT2 → 16+18+60+16+30=140 total profit → 0.2*140=28."
+  },
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "options",
+        "element": "J1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "options",
+          "store_types"
+        ],
+        "element": [
+          "J1",
+          "J2",
+          "J3",
+          "SH1",
+          "SH2",
+          "GM1",
+          "GM2",
+          "GM3",
+          "BK0",
+          "BK1",
+          "BK2",
+          "CT1",
+          "CT2",
+          "CT3",
+          "J",
+          "SH",
+          "GM",
+          "BK",
+          "CT"
+        ]
+      }
+    },
+    "options": {
+      "columns": {
+        "option_id": "str",
+        "area_used": "float",
+        "annual_rental": "float"
+      },
+      "sample": {
+        "option_id": "J1",
+        "area_used": 250,
+        "annual_rental": 1.8
+      },
+      "optional": false,
+      "distinct_values": {
+        "option_id": [
+          "J1",
+          "J2",
+          "J3",
+          "SH1",
+          "SH2",
+          "GM1",
+          "GM2",
+          "GM3",
+          "BK0",
+          "BK1",
+          "BK2",
+          "CT1",
+          "CT2",
+          "CT3"
+        ]
+      }
+    },
+    "type_match": {
+      "columns": {
+        "option_id": "str",
+        "type_id": "str",
+        "is_match": "float"
+      },
+      "sample": {
+        "option_id": "J1",
+        "type_id": "J",
+        "is_match": 1
+      },
+      "optional": false,
+      "distinct_values": {
+        "option_id": [
+          "J1",
+          "J2",
+          "J3",
+          "SH1",
+          "SH2",
+          "GM1",
+          "GM2",
+          "GM3",
+          "BK0",
+          "BK1",
+          "BK2",
+          "CT1",
+          "CT2",
+          "CT3"
+        ],
+        "type_id": [
+          "J",
+          "SH",
+          "GM",
+          "BK",
+          "CT"
+        ],
+        "is_match": [
+          "0",
+          "1"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "MallLeasingMIP",
+    "model_type": "Mixed Integer Program",
+    "sense": "maximize",
+    "sets": {
+      "Options": {
+        "size": null,
+        "index_symbol": "o",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "options",
+        "ordered": false
+      },
+      "StoreTypes": {
+        "size": null,
+        "index_symbol": "s",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "store_types",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "annual_rental": {
+        "domain": [
+          "Options"
+        ],
+        "type": "float",
+        "source": "options.csv",
+        "column": "annual_rental",
+        "index_columns": [
+          "option_id"
+        ],
+        "missing_default": "zero"
+      },
+      "area_used": {
+        "domain": [
+          "Options"
+        ],
+        "type": "float",
+        "source": "options.csv",
+        "column": "area_used",
+        "index_columns": [
+          "option_id"
+        ],
+        "missing_default": "zero"
+      },
+      "type_match": {
+        "domain": [
+          "Options",
+          "StoreTypes"
+        ],
+        "type": "float",
+        "source": "type_match.csv",
+        "column": "is_match",
+        "index_columns": [
+          "option_id",
+          "type_id"
+        ],
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "y": {
+        "description": "1 if option o (type+count combination) is chosen",
+        "label": "y",
+        "domain": [
+          "Options"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "one_option_per_type": {
+        "domain": [
+          "StoreTypes"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Options:o"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "type_match",
+              "indices": [
+                "o",
+                "s"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "y",
+              "indices": [
+                "o"
+              ]
+            }
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 1
+        }
+      },
+      "total_area": {
+        "domain": [],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Options:o"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "area_used",
+              "indices": [
+                "o"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "y",
+              "indices": [
+                "o"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 5000
+        }
+      }
+    },
+    "objective": {
+      "sense": "maximize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Options:o"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "type": "parameter",
+            "name": "annual_rental",
+            "indices": [
+              "o"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "y",
+            "indices": [
+              "o"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "modeling_patterns": [
+    "binary variable",
+    "mutual exclusion",
+    "pre-enumerated options",
+    "step cost"
+  ]
+}

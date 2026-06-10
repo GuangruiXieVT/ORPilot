@@ -25,9 +25,6 @@
       "assignment_costs": "assignment_costs.csv"
     }
   },
-  "ir_patterns": [
-    "binary variable"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -232,5 +229,8 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "binary variable"
+  ]
 }

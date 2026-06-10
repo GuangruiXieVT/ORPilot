@@ -1,0 +1,6 @@
+machine_id,machine_type,effective_hours,cost_per_hour
+A1,A,6000,0.05
+A2,A,10000,0.03
+B1,B,4000,0.06
+B2,B,7000,0.11
+B3,B,4000,0.05

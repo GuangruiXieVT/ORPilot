@@ -28,12 +28,6 @@
       "demand": "demand.csv"
     }
   },
-  "ir_patterns": [
-    "3D variable",
-    "domain filter",
-    "sparse shipping cost",
-    "supply-demand balance"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -357,5 +351,10 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "balance constraint",
+    "domain filter",
+    "sparse filter"
+  ]
 }

@@ -28,10 +28,6 @@
       "job_machine_data": "job_machine_data.csv"
     }
   },
-  "ir_patterns": [
-    "binary variable",
-    "big-M linking"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -306,5 +302,9 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "big-M linking",
+    "binary variable"
+  ]
 }

@@ -39,12 +39,6 @@
       "params": "params.csv"
     }
   },
-  "ir_patterns": [
-    "binary variable",
-    "deviation variables",
-    "fairness penalty",
-    "sparse preference parameter"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -563,5 +557,10 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "binary variable",
+    "deviation variables",
+    "sparse filter"
+  ]
 }

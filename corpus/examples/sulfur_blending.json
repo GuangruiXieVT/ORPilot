@@ -1,0 +1,333 @@
+{
+  "problem": {
+    "title": "Sulfur Blending LP: Maximize Profit from Two Petroleum Products",
+    "description": "Blend 4 raw materials (A, B, C, D) to produce 2 petroleum products (PA, PB). Raw material sulfur contents: A=3%, B=1%, C=2%, D=1%. Prices (thousand yuan/ton): A=6, B=16, C=10, D=15. D supply limit: 50 tons. Both products sell at 9.15 thousand yuan/ton. PA: sulfur ≤ 2.5%, max demand 100 tons. PB: sulfur ≤ 1.5%, max demand 200 tons. Maximize profit = total revenue - total raw material cost.",
+    "problem_type": "linear_programming",
+    "objective": "maximize",
+    "objective_description": "Total profit (thousand yuan) = sum over all raw-product pairs of net_value[r,p] * use[r,p]",
+    "constraints": [
+      {
+        "description": "Demand limit: total use of raw materials for product p does not exceed max demand for p"
+      },
+      {
+        "description": "Sulfur constraint: sum of sulfur contributions for product p does not exceed sulfur limit for p times total production of p"
+      },
+      {
+        "description": "D supply limit: total D used across both products <= 50 tons"
+      }
+    ],
+    "decision_variables": [
+      "use[r,p]: tons of raw material r used to produce product p (continuous, non-negative)"
+    ],
+    "parameters": [
+      "sulfur_excess[r,p]: sulfur_content[r] - sulfur_limit[p], precomputed coefficient for sulfur constraint",
+      "net_value[r,p]: sell_price[p] - raw_cost[r], precomputed per-unit profit contribution",
+      "demand[p]: maximum market demand for product p"
+    ],
+    "additional_notes": "Two sets: RawMaterials={A,B,C,D} and Products={PA,PB}. Both products sell at 9.15 thousand yuan/ton. Optimal: produce only PA (100 tons) since PB is unprofitable at 9.15/ton with expensive B/D needed for low sulfur. use[A,PA]=50, use[C,PA]=50. Revenue=9.15*100=915k. Cost=6*50+10*50=800k. Profit=115k yuan. Obj=115.",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "blend_params": "blend_params.csv",
+      "demand": "demand.csv"
+    }
+  },
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "raw_materials",
+        "element": "A"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "raw_materials",
+          "products"
+        ],
+        "element": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "PA",
+          "PB"
+        ]
+      }
+    },
+    "blend_params": {
+      "columns": {
+        "raw_id": "str",
+        "product_id": "str",
+        "sulfur_excess": "float",
+        "net_value": "float"
+      },
+      "sample": {
+        "raw_id": "A",
+        "product_id": "PA",
+        "sulfur_excess": 0.005,
+        "net_value": 3.15
+      },
+      "optional": false,
+      "distinct_values": {
+        "raw_id": [
+          "A",
+          "B",
+          "C",
+          "D"
+        ],
+        "product_id": [
+          "PA",
+          "PB"
+        ],
+        "sulfur_excess": [
+          "0.005",
+          "-0.015",
+          "-0.005",
+          "0.015",
+          "-0.005",
+          "0.005"
+        ],
+        "net_value": [
+          "3.15",
+          "-6.85",
+          "-0.85",
+          "-5.85"
+        ]
+      }
+    },
+    "demand": {
+      "columns": {
+        "product_id": "str",
+        "demand": "float"
+      },
+      "sample": {
+        "product_id": "PA",
+        "demand": 100
+      },
+      "optional": false,
+      "distinct_values": {
+        "product_id": [
+          "PA",
+          "PB"
+        ],
+        "demand": [
+          "100",
+          "200"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "SulfurBlendingLP",
+    "model_type": "Linear Program",
+    "sense": "maximize",
+    "sets": {
+      "RawMaterials": {
+        "size": null,
+        "index_symbol": "r",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "raw_materials",
+        "ordered": false
+      },
+      "Products": {
+        "size": null,
+        "index_symbol": "p",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "products",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "sulfur_excess": {
+        "domain": [
+          "RawMaterials",
+          "Products"
+        ],
+        "type": "float",
+        "source": "blend_params.csv",
+        "column": "sulfur_excess",
+        "index_columns": [
+          "raw_id",
+          "product_id"
+        ],
+        "missing_default": "zero"
+      },
+      "net_value": {
+        "domain": [
+          "RawMaterials",
+          "Products"
+        ],
+        "type": "float",
+        "source": "blend_params.csv",
+        "column": "net_value",
+        "index_columns": [
+          "raw_id",
+          "product_id"
+        ],
+        "missing_default": "zero"
+      },
+      "demand": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "demand.csv",
+        "column": "demand",
+        "index_columns": [
+          "product_id"
+        ],
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "use": {
+        "description": "Tons of raw material r used to produce product p",
+        "label": "use",
+        "domain": [
+          "RawMaterials",
+          "Products"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "demand_limit": {
+        "domain": [
+          "Products"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "RawMaterials:r"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "use",
+              "indices": [
+                "r",
+                "p"
+              ]
+            }
+          },
+          "right": {
+            "type": "parameter",
+            "name": "demand",
+            "indices": [
+              "p"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "sulfur_constr": {
+        "domain": [
+          "Products"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "RawMaterials:r"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "sulfur_excess",
+              "indices": [
+                "r",
+                "p"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "use",
+              "indices": [
+                "r",
+                "p"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "d_supply": {
+        "domain": [],
+        "expression": {
+          "operation": "sum",
+          "left": {
+            "type": "variable",
+            "name": "use",
+            "indices": [
+              "D",
+              "PA"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "use",
+            "indices": [
+              "D",
+              "PB"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 50
+        }
+      }
+    },
+    "objective": {
+      "sense": "maximize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "RawMaterials:r",
+          "Products:p"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "type": "parameter",
+            "name": "net_value",
+            "indices": [
+              "r",
+              "p"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "use",
+            "indices": [
+              "r",
+              "p"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "modeling_patterns": []
+}

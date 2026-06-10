@@ -36,11 +36,6 @@
       "item_tiers": "item_tiers.csv"
     }
   },
-  "ir_patterns": [
-    "binary variable",
-    "big-M linking",
-    "step cost"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -417,5 +412,10 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "big-M linking",
+    "binary variable",
+    "step cost"
+  ]
 }

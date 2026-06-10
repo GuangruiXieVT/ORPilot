@@ -30,9 +30,6 @@
       "products": "products.csv"
     }
   },
-  "ir_patterns": [
-    "deviation variables"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -300,5 +297,8 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "deviation variables"
+  ]
 }

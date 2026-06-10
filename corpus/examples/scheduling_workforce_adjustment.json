@@ -39,13 +39,6 @@
       "policy": "policy.csv"
     }
   },
-  "ir_patterns": [
-    "integer variable",
-    "ordered set",
-    "temporal lag",
-    "init constraint",
-    "scalar parameter"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -433,5 +426,10 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "init constraint",
+    "integer variable",
+    "temporal lag"
+  ]
 }

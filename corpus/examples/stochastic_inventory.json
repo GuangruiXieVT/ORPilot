@@ -36,11 +36,6 @@
       "scenarios": "scenarios.csv"
     }
   },
-  "ir_patterns": [
-    "scenario weighted sum",
-    "split variables",
-    "two-stage stochastic"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -447,5 +442,10 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "deviation variables",
+    "scenario weighted sum",
+    "two-stage stochastic"
+  ]
 }

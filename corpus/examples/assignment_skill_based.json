@@ -27,10 +27,6 @@
       "workers": "workers.csv"
     }
   },
-  "ir_patterns": [
-    "binary variable",
-    "domain filter"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -283,5 +279,9 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "binary variable",
+    "domain filter"
+  ]
 }

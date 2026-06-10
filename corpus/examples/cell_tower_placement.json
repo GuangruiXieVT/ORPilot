@@ -31,12 +31,6 @@
       "params": "params.csv"
     }
   },
-  "ir_patterns": [
-    "binary variable",
-    "coverage linking",
-    "sparse parameter",
-    "scalar parameter"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -379,5 +373,9 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "binary variable",
+    "sparse filter"
+  ]
 }

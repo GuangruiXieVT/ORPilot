@@ -42,16 +42,6 @@
       "vehicles": "vehicles.csv"
     }
   },
-  "ir_patterns": [
-    "binary variable",
-    "integer variable",
-    "exclude diagonal",
-    "upper bound set",
-    "init constraint",
-    "set size expression",
-    "duplicate set",
-    "scalar parameter"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -524,5 +514,15 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "MTZ subtour elimination",
+    "binary variable",
+    "duplicate set",
+    "exclude diagonal",
+    "init constraint",
+    "integer variable",
+    "set size expression",
+    "upper bound set"
+  ]
 }

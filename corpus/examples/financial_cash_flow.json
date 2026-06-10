@@ -51,13 +51,6 @@
       "params": "params.csv"
     }
   },
-  "ir_patterns": [
-    "ordered set",
-    "temporal lag",
-    "init constraint",
-    "scalar parameter",
-    "multi-variable temporal balance"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -613,5 +606,10 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "balance constraint",
+    "init constraint",
+    "temporal lag"
+  ]
 }

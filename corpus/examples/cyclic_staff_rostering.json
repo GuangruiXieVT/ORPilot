@@ -34,11 +34,6 @@
       "workers": "workers.csv"
     }
   },
-  "ir_patterns": [
-    "binary variable",
-    "coverage with parameter weight",
-    "overtime deviation variable"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -427,5 +422,9 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "binary variable",
+    "deviation variables"
+  ]
 }

@@ -34,12 +34,6 @@
       "horizon": "horizon.csv"
     }
   },
-  "ir_patterns": [
-    "binary variable",
-    "domain filter (feasible start window)",
-    "resource constraint with sparse usage",
-    "scalar parameter"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -362,5 +356,10 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "binary variable",
+    "domain filter",
+    "sparse filter"
+  ]
 }

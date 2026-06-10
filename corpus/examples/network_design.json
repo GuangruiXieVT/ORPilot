@@ -29,13 +29,6 @@
       "net_demand": "net_demand.csv"
     }
   },
-  "ir_patterns": [
-    "binary variable",
-    "domain filter",
-    "sparse filter",
-    "big-M linking",
-    "duplicate set"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -389,5 +382,12 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "big-M linking",
+    "binary variable",
+    "domain filter",
+    "duplicate set",
+    "sparse filter"
+  ]
 }

@@ -1,0 +1,390 @@
+{
+  "problem": {
+    "title": "Multi-Year Investment Portfolio Optimization",
+    "description": "A company has 300,000 yuan starting capital to invest over 3 years. Four investment options: Project 1 (annual, 20% return, renewable each year), Project 2 (year 1 only, 50% return at end of year 2, cap 150,000), Project 3 (year 2 only, 60% return at end of year 3, cap 200,000), Project 4 (year 3 only, 40% return at end of year 3, cap 100,000). Uninvested cash earns nothing. Maximize total wealth at end of year 3.",
+    "problem_type": "linear_programming",
+    "objective": "maximize",
+    "objective_description": "Total wealth at end of year 3 = 1.2*x1_3 + 1.4*x4 + k3 + 1.6*x3",
+    "constraints": [
+      {
+        "description": "Year 1 balance: x1_1 + x2 + k1 = 300000"
+      },
+      {
+        "description": "Project 2 cap: x2 <= 150000"
+      },
+      {
+        "description": "Year 2 balance: x1_2 + x3 + k2 = 1.2*x1_1 + k1"
+      },
+      {
+        "description": "Project 3 cap: x3 <= 200000"
+      },
+      {
+        "description": "Year 3 balance: x1_3 + x4 + k3 = 1.2*x1_2 + 1.5*x2 + k2"
+      },
+      {
+        "description": "Project 4 cap: x4 <= 100000"
+      }
+    ],
+    "decision_variables": [
+      "x1_1: amount invested in project 1 at start of year 1 (continuous, non-negative)",
+      "x1_2: amount invested in project 1 at start of year 2 (continuous, non-negative)",
+      "x1_3: amount invested in project 1 at start of year 3 (continuous, non-negative)",
+      "x2: amount invested in project 2 at start of year 1 (continuous, non-negative)",
+      "x3: amount invested in project 3 at start of year 2 (continuous, non-negative)",
+      "x4: amount invested in project 4 at start of year 3 (continuous, non-negative)",
+      "k1: cash held uninvested after year 1 decisions (continuous, non-negative)",
+      "k2: cash held uninvested after year 2 decisions (continuous, non-negative)",
+      "k3: cash held uninvested after year 3 decisions (continuous, non-negative)"
+    ],
+    "parameters": [],
+    "additional_notes": "All variables are scalar (domain=[]). No CSV data needed. Optimal: x1_1=166666.67, x2=133333.33, k1=0 (year1 sum=300000). Year2 funds=1.2*166666.67=200000; x1_2=0, x3=200000, k2=0. Year3 funds=1.5*133333.33=200000; x4=100000, x1_3=100000, k3=0. Wealth=1.2*100000+1.4*100000+0+1.6*200000=120000+140000+320000=580000. Obj=580000.",
+    "csv_file_paths": {}
+  },
+  "csv_schemas": {},
+  "ir": {
+    "problem_class": "InvestmentLP",
+    "model_type": "Linear Program",
+    "sense": "maximize",
+    "sets": {},
+    "parameters": {},
+    "variables": {
+      "x1_1": {
+        "description": "Amount invested in project 1 at start of year 1",
+        "label": "x1_1",
+        "domain": [],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "x1_2": {
+        "description": "Amount invested in project 1 at start of year 2",
+        "label": "x1_2",
+        "domain": [],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "x1_3": {
+        "description": "Amount invested in project 1 at start of year 3",
+        "label": "x1_3",
+        "domain": [],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "x2": {
+        "description": "Amount invested in project 2 at start of year 1",
+        "label": "x2",
+        "domain": [],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "x3": {
+        "description": "Amount invested in project 3 at start of year 2",
+        "label": "x3",
+        "domain": [],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "x4": {
+        "description": "Amount invested in project 4 at start of year 3",
+        "label": "x4",
+        "domain": [],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "k1": {
+        "description": "Cash held uninvested at end of year 1",
+        "label": "k1",
+        "domain": [],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "k2": {
+        "description": "Cash held uninvested at end of year 2",
+        "label": "k2",
+        "domain": [],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "k3": {
+        "description": "Cash held uninvested at end of year 3",
+        "label": "k3",
+        "domain": [],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "year1_balance": {
+        "domain": [],
+        "expression": {
+          "operation": "sum",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "x1_1",
+              "indices": []
+            },
+            "right": {
+              "type": "variable",
+              "name": "x2",
+              "indices": []
+            }
+          },
+          "right": {
+            "type": "variable",
+            "name": "k1",
+            "indices": []
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 300000
+        }
+      },
+      "x2_cap": {
+        "domain": [],
+        "expression": {
+          "type": "variable",
+          "name": "x2",
+          "indices": []
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 150000
+        }
+      },
+      "year2_balance": {
+        "domain": [],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "operation": "sum",
+              "left": {
+                "type": "variable",
+                "name": "x1_2",
+                "indices": []
+              },
+              "right": {
+                "type": "variable",
+                "name": "x3",
+                "indices": []
+              }
+            },
+            "right": {
+              "type": "variable",
+              "name": "k2",
+              "indices": []
+            }
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "operation": "multiply",
+              "left": {
+                "type": "constant",
+                "value": 1.2
+              },
+              "right": {
+                "type": "variable",
+                "name": "x1_1",
+                "indices": []
+              }
+            },
+            "right": {
+              "type": "variable",
+              "name": "k1",
+              "indices": []
+            }
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "x3_cap": {
+        "domain": [],
+        "expression": {
+          "type": "variable",
+          "name": "x3",
+          "indices": []
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 200000
+        }
+      },
+      "year3_balance": {
+        "domain": [],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "operation": "sum",
+              "left": {
+                "type": "variable",
+                "name": "x1_3",
+                "indices": []
+              },
+              "right": {
+                "type": "variable",
+                "name": "x4",
+                "indices": []
+              }
+            },
+            "right": {
+              "type": "variable",
+              "name": "k3",
+              "indices": []
+            }
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "operation": "sum",
+              "left": {
+                "operation": "multiply",
+                "left": {
+                  "type": "constant",
+                  "value": 1.2
+                },
+                "right": {
+                  "type": "variable",
+                  "name": "x1_2",
+                  "indices": []
+                }
+              },
+              "right": {
+                "operation": "multiply",
+                "left": {
+                  "type": "constant",
+                  "value": 1.5
+                },
+                "right": {
+                  "type": "variable",
+                  "name": "x2",
+                  "indices": []
+                }
+              }
+            },
+            "right": {
+              "type": "variable",
+              "name": "k2",
+              "indices": []
+            }
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "x4_cap": {
+        "domain": [],
+        "expression": {
+          "type": "variable",
+          "name": "x4",
+          "indices": []
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 100000
+        }
+      }
+    },
+    "objective": {
+      "sense": "maximize",
+      "expression": {
+        "operation": "sum",
+        "left": {
+          "operation": "sum",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "operation": "multiply",
+              "left": {
+                "type": "constant",
+                "value": 1.2
+              },
+              "right": {
+                "type": "variable",
+                "name": "x1_3",
+                "indices": []
+              }
+            },
+            "right": {
+              "operation": "multiply",
+              "left": {
+                "type": "constant",
+                "value": 1.4
+              },
+              "right": {
+                "type": "variable",
+                "name": "x4",
+                "indices": []
+              }
+            }
+          },
+          "right": {
+            "type": "variable",
+            "name": "k3",
+            "indices": []
+          }
+        },
+        "right": {
+          "operation": "multiply",
+          "left": {
+            "type": "constant",
+            "value": 1.6
+          },
+          "right": {
+            "type": "variable",
+            "name": "x3",
+            "indices": []
+          }
+        }
+      }
+    }
+  },
+  "modeling_patterns": [
+    "balance constraint",
+    "no sets",
+    "temporal lag"
+  ]
+}

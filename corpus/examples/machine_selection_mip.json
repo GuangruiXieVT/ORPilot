@@ -1,0 +1,260 @@
+{
+  "problem": {
+    "title": "Machine Selection MIP: Minimize Cost with Fixed Setup and Variable Production",
+    "description": "2000 units of a product must be produced on one or more of four devices (A,B,C,D). Each device has a fixed preparation/setup cost plus a per-unit production cost and a maximum capacity. Minimize total cost = sum of (setup_cost[d]*open[d] + unit_cost[d]*produce[d]) where open[d] is binary.",
+    "problem_type": "mixed_integer_programming",
+    "objective": "minimize",
+    "objective_description": "Total cost = sum(setup_cost[d]*open[d] + unit_cost[d]*produce[d]) over all devices",
+    "constraints": [
+      {
+        "description": "Total production must meet demand: sum(produce[d]) >= 2000"
+      },
+      {
+        "description": "Production per device cannot exceed its capacity: produce[d] <= max_capacity[d] * open[d]"
+      }
+    ],
+    "decision_variables": [
+      "open[d]: binary, 1 if device d is activated (setup cost paid)",
+      "produce[d]: units produced on device d (continuous, >=0)"
+    ],
+    "parameters": [
+      "setup_cost[d]: fixed setup/preparation cost for device d",
+      "unit_cost[d]: variable production cost per unit on device d",
+      "max_capacity[d]: maximum units device d can produce"
+    ],
+    "additional_notes": "Optimal: use A (produce=800) + C (produce=1200). Setup: 1000+800=1800. Variable: 20*800+16*1200=16000+19200=35200. Total=37000."
+  },
+  "csv_schemas": {
+    "devices": {
+      "columns": {
+        "device_id": "str",
+        "setup_cost": "float",
+        "unit_cost": "float",
+        "max_capacity": "float"
+      },
+      "sample": {
+        "device_id": "A",
+        "setup_cost": 1000,
+        "unit_cost": 20,
+        "max_capacity": 900
+      },
+      "optional": false,
+      "distinct_values": {
+        "device_id": [
+          "A",
+          "B",
+          "C",
+          "D"
+        ],
+        "setup_cost": [
+          "700",
+          "800",
+          "920",
+          "1000"
+        ],
+        "unit_cost": [
+          "16",
+          "20",
+          "24",
+          "28"
+        ],
+        "max_capacity": [
+          "900",
+          "1000",
+          "1200",
+          "1600"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "MachineSelectionMIP",
+    "model_type": "Mixed Integer Program",
+    "sense": "minimize",
+    "sets": {
+      "Devices": {
+        "size": null,
+        "index_symbol": "d",
+        "source": "devices.csv",
+        "column": "device_id",
+        "filter_column": null,
+        "filter_value": null,
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "setup_cost": {
+        "domain": [
+          "Devices"
+        ],
+        "type": "float",
+        "source": "devices.csv",
+        "column": "setup_cost",
+        "index_columns": [
+          "device_id"
+        ],
+        "missing_default": "inf"
+      },
+      "unit_cost": {
+        "domain": [
+          "Devices"
+        ],
+        "type": "float",
+        "source": "devices.csv",
+        "column": "unit_cost",
+        "index_columns": [
+          "device_id"
+        ],
+        "missing_default": "inf"
+      },
+      "max_capacity": {
+        "domain": [
+          "Devices"
+        ],
+        "type": "float",
+        "source": "devices.csv",
+        "column": "max_capacity",
+        "index_columns": [
+          "device_id"
+        ],
+        "missing_default": "inf"
+      }
+    },
+    "variables": {
+      "open": {
+        "description": "1 if device d is activated (setup cost paid), 0 otherwise",
+        "label": "open",
+        "domain": [
+          "Devices"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "produce": {
+        "description": "Units produced on device d",
+        "label": "produce",
+        "domain": [
+          "Devices"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "demand_met": {
+        "domain": [],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Devices:d"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "produce",
+            "indices": [
+              "d"
+            ]
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "constant",
+          "value": 2000
+        }
+      },
+      "capacity_open": {
+        "domain": [
+          "Devices"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "produce",
+            "indices": [
+              "d"
+            ]
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "max_capacity",
+              "indices": [
+                "d"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "open",
+              "indices": [
+                "d"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Devices:d"
+        ],
+        "body": {
+          "operation": "sum",
+          "left": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "setup_cost",
+              "indices": [
+                "d"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "open",
+              "indices": [
+                "d"
+              ]
+            }
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "unit_cost",
+              "indices": [
+                "d"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "produce",
+              "indices": [
+                "d"
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "modeling_patterns": [
+    "big-M linking",
+    "binary variable"
+  ]
+}

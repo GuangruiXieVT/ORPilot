@@ -14,7 +14,13 @@ from orpilot.workflow.state import WorkflowState
 _MAX_ITERATIONS = 12
 
 
-def _build_rag_context(problem, embed_api_key: str | None = None, embed_model: str | None = None) -> str:
+def _build_rag_context(
+    problem,
+    llm=None,
+    csv_schemas: dict | None = None,
+    embed_api_key: str | None = None,
+    embed_model: str | None = None,
+) -> str:
     """Return a formatted reference-examples block for the prompt, or empty string."""
     try:
         from orpilot.rag import get_retriever
@@ -26,7 +32,6 @@ def _build_rag_context(problem, embed_api_key: str | None = None, embed_model: s
     if retriever is None:
         return ""
 
-    # Build query text from the problem description
     p = problem
     query_parts = []
     if getattr(p, "title", None):
@@ -49,9 +54,26 @@ def _build_rag_context(problem, embed_api_key: str | None = None, embed_model: s
         query_parts.append("Constraints: " + "; ".join(descs))
     query_text = "\n".join(query_parts)
 
+    problem_dict = {
+        "title": getattr(p, "title", ""),
+        "description": getattr(p, "description", ""),
+        "objective": getattr(p, "objective", ""),
+        "objective_description": getattr(p, "objective_description", ""),
+        "decision_variables": getattr(p, "decision_variables", []),
+        "parameters": getattr(p, "parameters", []),
+        "constraints": getattr(p, "constraints", []),
+    }
+
+    if llm is not None:
+        from orpilot.rag.pattern_classifier import classify_patterns
+        q_patterns = classify_patterns(problem_dict, llm, csv_schemas)
+    else:
+        from orpilot.rag.structural import detect_modeling_patterns
+        q_patterns = detect_modeling_patterns(problem_dict)
+
     from orpilot.rag.embedder import _DEFAULT_MODEL
     embedder = get_embedder(model=embed_model or _DEFAULT_MODEL, api_key=embed_api_key)
-    examples = retriever.retrieve(query_text, embedder=embedder)
+    examples = retriever.retrieve(query_text, embedder=embedder, modeling_patterns=q_patterns)
     if examples:
         titles = [ex.get("problem_title") or ex["name"] for ex in examples]
         print(f"[RAG] Retrieved {len(examples)} examples: {', '.join(titles)}")
@@ -211,6 +233,40 @@ def _build_csv_schemas(user_data) -> dict:
     return csv_schemas
 
 
+def _build_on_demand_user_content(
+    user_payload: dict,
+    generated_code: str,
+    rag_block: str = "",
+) -> str:
+    """Build the on-demand IR prompt, where working solver code is authoritative."""
+    code_block = f"```python\n{generated_code}\n```" if generated_code else ""
+    rag_section = ""
+    if rag_block:
+        rag_section = (
+            "## Retrieved IR Pattern References\n\n"
+            "These retrieved examples are secondary references for IR idioms only. "
+            "Use them to choose canonical ORPilot IR patterns when they match the "
+            "current problem and working code. Do not copy constraints, variables, "
+            "or assumptions that are not present in the problem or solver code.\n\n"
+            f"{rag_block}\n\n"
+        )
+
+    return (
+        "## On-Demand IR Generation From Working Solver Code\n\n"
+        "The Python solver code below already solves this problem correctly. "
+        "Treat that code and the current problem definition as the authoritative "
+        "sources for sets, variables, parameters, constraints, and objective direction.\n\n"
+        f"{rag_section}"
+        "## Problem And Data Schema\n\n"
+        f"{json.dumps(user_payload)}\n\n"
+        "## Working Python Solver Code\n\n"
+        f"{code_block}\n\n"
+        "Generate a solver-agnostic ORPilot IR. Extract the abstract model structure; "
+        "do not transliterate solver-specific syntax such as PuLP lpSum or LpVariable. "
+        "Call submit_ir with the completed IR."
+    )
+
+
 def _run_tool_loop(
     llm: BaseLLM,
     messages: list[dict],
@@ -293,7 +349,13 @@ def ir_builder_node(state: WorkflowState, llm: BaseLLM) -> WorkflowState:
     # keep the system prompt stable (better for Anthropic prompt caching).
     embed_api_key = state.get("embed_api_key")
     embed_model = state.get("embed_model")
-    rag_block = _build_rag_context(problem, embed_api_key=embed_api_key, embed_model=embed_model) if not error_context else ""
+    rag_block = _build_rag_context(
+        problem,
+        llm=llm,
+        csv_schemas=csv_schemas,
+        embed_api_key=embed_api_key,
+        embed_model=embed_model,
+    ) if not error_context else ""
     base_payload = json.dumps(user_payload)
     user_prefix = rag_block + "\n\n" if rag_block else ""
 
@@ -354,13 +416,28 @@ def ir_builder_on_demand_node(state: WorkflowState, llm: BaseLLM) -> WorkflowSta
     if csv_schemas:
         user_payload["csv_schemas"] = csv_schemas
 
+    embed_api_key = state.get("embed_api_key")
+    embed_model = state.get("embed_model")
+    rag_block = _build_rag_context(
+        problem,
+        llm=llm,
+        csv_schemas=csv_schemas,
+        embed_api_key=embed_api_key,
+        embed_model=embed_model,
+    )
+    user_content = _build_on_demand_user_content(
+        user_payload=user_payload,
+        generated_code=generated_code,
+        rag_block=rag_block,
+    )
+
     code_block = f"```python\n{generated_code}\n```" if generated_code else ""
     system = ir_builder_prompts.SYSTEM_PROMPT + "\n\n" + _TOOL_INSTRUCTIONS
     messages = [
         {"role": "system", "content": system},
         {
             "role": "user",
-            "content": (
+            "content": user_content or (
                 json.dumps(user_payload) + "\n\n"
                 "The following Python solver code already solves this problem correctly. "
                 "Use it as a structural reference (sets, variables, parameters, constraints, "

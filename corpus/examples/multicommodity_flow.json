@@ -28,11 +28,6 @@
       "net_supply": "net_supply.csv"
     }
   },
-  "ir_patterns": [
-    "duplicate set",
-    "sparse filter",
-    "exclude diagonal"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -389,5 +384,10 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "duplicate set",
+    "exclude diagonal",
+    "sparse filter"
+  ]
 }

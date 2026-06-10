@@ -1,0 +1,11 @@
+set_name,element
+courses,calculus
+courses,operations_research
+courses,data_structures
+courses,management_statistics
+courses,computer_simulation
+courses,computer_programming
+courses,forecasting
+categories,math
+categories,or
+categories,cs

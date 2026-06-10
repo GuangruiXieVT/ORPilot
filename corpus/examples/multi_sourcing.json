@@ -33,7 +33,6 @@
       "supply_cost": "supply_cost.csv"
     }
   },
-  "ir_patterns": [],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -357,5 +356,6 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": []
 }

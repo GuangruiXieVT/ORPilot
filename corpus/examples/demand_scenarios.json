@@ -33,10 +33,6 @@
       "demand_scenarios": "demand_scenarios.csv"
     }
   },
-  "ir_patterns": [
-    "scenario weighted sum",
-    "deviation variables"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -421,5 +417,9 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "deviation variables",
+    "scenario weighted sum"
+  ]
 }

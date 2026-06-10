@@ -37,13 +37,6 @@
       "demand": "demand.csv"
     }
   },
-  "ir_patterns": [
-    "binary variable",
-    "ordered set",
-    "temporal lag",
-    "init constraint",
-    "big-M linking"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -500,5 +493,11 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "big-M linking",
+    "binary variable",
+    "init constraint",
+    "temporal lag"
+  ]
 }

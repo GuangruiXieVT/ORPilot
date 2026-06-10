@@ -29,9 +29,6 @@
       "demand_data": "demand_data.csv"
     }
   },
-  "ir_patterns": [
-    "domain filter"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -400,5 +397,8 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "domain filter"
+  ]
 }

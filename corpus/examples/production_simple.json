@@ -35,10 +35,6 @@
       "capacity": "capacity.csv"
     }
   },
-  "ir_patterns": [
-    "integer variable",
-    "scalar parameter"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -377,5 +373,8 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "integer variable"
+  ]
 }

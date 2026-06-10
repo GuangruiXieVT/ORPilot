@@ -39,10 +39,6 @@
       "min_site_share_pct": "min_site_share_pct.csv"
     }
   },
-  "ir_patterns": [
-    "domain filter",
-    "duplicate set"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -594,5 +590,9 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "domain filter",
+    "duplicate set"
+  ]
 }

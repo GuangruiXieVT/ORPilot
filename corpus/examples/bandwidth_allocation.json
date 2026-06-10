@@ -32,10 +32,6 @@
       "uses_link": "uses_link.csv"
     }
   },
-  "ir_patterns": [
-    "sparse filter",
-    "scalar parameter"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -367,5 +363,8 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "sparse filter"
+  ]
 }

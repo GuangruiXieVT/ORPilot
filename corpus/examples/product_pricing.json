@@ -27,12 +27,6 @@
       "capacity": "capacity.csv"
     }
   },
-  "ir_patterns": [
-    "binary variable",
-    "3D parameter",
-    "multiply of two parameters in objective",
-    "capacity constraint"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -331,5 +325,8 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "binary variable"
+  ]
 }

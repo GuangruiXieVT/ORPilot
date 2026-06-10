@@ -37,12 +37,6 @@
       "params": "params.csv"
     }
   },
-  "ir_patterns": [
-    "binary variable",
-    "big-M linking",
-    "scalar parameter",
-    "maximize profit"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -423,5 +417,9 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "big-M linking",
+    "binary variable"
+  ]
 }

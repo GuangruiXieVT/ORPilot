@@ -1,0 +1,7 @@
+task_id,method_id,method_cost,skilled_req,laborer_req
+T1,A,20000,200,0
+T1,B,52500,200,400
+T2,A,25800,258,0
+T2,B,24000,0,300
+T3,A,40000,0,500
+T3,B,40800,120,360

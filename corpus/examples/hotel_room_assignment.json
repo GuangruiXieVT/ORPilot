@@ -28,12 +28,6 @@
       "capacity": "capacity.csv"
     }
   },
-  "ir_patterns": [
-    "binary variable",
-    "domain filter",
-    "3D variable",
-    "revenue maximization"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -353,5 +347,9 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "binary variable",
+    "domain filter"
+  ]
 }

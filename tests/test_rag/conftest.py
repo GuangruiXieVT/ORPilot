@@ -7,6 +7,10 @@ def pytest_configure(config):
         "markers",
         "hybrid: marks RAG tests that use full hybrid BM25+embedding retrieval (skip unless --hybrid)",
     )
+    config.addinivalue_line(
+        "markers",
+        "llm: marks tests that call a real LLM (skip unless --llm; needs api_key in orpilot.toml)",
+    )
 
 
 def pytest_addoption(parser):
@@ -21,4 +25,10 @@ def pytest_addoption(parser):
         action="store_true",
         default=False,
         help="Run hybrid BM25+embedding retrieval tests (needs embed_api_key in orpilot.toml or env)",
+    )
+    parser.addoption(
+        "--llm",
+        action="store_true",
+        default=False,
+        help="Run tests that call a real LLM (needs api_key in orpilot.toml)",
     )

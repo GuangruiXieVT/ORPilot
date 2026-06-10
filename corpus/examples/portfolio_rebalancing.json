@@ -39,12 +39,6 @@
       "params": "params.csv"
     }
   },
-  "ir_patterns": [
-    "balance constraint",
-    "scalar parameter",
-    "weight constraints",
-    "multiply parameters"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -488,5 +482,8 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "balance constraint"
+  ]
 }

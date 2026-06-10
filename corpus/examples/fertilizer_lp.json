@@ -1,0 +1,158 @@
+{
+  "problem": {
+    "title": "Fertilizer Production LP",
+    "description": "A factory produces two types of fertilizer: liquid and solid. Machine 1 has 2400 minutes/week available; Machine 2 has 2100 minutes/week. Each lot of liquid fertilizer needs 50 min on M1 and 30 min on M2. Each lot of solid needs 24 min on M1 and 33 min on M2. Current inventory: 30 lots liquid, 90 lots solid. Weekly demand: 75 lots liquid, 95 lots solid. Ending inventory must be non-negative. Maximize total ending inventory.",
+    "problem_type": "linear_programming",
+    "objective": "maximize",
+    "objective_description": "Total ending inventory (liquid_end + solid_end) where ending = current + produced - demand",
+    "constraints": [
+      {
+        "description": "Machine 1 total processing time cannot exceed 2400 minutes per week"
+      },
+      {
+        "description": "Machine 2 total processing time cannot exceed 2100 minutes per week"
+      },
+      {
+        "description": "Liquid fertilizer produced must be at least 45 lots to cover demand minus current inventory"
+      },
+      {
+        "description": "Solid fertilizer produced must be at least 5 lots to cover demand minus current inventory"
+      }
+    ],
+    "decision_variables": [
+      "p_L: lots of liquid fertilizer to produce this week (continuous, non-negative)",
+      "p_S: lots of solid fertilizer to produce this week (continuous, non-negative)"
+    ],
+    "parameters": [],
+    "additional_notes": "All data is hardcoded as constants. No CSV files needed. Ending inventory = current + produced - demand. To ensure non-negative ending: p_L >= 75-30=45, p_S >= 95-90=5. These are encoded as lower bounds on variables. Objective is maximize p_L+p_S (constant offset -50 does not affect optimality). Optimal: p_L=46.25, p_S=5 (M1 binding: 50*46.25+24*5=2312.5+120=2432.5 > 2400 — wait, check again). Actually solve: at p_L=45 (lower bound binding), M1: 50*45+24*p_S<=2400 => 24*p_S<=150 => p_S<=6.25. M2: 30*45+33*p_S<=2100 => 33*p_S<=750 => p_S<=22.73. So p_S=6.25 (M1 binding). Total ending = (45-45)+(6.25-5)=1.25.",
+    "csv_file_paths": {}
+  },
+  "csv_schemas": {},
+  "ir": {
+    "problem_class": "FertilizerProductionLP",
+    "model_type": "Linear Program",
+    "sense": "maximize",
+    "sets": {},
+    "parameters": {},
+    "variables": {
+      "p_L": {
+        "description": "Lots of liquid fertilizer to produce this week",
+        "label": "p_L",
+        "domain": [],
+        "type": "continuous",
+        "lower_bound": 45,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "p_S": {
+        "description": "Lots of solid fertilizer to produce this week",
+        "label": "p_S",
+        "domain": [],
+        "type": "continuous",
+        "lower_bound": 5,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "machine1": {
+        "domain": [],
+        "expression": {
+          "operation": "sum",
+          "left": {
+            "operation": "multiply",
+            "left": {
+              "type": "constant",
+              "value": 50
+            },
+            "right": {
+              "type": "variable",
+              "name": "p_L",
+              "indices": []
+            }
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "constant",
+              "value": 24
+            },
+            "right": {
+              "type": "variable",
+              "name": "p_S",
+              "indices": []
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 2400
+        }
+      },
+      "machine2": {
+        "domain": [],
+        "expression": {
+          "operation": "sum",
+          "left": {
+            "operation": "multiply",
+            "left": {
+              "type": "constant",
+              "value": 30
+            },
+            "right": {
+              "type": "variable",
+              "name": "p_L",
+              "indices": []
+            }
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "constant",
+              "value": 33
+            },
+            "right": {
+              "type": "variable",
+              "name": "p_S",
+              "indices": []
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 2100
+        }
+      }
+    },
+    "objective": {
+      "sense": "maximize",
+      "expression": {
+        "operation": "subtract",
+        "left": {
+          "operation": "sum",
+          "left": {
+            "type": "variable",
+            "name": "p_L",
+            "indices": []
+          },
+          "right": {
+            "type": "variable",
+            "name": "p_S",
+            "indices": []
+          }
+        },
+        "right": {
+          "type": "constant",
+          "value": 50
+        }
+      }
+    }
+  },
+  "modeling_patterns": [
+    "no sets"
+  ]
+}

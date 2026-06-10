@@ -1,0 +1,454 @@
+{
+  "problem": {
+    "title": "Bin Packing with Weight and Packaging Constraints",
+    "description": "A company must pack five types of goods (A: 120 units/0.5t each; B: 90 units/1t each; C: 300 units/0.4t each; D: 90 units/0.6t each; E: 120 units/0.65t each) into containers. Each container holds at most 60 tons and must be loaded with at least 18 tons if used. Every used container must contain at least 12 units of good D. If any good A is loaded in a container, at least 1 unit of good C must also be in that container. Minimize the total number of containers used.",
+    "problem_type": "mixed_integer_programming",
+    "objective": "minimize",
+    "objective_description": "Total number of containers used",
+    "constraints": [
+      {
+        "description": "All units of each item type must be packed: sum over containers of x[i,k] = total_units[i]"
+      },
+      {
+        "description": "Weight per used container cannot exceed 60 tons: sum_i(weight[i]*x[i,k]) <= 60*y[k]"
+      },
+      {
+        "description": "Each used container must hold at least 18 tons: sum_i(weight[i]*x[i,k]) >= 18*y[k]"
+      },
+      {
+        "description": "At least 12 units of D must be in each used container: x[D,k] >= 12*y[k]"
+      },
+      {
+        "description": "x[A,k] <= 120*z[k]: if A items exist in container k, z[k]=1"
+      },
+      {
+        "description": "x[C,k] >= z[k]: if z[k]=1 (container has A items), at least 1 C must be present"
+      }
+    ],
+    "decision_variables": [
+      "x[i,k]: integer units of item type i in container k (non-negative integer)",
+      "y[k]: binary, 1 if container k is used",
+      "z[k]: binary, 1 if container k contains any A items"
+    ],
+    "parameters": [
+      "total_units[i]: total number of units of item type i to be packed",
+      "weight_per_unit[i]: weight in tons per unit of item type i"
+    ],
+    "additional_notes": "10 containers (k01..k10) are available; optimal uses 7. The D-per-container and A-implies-C constraints use hardcoded item IDs ('D', 'A', 'C') in scalar index position within Containers domain. min_D constraint domain=[Containers]: x['D',k] - 12*y[k] >= 0. a_link: x['A',k] - 120*z[k] <= 0. c_if_a: x['C',k] - z[k] >= 0. Capacity constraints use indexed_sum over Items:i.",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "items": "items.csv"
+    }
+  },
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "items",
+        "element": "A"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "items",
+          "containers"
+        ],
+        "element": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "E",
+          "k01",
+          "k02",
+          "k03",
+          "k04",
+          "k05",
+          "k06",
+          "k07",
+          "k08",
+          "k09",
+          "k10"
+        ]
+      }
+    },
+    "items": {
+      "columns": {
+        "item_id": "str",
+        "total_units": "int",
+        "weight_per_unit": "float"
+      },
+      "sample": {
+        "item_id": "A",
+        "total_units": 120,
+        "weight_per_unit": 0.5
+      },
+      "optional": false,
+      "distinct_values": {
+        "item_id": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "E"
+        ],
+        "total_units": [
+          "90",
+          "120",
+          "300"
+        ],
+        "weight_per_unit": [
+          "0.4",
+          "0.5",
+          "0.6",
+          "0.65",
+          "1.0"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "BinPackingIP",
+    "model_type": "Mixed Integer Program",
+    "sense": "minimize",
+    "sets": {
+      "Items": {
+        "size": null,
+        "index_symbol": "i",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "items",
+        "ordered": false
+      },
+      "Containers": {
+        "size": null,
+        "index_symbol": "k",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "containers",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "total_units": {
+        "domain": [
+          "Items"
+        ],
+        "type": "float",
+        "source": "items.csv",
+        "column": "total_units",
+        "index_columns": [
+          "item_id"
+        ],
+        "missing_default": "zero"
+      },
+      "weight_per_unit": {
+        "domain": [
+          "Items"
+        ],
+        "type": "float",
+        "source": "items.csv",
+        "column": "weight_per_unit",
+        "index_columns": [
+          "item_id"
+        ],
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "x": {
+        "description": "Units of item i in container k",
+        "label": "x",
+        "domain": [
+          "Items",
+          "Containers"
+        ],
+        "type": "integer",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "y": {
+        "description": "1 if container k is used",
+        "label": "y",
+        "domain": [
+          "Containers"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "z": {
+        "description": "1 if container k contains any A items",
+        "label": "z",
+        "domain": [
+          "Containers"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "all_packed": {
+        "domain": [
+          "Items"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Containers:k"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "x",
+            "indices": [
+              "i",
+              "k"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "parameter",
+          "name": "total_units",
+          "indices": [
+            "i"
+          ]
+        }
+      },
+      "max_capacity": {
+        "domain": [
+          "Containers"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Items:i"
+            ],
+            "body": {
+              "operation": "multiply",
+              "left": {
+                "type": "parameter",
+                "name": "weight_per_unit",
+                "indices": [
+                  "i"
+                ]
+              },
+              "right": {
+                "type": "variable",
+                "name": "x",
+                "indices": [
+                  "i",
+                  "k"
+                ]
+              }
+            }
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "constant",
+              "value": 60
+            },
+            "right": {
+              "type": "variable",
+              "name": "y",
+              "indices": [
+                "k"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "min_load": {
+        "domain": [
+          "Containers"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "multiply",
+            "left": {
+              "type": "constant",
+              "value": 18
+            },
+            "right": {
+              "type": "variable",
+              "name": "y",
+              "indices": [
+                "k"
+              ]
+            }
+          },
+          "right": {
+            "operation": "indexed_sum",
+            "over": [
+              "Items:i"
+            ],
+            "body": {
+              "operation": "multiply",
+              "left": {
+                "type": "parameter",
+                "name": "weight_per_unit",
+                "indices": [
+                  "i"
+                ]
+              },
+              "right": {
+                "type": "variable",
+                "name": "x",
+                "indices": [
+                  "i",
+                  "k"
+                ]
+              }
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "min_D_per_container": {
+        "domain": [
+          "Containers"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "multiply",
+            "left": {
+              "type": "constant",
+              "value": 12
+            },
+            "right": {
+              "type": "variable",
+              "name": "y",
+              "indices": [
+                "k"
+              ]
+            }
+          },
+          "right": {
+            "type": "variable",
+            "name": "x",
+            "indices": [
+              "D",
+              "k"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "a_link": {
+        "domain": [
+          "Containers"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "x",
+            "indices": [
+              "A",
+              "k"
+            ]
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "constant",
+              "value": 120
+            },
+            "right": {
+              "type": "variable",
+              "name": "z",
+              "indices": [
+                "k"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "c_if_a": {
+        "domain": [
+          "Containers"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "z",
+            "indices": [
+              "k"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "x",
+            "indices": [
+              "C",
+              "k"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Containers:k"
+        ],
+        "body": {
+          "type": "variable",
+          "name": "y",
+          "indices": [
+            "k"
+          ]
+        }
+      }
+    }
+  },
+  "modeling_patterns": [
+    "big-M linking",
+    "binary variable",
+    "implication constraint",
+    "integer variable"
+  ]
+}

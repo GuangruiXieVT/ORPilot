@@ -1,0 +1,5 @@
+course_id,prereq_id,is_required
+computer_simulation,computer_programming,1
+data_structures,computer_programming,1
+management_statistics,calculus,1
+forecasting,management_statistics,1

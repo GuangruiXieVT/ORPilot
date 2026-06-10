@@ -30,12 +30,6 @@
       "net_supply": "net_supply.csv"
     }
   },
-  "ir_patterns": [
-    "exclude diagonal",
-    "domain filter",
-    "reversed indices in sum",
-    "gain multiplier"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -378,5 +372,9 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "domain filter",
+    "exclude diagonal"
+  ]
 }

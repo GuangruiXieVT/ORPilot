@@ -36,11 +36,6 @@
       "truck_types": "truck_types.csv"
     }
   },
-  "ir_patterns": [
-    "integer variable",
-    "domain filter",
-    "sparse filter"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -563,5 +558,10 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "domain filter",
+    "integer variable",
+    "sparse filter"
+  ]
 }

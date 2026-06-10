@@ -73,7 +73,11 @@ You have two tools:
    If it failed, fix the script and call execute_script again. If it succeeded, you are done.
 
 Common examples where computation MAY BE needed:
-  - Pairwise distances → computed from x/y coordinate columns
-  - Total/unit costs   → computed from price × quantity columns
-  - Normalized weights → computed from raw values
-  - BigM values        → e.g. BigM = max demand, max capacity, computed from data
+  - Pairwise distances   → computed from x/y coordinate columns
+  - Total/unit costs     → computed from price × quantity columns
+  - Normalized weights   → computed from raw values
+  - BigM values          → e.g. BigM = max demand, max capacity, computed from data
+  - Cumulative demand    → when larger items can substitute for smaller demand (nesting),
+                           compute cum_demand[i] = sum(demand[j] for j >= i) as a new column.
+                           Add it to the existing item table as a new column in the output CSV.
+

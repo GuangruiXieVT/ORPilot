@@ -1,0 +1,309 @@
+{
+  "problem": {
+    "title": "Beverage Factory 4-Week Production Planning",
+    "description": "A beverage factory plans production over 4 weeks to meet demand at minimum cost. Each week has a demand (1000 boxes), production capacity (1000 boxes), and production cost (1000 yuan per 1000 boxes). Storage cost is 0.2 thousand yuan per 1000 boxes per week. Initial inventory is 0. Minimize total production and storage cost.",
+    "problem_type": "linear_programming",
+    "objective": "minimize",
+    "objective_description": "Total cost = sum over all weeks of (prod_cost[t] * produce[t] + 0.2 * inventory[t])",
+    "constraints": [
+      {
+        "description": "Inventory balance for week 1 (initial inventory = 0): inventory[w1] = produce[w1] - demand[w1]"
+      },
+      {
+        "description": "Inventory balance for weeks 2-4: inventory[t] = inventory[t-1] + produce[t] - demand[t]"
+      },
+      {
+        "description": "Production capacity: produce[t] <= capacity[t] for each week"
+      }
+    ],
+    "decision_variables": [
+      "produce[t]: units (1000 boxes) produced in week t (continuous, non-negative)",
+      "inventory[t]: units (1000 boxes) held in inventory at end of week t (continuous, non-negative)"
+    ],
+    "parameters": [
+      "demand[t]: units (1000 boxes) required in week t",
+      "capacity[t]: maximum production units (1000 boxes) in week t",
+      "prod_cost[t]: production cost per 1000 boxes in week t (thousand yuan)"
+    ],
+    "additional_notes": "Optimal solution: produce=[15,40,25,20], inventory=[0,15,5,0]. Total = 5.0*15+5.1*40+5.4*25+5.5*20 + 0.2*(0+15+5+0) = 524 + 4 = 528.",
+    "csv_file_paths": {
+      "weeks": "weeks.csv"
+    }
+  },
+  "csv_schemas": {
+    "weeks": {
+      "columns": {
+        "week_id": "str",
+        "demand": "float",
+        "capacity": "float",
+        "prod_cost": "float"
+      },
+      "sample": {
+        "week_id": "w1",
+        "demand": 15.0,
+        "capacity": 30.0,
+        "prod_cost": 5.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "week_id": [
+          "w1",
+          "w2",
+          "w3",
+          "w4"
+        ],
+        "demand": [
+          "15.0",
+          "25.0",
+          "35.0",
+          "25.0"
+        ],
+        "capacity": [
+          "30.0",
+          "40.0",
+          "45.0",
+          "20.0"
+        ],
+        "prod_cost": [
+          "5.0",
+          "5.1",
+          "5.4",
+          "5.5"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "BeverageProductionLP",
+    "model_type": "Linear Program",
+    "sense": "minimize",
+    "sets": {
+      "Weeks": {
+        "size": null,
+        "index_symbol": "t",
+        "source": "weeks.csv",
+        "column": "week_id",
+        "filter_column": null,
+        "filter_value": null,
+        "ordered": true
+      }
+    },
+    "parameters": {
+      "demand": {
+        "domain": [
+          "Weeks"
+        ],
+        "type": "float",
+        "source": "weeks.csv",
+        "column": "demand",
+        "index_columns": [
+          "week_id"
+        ],
+        "missing_default": "zero"
+      },
+      "capacity": {
+        "domain": [
+          "Weeks"
+        ],
+        "type": "float",
+        "source": "weeks.csv",
+        "column": "capacity",
+        "index_columns": [
+          "week_id"
+        ],
+        "missing_default": "inf"
+      },
+      "prod_cost": {
+        "domain": [
+          "Weeks"
+        ],
+        "type": "float",
+        "source": "weeks.csv",
+        "column": "prod_cost",
+        "index_columns": [
+          "week_id"
+        ],
+        "missing_default": "inf"
+      }
+    },
+    "variables": {
+      "produce": {
+        "description": "Units (1000 boxes) produced in week t",
+        "label": "produce",
+        "domain": [
+          "Weeks"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "inventory": {
+        "description": "Units (1000 boxes) held in inventory at end of week t",
+        "label": "inventory",
+        "domain": [
+          "Weeks"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "inv_balance_init": {
+        "domain": [],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "inventory",
+              "indices": [
+                "Weeks[0]"
+              ]
+            },
+            "right": {
+              "type": "parameter",
+              "name": "demand",
+              "indices": [
+                "Weeks[0]"
+              ]
+            }
+          },
+          "right": {
+            "type": "variable",
+            "name": "produce",
+            "indices": [
+              "Weeks[0]"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "inv_balance": {
+        "domain": [
+          "Weeks"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "operation": "subtract",
+              "left": {
+                "type": "variable",
+                "name": "inventory",
+                "indices": [
+                  "t"
+                ]
+              },
+              "right": {
+                "type": "variable",
+                "name": "inventory",
+                "indices": [
+                  "t"
+                ],
+                "lag": -1
+              }
+            },
+            "right": {
+              "type": "parameter",
+              "name": "demand",
+              "indices": [
+                "t"
+              ]
+            }
+          },
+          "right": {
+            "type": "variable",
+            "name": "produce",
+            "indices": [
+              "t"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "capacity_limit": {
+        "domain": [
+          "Weeks"
+        ],
+        "expression": {
+          "type": "variable",
+          "name": "produce",
+          "indices": [
+            "t"
+          ]
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "parameter",
+          "name": "capacity",
+          "indices": [
+            "t"
+          ]
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Weeks:t"
+        ],
+        "body": {
+          "operation": "sum",
+          "left": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "prod_cost",
+              "indices": [
+                "t"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "produce",
+              "indices": [
+                "t"
+              ]
+            }
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "constant",
+              "value": 0.2
+            },
+            "right": {
+              "type": "variable",
+              "name": "inventory",
+              "indices": [
+                "t"
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "modeling_patterns": [
+    "balance constraint",
+    "init constraint",
+    "temporal lag"
+  ]
+}

@@ -1,0 +1,362 @@
+{
+  "problem": {
+    "title": "Transport MIP: XOR Vehicle Exclusion with Pollution Minimization",
+    "description": "Transport 1800+ units using four vehicle types: truck (cap=100/trip, poll=100), van (cap=80, poll=50), motorcycle (cap=40, poll=10), EV (cap=60, poll=0). Due to energy constraints, van and EV cannot both be used (XOR). At least 10 truck trips required. Total pollution ≤ 2000. Minimize total pollution.",
+    "problem_type": "mixed_integer_programming",
+    "objective": "minimize",
+    "objective_description": "Total pollution = 100*n_truck + 50*n_van + 10*n_moto + 0*n_ev",
+    "constraints": [
+      {
+        "description": "Deliver at least 1800 units: 100*n_truck + 80*n_van + 40*n_moto + 60*n_ev >= 1800"
+      },
+      {
+        "description": "Pollution cap: 100*n_truck + 50*n_van + 10*n_moto <= 2000"
+      },
+      {
+        "description": "Minimum truck trips: n_truck >= 10"
+      },
+      {
+        "description": "Van XOR EV: z_van + z_ev <= 1 (at most one of van or EV used)"
+      },
+      {
+        "description": "Van trips require z_van=1: n_van <= M*z_van"
+      },
+      {
+        "description": "EV trips require z_ev=1: n_ev <= M*z_ev"
+      }
+    ],
+    "decision_variables": [
+      "n_truck, n_van, n_moto, n_ev: integer trip counts (>=0)",
+      "z_van, z_ev: binary, 1 if that vehicle type is used"
+    ],
+    "parameters": [],
+    "additional_notes": "All scalar variables, no CSV data. Optimal: 10 truck trips + 100 EV trips. Pollution = 1000."
+  },
+  "csv_schemas": {},
+  "ir": {
+    "problem_class": "TransportXORMIP",
+    "model_type": "Mixed Integer Program",
+    "sense": "minimize",
+    "sets": {},
+    "parameters": {},
+    "variables": {
+      "n_truck": {
+        "description": "Number of truck trips",
+        "label": "n_truck",
+        "domain": [],
+        "type": "integer",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "n_van": {
+        "description": "Number of van trips",
+        "label": "n_van",
+        "domain": [],
+        "type": "integer",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "n_moto": {
+        "description": "Number of motorcycle trips",
+        "label": "n_moto",
+        "domain": [],
+        "type": "integer",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "n_ev": {
+        "description": "Number of EV trips",
+        "label": "n_ev",
+        "domain": [],
+        "type": "integer",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "z_van": {
+        "description": "Binary: 1 if van is used",
+        "label": "z_van",
+        "domain": [],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "z_ev": {
+        "description": "Binary: 1 if EV is used",
+        "label": "z_ev",
+        "domain": [],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "deliver_min": {
+        "domain": [],
+        "expression": {
+          "operation": "sum",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "operation": "multiply",
+              "left": {
+                "type": "constant",
+                "value": 100
+              },
+              "right": {
+                "type": "variable",
+                "name": "n_truck",
+                "indices": []
+              }
+            },
+            "right": {
+              "operation": "multiply",
+              "left": {
+                "type": "constant",
+                "value": 80
+              },
+              "right": {
+                "type": "variable",
+                "name": "n_van",
+                "indices": []
+              }
+            }
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "operation": "multiply",
+              "left": {
+                "type": "constant",
+                "value": 40
+              },
+              "right": {
+                "type": "variable",
+                "name": "n_moto",
+                "indices": []
+              }
+            },
+            "right": {
+              "operation": "multiply",
+              "left": {
+                "type": "constant",
+                "value": 60
+              },
+              "right": {
+                "type": "variable",
+                "name": "n_ev",
+                "indices": []
+              }
+            }
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "constant",
+          "value": 1800
+        }
+      },
+      "pollution_cap": {
+        "domain": [],
+        "expression": {
+          "operation": "sum",
+          "left": {
+            "operation": "multiply",
+            "left": {
+              "type": "constant",
+              "value": 100
+            },
+            "right": {
+              "type": "variable",
+              "name": "n_truck",
+              "indices": []
+            }
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "operation": "multiply",
+              "left": {
+                "type": "constant",
+                "value": 50
+              },
+              "right": {
+                "type": "variable",
+                "name": "n_van",
+                "indices": []
+              }
+            },
+            "right": {
+              "operation": "multiply",
+              "left": {
+                "type": "constant",
+                "value": 10
+              },
+              "right": {
+                "type": "variable",
+                "name": "n_moto",
+                "indices": []
+              }
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 2000
+        }
+      },
+      "min_trucks": {
+        "domain": [],
+        "expression": {
+          "type": "variable",
+          "name": "n_truck",
+          "indices": []
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "constant",
+          "value": 10
+        }
+      },
+      "van_xor_ev": {
+        "domain": [],
+        "expression": {
+          "operation": "sum",
+          "left": {
+            "type": "variable",
+            "name": "z_van",
+            "indices": []
+          },
+          "right": {
+            "type": "variable",
+            "name": "z_ev",
+            "indices": []
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 1
+        }
+      },
+      "van_bigm": {
+        "domain": [],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "n_van",
+            "indices": []
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "constant",
+              "value": 10000
+            },
+            "right": {
+              "type": "variable",
+              "name": "z_van",
+              "indices": []
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "ev_bigm": {
+        "domain": [],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "n_ev",
+            "indices": []
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "constant",
+              "value": 10000
+            },
+            "right": {
+              "type": "variable",
+              "name": "z_ev",
+              "indices": []
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "sum",
+        "left": {
+          "operation": "multiply",
+          "left": {
+            "type": "constant",
+            "value": 100
+          },
+          "right": {
+            "type": "variable",
+            "name": "n_truck",
+            "indices": []
+          }
+        },
+        "right": {
+          "operation": "sum",
+          "left": {
+            "operation": "multiply",
+            "left": {
+              "type": "constant",
+              "value": 50
+            },
+            "right": {
+              "type": "variable",
+              "name": "n_van",
+              "indices": []
+            }
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "constant",
+              "value": 10
+            },
+            "right": {
+              "type": "variable",
+              "name": "n_moto",
+              "indices": []
+            }
+          }
+        }
+      }
+    }
+  },
+  "modeling_patterns": [
+    "big-M linking",
+    "mutual exclusion",
+    "no sets"
+  ]
+}

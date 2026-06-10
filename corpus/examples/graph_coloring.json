@@ -29,13 +29,6 @@
       "edges": "edges.csv"
     }
   },
-  "ir_patterns": [
-    "binary variable",
-    "indexed_sum",
-    "big-M linking",
-    "adjacency matrix constraint",
-    "3D constraint domain with duplicate set"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -48,8 +41,22 @@
       },
       "optional": false,
       "distinct_values": {
-        "set_name": ["nodes", "colors"],
-        "element": ["A", "B", "C", "D", "E", "c1", "c2", "c3", "c4", "c5"]
+        "set_name": [
+          "nodes",
+          "colors"
+        ],
+        "element": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "E",
+          "c1",
+          "c2",
+          "c3",
+          "c4",
+          "c5"
+        ]
       }
     },
     "edges": {
@@ -65,9 +72,23 @@
       },
       "optional": false,
       "distinct_values": {
-        "n1_id": ["A", "B", "C", "D", "E"],
-        "n2_id": ["A", "B", "C", "D", "E"],
-        "adjacent": ["1"]
+        "n1_id": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "E"
+        ],
+        "n2_id": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "E"
+        ],
+        "adjacent": [
+          "1"
+        ]
       }
     }
   },
@@ -97,11 +118,17 @@
     },
     "parameters": {
       "edges": {
-        "domain": ["Nodes", "Nodes"],
+        "domain": [
+          "Nodes",
+          "Nodes"
+        ],
         "type": "float",
         "source": "edges.csv",
         "column": "adjacent",
-        "index_columns": ["n1_id", "n2_id"],
+        "index_columns": [
+          "n1_id",
+          "n2_id"
+        ],
         "missing_default": "zero"
       }
     },
@@ -109,7 +136,10 @@
       "x": {
         "description": "1 if node n is assigned color c, 0 otherwise",
         "label": "node_color_assignments",
-        "domain": ["Nodes", "Colors"],
+        "domain": [
+          "Nodes",
+          "Colors"
+        ],
         "type": "binary",
         "lower_bound": 0,
         "upper_bound": 1,
@@ -119,7 +149,9 @@
       "y": {
         "description": "1 if color c is used by at least one node, 0 otherwise",
         "label": "colors_used",
-        "domain": ["Colors"],
+        "domain": [
+          "Colors"
+        ],
         "type": "binary",
         "lower_bound": 0,
         "upper_bound": 1,
@@ -129,14 +161,21 @@
     },
     "constraints": {
       "one_color": {
-        "domain": ["Nodes"],
+        "domain": [
+          "Nodes"
+        ],
         "expression": {
           "operation": "indexed_sum",
-          "over": ["Colors:c"],
+          "over": [
+            "Colors:c"
+          ],
           "body": {
             "type": "variable",
             "name": "x",
-            "indices": ["n", "c"]
+            "indices": [
+              "n",
+              "c"
+            ]
           }
         },
         "sense": "=",
@@ -146,18 +185,26 @@
         }
       },
       "color_usage": {
-        "domain": ["Nodes", "Colors"],
+        "domain": [
+          "Nodes",
+          "Colors"
+        ],
         "expression": {
           "operation": "subtract",
           "left": {
             "type": "variable",
             "name": "x",
-            "indices": ["n", "c"]
+            "indices": [
+              "n",
+              "c"
+            ]
           },
           "right": {
             "type": "variable",
             "name": "y",
-            "indices": ["c"]
+            "indices": [
+              "c"
+            ]
           }
         },
         "sense": "<=",
@@ -167,18 +214,28 @@
         }
       },
       "adj_coloring": {
-        "domain": ["Nodes", "Nodes", "Colors"],
+        "domain": [
+          "Nodes",
+          "Nodes",
+          "Colors"
+        ],
         "expression": {
           "operation": "sum",
           "left": {
             "type": "variable",
             "name": "x",
-            "indices": ["n1", "c"]
+            "indices": [
+              "n1",
+              "c"
+            ]
           },
           "right": {
             "type": "variable",
             "name": "x",
-            "indices": ["n2", "c"]
+            "indices": [
+              "n2",
+              "c"
+            ]
           }
         },
         "sense": "<=",
@@ -191,7 +248,10 @@
           "right": {
             "type": "parameter",
             "name": "edges",
-            "indices": ["n1", "n2"]
+            "indices": [
+              "n1",
+              "n2"
+            ]
           }
         }
       }
@@ -200,13 +260,22 @@
       "sense": "minimize",
       "expression": {
         "operation": "indexed_sum",
-        "over": ["Colors:c"],
+        "over": [
+          "Colors:c"
+        ],
         "body": {
           "type": "variable",
           "name": "y",
-          "indices": ["c"]
+          "indices": [
+            "c"
+          ]
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "big-M linking",
+    "binary variable",
+    "duplicate set"
+  ]
 }

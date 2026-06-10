@@ -1,0 +1,5 @@
+week_id,demand,capacity,prod_cost
+w1,15,30,5.0
+w2,25,40,5.1
+w3,35,45,5.4
+w4,25,20,5.5

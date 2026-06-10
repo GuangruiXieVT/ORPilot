@@ -1,0 +1,260 @@
+{
+  "problem": {
+    "title": "Noble Estate Inheritance Partition",
+    "description": "A noble's estate (183000 total value) must be split between two sons. 14 items: painting=25000, bust=5000, vase=20000, porsche=40000, diamond1=12000, diamond2=12000, diamond3=12000, sofa=3000, dog1=3000, dog2=3000, sculpture=10000, boat=15000, harley=10000, furniture=13000. Binary assign[i]=1 means item goes to son2. Dogs must stay together: assign[dog1]=assign[dog2]. Minimize the absolute difference |son2_value - son1_value|.",
+    "problem_type": "mixed_integer_programming",
+    "objective": "minimize",
+    "objective_description": "Absolute difference between the two sons' shares = |2*sum(value*assign) - 183000|",
+    "constraints": [
+      {
+        "description": "Dogs must stay together: assign[dog1] - assign[dog2] = 0"
+      },
+      {
+        "description": "diff >= son2_value - son1_value: diff - 2*sum(value*assign) >= -183000"
+      },
+      {
+        "description": "diff >= son1_value - son2_value: diff + 2*sum(value*assign) >= 183000"
+      }
+    ],
+    "decision_variables": [
+      "assign[i]: binary, 1 if item i goes to son2 (0 = son1)",
+      "diff: scalar continuous (lb=0), the absolute value of (son2_total - son1_total)"
+    ],
+    "parameters": [
+      "value[i]: monetary value of item i"
+    ],
+    "additional_notes": "Total estate = 183000. son2_value = sum(value[i]*assign[i]). son1_value = 183000 - son2_value. |son2-son1| = |2*son2_value - 183000|. Linearised with diff scalar: diff >= 2*son2 - 183000 and diff >= 183000 - 2*son2. Optimal obj=1000 (son2=92000, son1=91000). Two scalar constraints (domain=[]) use indexed_sum over Items. dog_link constraint (domain=[]) uses hardcoded member IDs 'dog1','dog2'.",
+    "csv_file_paths": {
+      "items": "items.csv"
+    }
+  },
+  "csv_schemas": {
+    "items": {
+      "columns": {
+        "item_id": "str",
+        "value": "int"
+      },
+      "sample": {
+        "item_id": "painting",
+        "value": 25000
+      },
+      "optional": false,
+      "distinct_values": {
+        "item_id": [
+          "painting",
+          "bust",
+          "vase",
+          "porsche",
+          "diamond1",
+          "diamond2",
+          "diamond3",
+          "sofa",
+          "dog1",
+          "dog2",
+          "sculpture",
+          "boat",
+          "harley",
+          "furniture"
+        ],
+        "value": [
+          "3000",
+          "5000",
+          "10000",
+          "12000",
+          "13000",
+          "15000",
+          "20000",
+          "25000",
+          "40000"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "InheritancePartitionMIP",
+    "model_type": "Mixed Integer Program",
+    "sense": "minimize",
+    "sets": {
+      "Items": {
+        "size": null,
+        "index_symbol": "i",
+        "source": "items.csv",
+        "column": "item_id",
+        "filter_column": null,
+        "filter_value": null,
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "value": {
+        "domain": [
+          "Items"
+        ],
+        "type": "float",
+        "source": "items.csv",
+        "column": "value",
+        "index_columns": [
+          "item_id"
+        ],
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "assign": {
+        "description": "1 if item i goes to son2, 0 if to son1",
+        "label": "assign",
+        "domain": [
+          "Items"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "diff": {
+        "description": "Absolute difference between son2 total value and son1 total value",
+        "label": "diff",
+        "domain": [],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "dog_link": {
+        "domain": [],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "assign",
+            "indices": [
+              "dog1"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "assign",
+            "indices": [
+              "dog2"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "upper_bound": {
+        "domain": [],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "diff",
+            "indices": []
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "constant",
+              "value": 2
+            },
+            "right": {
+              "operation": "indexed_sum",
+              "over": [
+                "Items:i"
+              ],
+              "body": {
+                "operation": "multiply",
+                "left": {
+                  "type": "parameter",
+                  "name": "value",
+                  "indices": [
+                    "i"
+                  ]
+                },
+                "right": {
+                  "type": "variable",
+                  "name": "assign",
+                  "indices": [
+                    "i"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "constant",
+          "value": -183000
+        }
+      },
+      "lower_bound": {
+        "domain": [],
+        "expression": {
+          "operation": "sum",
+          "left": {
+            "type": "variable",
+            "name": "diff",
+            "indices": []
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "constant",
+              "value": 2
+            },
+            "right": {
+              "operation": "indexed_sum",
+              "over": [
+                "Items:i"
+              ],
+              "body": {
+                "operation": "multiply",
+                "left": {
+                  "type": "parameter",
+                  "name": "value",
+                  "indices": [
+                    "i"
+                  ]
+                },
+                "right": {
+                  "type": "variable",
+                  "name": "assign",
+                  "indices": [
+                    "i"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "constant",
+          "value": 183000
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "type": "variable",
+        "name": "diff",
+        "indices": []
+      }
+    }
+  },
+  "modeling_patterns": [
+    "binary variable",
+    "minimax objective",
+    "no sets",
+    "scalar variable"
+  ]
+}

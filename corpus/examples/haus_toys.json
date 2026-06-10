@@ -1,0 +1,463 @@
+{
+  "problem": {
+    "title": "Haus Toys Product Selection MIP",
+    "description": "Haus Toys can manufacture trucks, airplanes, boats, and trains with wood and steel resources. To maximize profit, the company must decide which types of toys to manufacture and in what quantity, subject to three logical constraints: (1) Trucks and trains are mutually exclusive — if trucks are made, trains cannot be, and vice versa. (2) If boats are manufactured, airplanes must also be manufactured. (3) The number of boats cannot exceed the number of trains. 890 units of wood and 500 units of steel are available.",
+    "problem_type": "mixed_integer_programming",
+    "objective": "maximize",
+    "objective_description": "Total profit from all toys manufactured",
+    "constraints": [
+      {
+        "description": "Total wood used across all toy types cannot exceed 890 units"
+      },
+      {
+        "description": "Total steel used across all toy types cannot exceed 500 units"
+      },
+      {
+        "description": "If a toy type is manufactured (make=1), quantity can be positive; if not selected (make=0), quantity must be zero (big-M linking)"
+      },
+      {
+        "description": "Trucks and trains are mutually exclusive: make[trucks] + make[trains] <= 1"
+      },
+      {
+        "description": "Boats imply airplanes: make[boats] <= make[airplanes]"
+      },
+      {
+        "description": "Boats quantity cannot exceed trains quantity: qty[boats] <= qty[trains]"
+      }
+    ],
+    "decision_variables": [
+      "qty[t]: quantity of toy type t to produce (continuous, non-negative)",
+      "make[t]: 1 if toy type t is manufactured, 0 otherwise (binary)"
+    ],
+    "parameters": [
+      "profit[t]: profit per unit of toy type t",
+      "resource_use[t,r]: units of resource r required per toy of type t",
+      "resource_limit[r]: total available units of resource r",
+      "big_m[t]: big-M upper bound for linking make[t] to qty[t]"
+    ],
+    "additional_notes": "Logical constraints use scalar domain (domain=[]) with hardcoded toy IDs. mutual_exclusion: make['trucks'] + make['trains'] <= 1. boats_imply_airplanes: make['boats'] - make['airplanes'] <= 0. boats_leq_trains: qty['boats'] - qty['trains'] <= 0. Optimal: 89 trains, no other toys; obj=623.",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "profit": "profit.csv",
+      "resource_use": "resource_use.csv",
+      "resource_limit": "resource_limit.csv",
+      "big_m": "big_m.csv"
+    }
+  },
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "toys",
+        "element": "trucks"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "toys",
+          "resources"
+        ],
+        "element": [
+          "trucks",
+          "airplanes",
+          "boats",
+          "trains",
+          "wood",
+          "steel"
+        ]
+      }
+    },
+    "profit": {
+      "columns": {
+        "toy_id": "str",
+        "profit": "int"
+      },
+      "sample": {
+        "toy_id": "trucks",
+        "profit": 5
+      },
+      "optional": false,
+      "distinct_values": {
+        "toy_id": [
+          "trucks",
+          "airplanes",
+          "boats",
+          "trains"
+        ],
+        "profit": [
+          "5",
+          "7",
+          "8",
+          "10"
+        ]
+      }
+    },
+    "resource_use": {
+      "columns": {
+        "toy_id": "str",
+        "resource_id": "str",
+        "amount": "int"
+      },
+      "sample": {
+        "toy_id": "trucks",
+        "resource_id": "wood",
+        "amount": 12
+      },
+      "optional": false,
+      "distinct_values": {
+        "toy_id": [
+          "trucks",
+          "airplanes",
+          "boats",
+          "trains"
+        ],
+        "resource_id": [
+          "wood",
+          "steel"
+        ],
+        "amount": [
+          "3",
+          "4",
+          "5",
+          "6",
+          "10",
+          "12",
+          "15",
+          "20"
+        ]
+      }
+    },
+    "resource_limit": {
+      "columns": {
+        "resource_id": "str",
+        "limit": "int"
+      },
+      "sample": {
+        "resource_id": "wood",
+        "limit": 890
+      },
+      "optional": false,
+      "distinct_values": {
+        "resource_id": [
+          "wood",
+          "steel"
+        ],
+        "limit": [
+          "500",
+          "890"
+        ]
+      }
+    },
+    "big_m": {
+      "columns": {
+        "toy_id": "str",
+        "big_m": "float"
+      },
+      "sample": {
+        "toy_id": "trucks",
+        "big_m": 200.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "toy_id": [
+          "trucks",
+          "airplanes",
+          "boats",
+          "trains"
+        ],
+        "big_m": [
+          "200.0"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "ProductSelectionMIP",
+    "model_type": "Mixed Integer Program",
+    "sense": "maximize",
+    "sets": {
+      "Toys": {
+        "size": null,
+        "index_symbol": "t",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "toys",
+        "ordered": false
+      },
+      "Resources": {
+        "size": null,
+        "index_symbol": "r",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "resources",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "profit": {
+        "domain": [
+          "Toys"
+        ],
+        "type": "float",
+        "source": "profit.csv",
+        "column": "profit",
+        "index_columns": [
+          "toy_id"
+        ],
+        "missing_default": "zero"
+      },
+      "resource_use": {
+        "domain": [
+          "Toys",
+          "Resources"
+        ],
+        "type": "float",
+        "source": "resource_use.csv",
+        "column": "amount",
+        "index_columns": [
+          "toy_id",
+          "resource_id"
+        ],
+        "missing_default": "zero"
+      },
+      "resource_limit": {
+        "domain": [
+          "Resources"
+        ],
+        "type": "float",
+        "source": "resource_limit.csv",
+        "column": "limit",
+        "index_columns": [
+          "resource_id"
+        ],
+        "missing_default": "inf"
+      },
+      "big_m": {
+        "domain": [
+          "Toys"
+        ],
+        "type": "float",
+        "source": "big_m.csv",
+        "column": "big_m",
+        "index_columns": [
+          "toy_id"
+        ],
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "qty": {
+        "description": "Quantity of toy type t to produce",
+        "label": "qty",
+        "domain": [
+          "Toys"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "make": {
+        "description": "1 if toy type t is manufactured, 0 otherwise",
+        "label": "make",
+        "domain": [
+          "Toys"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "resource_limit_constr": {
+        "domain": [
+          "Resources"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Toys:t"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "resource_use",
+              "indices": [
+                "t",
+                "r"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "qty",
+              "indices": [
+                "t"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "parameter",
+          "name": "resource_limit",
+          "indices": [
+            "r"
+          ]
+        }
+      },
+      "link_make_qty": {
+        "domain": [
+          "Toys"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "qty",
+            "indices": [
+              "t"
+            ]
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "big_m",
+              "indices": [
+                "t"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "make",
+              "indices": [
+                "t"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "mutual_exclusion": {
+        "domain": [],
+        "expression": {
+          "operation": "sum",
+          "left": {
+            "type": "variable",
+            "name": "make",
+            "indices": [
+              "trucks"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "make",
+            "indices": [
+              "trains"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 1
+        }
+      },
+      "boats_imply_airplanes": {
+        "domain": [],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "make",
+            "indices": [
+              "boats"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "make",
+            "indices": [
+              "airplanes"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "boats_leq_trains": {
+        "domain": [],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "qty",
+            "indices": [
+              "boats"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "qty",
+            "indices": [
+              "trains"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "maximize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Toys:t"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "type": "parameter",
+            "name": "profit",
+            "indices": [
+              "t"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "qty",
+            "indices": [
+              "t"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "modeling_patterns": [
+    "big-M linking",
+    "binary variable",
+    "implication constraint",
+    "mutual exclusion"
+  ]
+}

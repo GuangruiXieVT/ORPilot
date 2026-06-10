@@ -31,7 +31,6 @@
       "nutrient_limits": "nutrient_limits.csv"
     }
   },
-  "ir_patterns": [],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -378,5 +377,6 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": []
 }
