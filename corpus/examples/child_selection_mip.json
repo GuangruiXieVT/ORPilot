@@ -1,0 +1,408 @@
+{
+  "problem": {
+    "title": "Child Selection MIP: Minimize Trip Cost with Logical Constraints",
+    "description": "Family with 6 children: Harry ($1200), Hermione ($1650), Ron ($750), Fred ($800), George ($800), Ginny ($1500). Take 3-4 children on trip. Ginny must go. Rules: Harry→not Fred, Harry→not George, George→Fred, George→Hermione. Minimize total cost.",
+    "problem_type": "mixed_integer_programming",
+    "objective": "minimize",
+    "objective_description": "Total cost = sum of child costs for selected children",
+    "constraints": [
+      {
+        "description": "Ginny must be taken: z_ginny = 1"
+      },
+      {
+        "description": "At most 4 children: sum(z) <= 4"
+      },
+      {
+        "description": "At least 3 children: sum(z) >= 3"
+      },
+      {
+        "description": "Harry and Fred cannot both go: z_harry + z_fred <= 1"
+      },
+      {
+        "description": "Harry and George cannot both go: z_harry + z_george <= 1"
+      },
+      {
+        "description": "If George goes, Fred must go: z_george <= z_fred"
+      },
+      {
+        "description": "If George goes, Hermione must go: z_george <= z_hermione"
+      }
+    ],
+    "decision_variables": [
+      "z_harry, z_hermione, z_ron, z_fred, z_george, z_ginny: binary, 1 if child is taken"
+    ],
+    "parameters": [],
+    "additional_notes": "All scalar binary variables, no CSV. Optimal: take Ginny+Ron+Fred = 1500+750+800 = 3050."
+  },
+  "csv_schemas": {},
+  "ir": {
+    "problem_class": "ChildSelectionMIP",
+    "model_type": "Mixed Integer Program",
+    "sense": "minimize",
+    "sets": {},
+    "parameters": {},
+    "variables": {
+      "z_harry": {
+        "description": "1 if Harry is taken",
+        "label": "z_harry",
+        "domain": [],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "z_hermione": {
+        "description": "1 if Hermione is taken",
+        "label": "z_hermione",
+        "domain": [],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "z_ron": {
+        "description": "1 if Ron is taken",
+        "label": "z_ron",
+        "domain": [],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "z_fred": {
+        "description": "1 if Fred is taken",
+        "label": "z_fred",
+        "domain": [],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "z_george": {
+        "description": "1 if George is taken",
+        "label": "z_george",
+        "domain": [],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "z_ginny": {
+        "description": "1 if Ginny is taken",
+        "label": "z_ginny",
+        "domain": [],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "ginny_mandatory": {
+        "domain": [],
+        "expression": {
+          "type": "variable",
+          "name": "z_ginny",
+          "indices": []
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 1
+        }
+      },
+      "max_children": {
+        "domain": [],
+        "expression": {
+          "operation": "sum",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "z_harry",
+              "indices": []
+            },
+            "right": {
+              "type": "variable",
+              "name": "z_hermione",
+              "indices": []
+            }
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "operation": "sum",
+              "left": {
+                "type": "variable",
+                "name": "z_ron",
+                "indices": []
+              },
+              "right": {
+                "type": "variable",
+                "name": "z_fred",
+                "indices": []
+              }
+            },
+            "right": {
+              "operation": "sum",
+              "left": {
+                "type": "variable",
+                "name": "z_george",
+                "indices": []
+              },
+              "right": {
+                "type": "variable",
+                "name": "z_ginny",
+                "indices": []
+              }
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 4
+        }
+      },
+      "min_children": {
+        "domain": [],
+        "expression": {
+          "operation": "sum",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "z_harry",
+              "indices": []
+            },
+            "right": {
+              "type": "variable",
+              "name": "z_hermione",
+              "indices": []
+            }
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "operation": "sum",
+              "left": {
+                "type": "variable",
+                "name": "z_ron",
+                "indices": []
+              },
+              "right": {
+                "type": "variable",
+                "name": "z_fred",
+                "indices": []
+              }
+            },
+            "right": {
+              "operation": "sum",
+              "left": {
+                "type": "variable",
+                "name": "z_george",
+                "indices": []
+              },
+              "right": {
+                "type": "variable",
+                "name": "z_ginny",
+                "indices": []
+              }
+            }
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "constant",
+          "value": 3
+        }
+      },
+      "harry_not_fred": {
+        "domain": [],
+        "expression": {
+          "operation": "sum",
+          "left": {
+            "type": "variable",
+            "name": "z_harry",
+            "indices": []
+          },
+          "right": {
+            "type": "variable",
+            "name": "z_fred",
+            "indices": []
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 1
+        }
+      },
+      "harry_not_george": {
+        "domain": [],
+        "expression": {
+          "operation": "sum",
+          "left": {
+            "type": "variable",
+            "name": "z_harry",
+            "indices": []
+          },
+          "right": {
+            "type": "variable",
+            "name": "z_george",
+            "indices": []
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 1
+        }
+      },
+      "george_implies_fred": {
+        "domain": [],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "z_george",
+            "indices": []
+          },
+          "right": {
+            "type": "variable",
+            "name": "z_fred",
+            "indices": []
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "george_implies_hermione": {
+        "domain": [],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "z_george",
+            "indices": []
+          },
+          "right": {
+            "type": "variable",
+            "name": "z_hermione",
+            "indices": []
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "sum",
+        "left": {
+          "operation": "sum",
+          "left": {
+            "operation": "multiply",
+            "left": {
+              "type": "constant",
+              "value": 1200
+            },
+            "right": {
+              "type": "variable",
+              "name": "z_harry",
+              "indices": []
+            }
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "constant",
+              "value": 1650
+            },
+            "right": {
+              "type": "variable",
+              "name": "z_hermione",
+              "indices": []
+            }
+          }
+        },
+        "right": {
+          "operation": "sum",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "operation": "multiply",
+              "left": {
+                "type": "constant",
+                "value": 750
+              },
+              "right": {
+                "type": "variable",
+                "name": "z_ron",
+                "indices": []
+              }
+            },
+            "right": {
+              "operation": "multiply",
+              "left": {
+                "type": "constant",
+                "value": 800
+              },
+              "right": {
+                "type": "variable",
+                "name": "z_fred",
+                "indices": []
+              }
+            }
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "operation": "multiply",
+              "left": {
+                "type": "constant",
+                "value": 800
+              },
+              "right": {
+                "type": "variable",
+                "name": "z_george",
+                "indices": []
+              }
+            },
+            "right": {
+              "operation": "multiply",
+              "left": {
+                "type": "constant",
+                "value": 1500
+              },
+              "right": {
+                "type": "variable",
+                "name": "z_ginny",
+                "indices": []
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "modeling_patterns": [
+    "binary variable",
+    "implication constraint",
+    "mutual exclusion",
+    "no sets"
+  ]
+}

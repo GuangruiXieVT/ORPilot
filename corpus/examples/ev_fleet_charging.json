@@ -44,12 +44,6 @@
       "params": "params.csv"
     }
   },
-  "ir_patterns": [
-    "binary variable",
-    "big-M linking",
-    "scalar parameter",
-    "3D variable"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -516,5 +510,9 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "big-M linking",
+    "binary variable"
+  ]
 }

@@ -1,0 +1,373 @@
+{
+  "problem": {
+    "title": "Container Production with Nesting Substitution",
+    "description": "A plastics factory produces 6 types of containers, ordered by volume (type 1 smallest, type 6 largest). Each type has a per-unit variable production cost and a fixed equipment setup cost (1200 yuan) if any units of that type are produced. Larger containers can substitute for smaller demand: type j (j > i) can fill demand for type i (one unit fills one unit). Goal: minimize total cost while meeting all demand. The demand_satisfaction constraint uses CUMULATIVE demand (sum of demand[j] for j >= i) on the RHS — NOT per-type demand — because each production unit can only fill one demand unit and must cover the aggregated unfilled demand at each level.",
+    "problem_type": "mixed_integer_programming",
+    "objective": "minimize",
+    "objective_description": "Total cost = sum of variable production costs + sum of setup costs for activated equipment",
+    "constraints": [
+      {
+        "description": "cum_prod_chain_init: cumulative production of first type = produce[first]"
+      },
+      {
+        "description": "cum_prod_chain: for each subsequent type, cum_prod[i] = cum_prod[i-1] + produce[i]"
+      },
+      {
+        "description": "demand_satisfaction: for each type i, cumulative production from type i onwards >= cumulative demand from type i onwards (NOT just demand[i])"
+      },
+      {
+        "description": "produce_linking: produce[i] <= big_m * active[i] (force setup cost if any production)"
+      }
+    ],
+    "decision_variables": [
+      "produce[i]: integer units of container type i to produce",
+      "active[i]: binary, 1 if production equipment for type i is activated (produce[i] > 0)",
+      "cum_prod[i]: integer, cumulative production from type 1 through type i"
+    ],
+    "parameters": [
+      "demand[i]: direct market demand for container type i",
+      "cum_demand[i]: cumulative demand from type i onwards = sum(demand[j] for j >= i). MUST be pre-computed and stored as a CSV column.",
+      "unit_variable_cost[i]: variable production cost per unit of type i",
+      "setup_cost: fixed setup cost per activated equipment (scalar)"
+    ],
+    "additional_notes": "CRITICAL PATTERN — Nesting/substitution demand: When type j (j > i) can substitute for type i demand, the correct constraint is sum(produce[j] for j >= i) >= sum(demand[j] for j >= i). WRONG: >= demand[i]. The wrong form allows the same production units to simultaneously satisfy multiple demand types (double-counting), making the model trivially cheap. The cum_demand parameter stores the precomputed cumulative demand and must be included as a column in the containers CSV. The cum_prod variable enables the expression cum_prod[ContainerTypes[-1]] - (cum_prod[i] - produce[i]) which equals sum(produce[j] for j >= i).",
+    "csv_file_paths": {
+      "containers": "containers.csv",
+      "setup_cost": "setup_cost.csv"
+    }
+  },
+  "csv_schemas": {
+    "containers": {
+      "columns": {
+        "container_type": "str",
+        "volume": "float",
+        "demand": "float",
+        "unit_variable_cost": "float",
+        "cum_demand": "float"
+      },
+      "sample": {
+        "container_type": "1",
+        "volume": 1500,
+        "demand": 500,
+        "unit_variable_cost": 5,
+        "cum_demand": 3350
+      },
+      "optional": false,
+      "distinct_values": {
+        "container_type": [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5",
+          "6"
+        ]
+      }
+    },
+    "setup_cost": {
+      "columns": {
+        "setup_cost": "float"
+      },
+      "sample": {
+        "setup_cost": 1200
+      },
+      "optional": false,
+      "distinct_values": {
+        "setup_cost": [
+          "1200"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "ContainerProduction",
+    "model_type": "Mixed Integer Program",
+    "sense": "minimize",
+    "sets": {
+      "ContainerTypes": {
+        "size": null,
+        "index_symbol": "i",
+        "source": "containers.csv",
+        "column": "container_type",
+        "ordered": true
+      }
+    },
+    "parameters": {
+      "demand": {
+        "domain": [
+          "ContainerTypes"
+        ],
+        "type": "float",
+        "source": "containers.csv",
+        "column": "demand",
+        "index_columns": [
+          "container_type"
+        ],
+        "missing_default": "zero"
+      },
+      "cum_demand": {
+        "domain": [
+          "ContainerTypes"
+        ],
+        "type": "float",
+        "source": "containers.csv",
+        "column": "cum_demand",
+        "index_columns": [
+          "container_type"
+        ],
+        "missing_default": "zero"
+      },
+      "unit_variable_cost": {
+        "domain": [
+          "ContainerTypes"
+        ],
+        "type": "float",
+        "source": "containers.csv",
+        "column": "unit_variable_cost",
+        "index_columns": [
+          "container_type"
+        ],
+        "missing_default": "inf"
+      },
+      "setup_cost": {
+        "domain": [],
+        "type": "float",
+        "source": "setup_cost.csv",
+        "column": "setup_cost",
+        "index_columns": null,
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "produce": {
+        "description": "Integer units of container type i to produce",
+        "label": "production_quantities",
+        "domain": [
+          "ContainerTypes"
+        ],
+        "type": "integer",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "active": {
+        "description": "Binary: 1 if production equipment for type i is activated",
+        "label": "equipment_active",
+        "domain": [
+          "ContainerTypes"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "cum_prod": {
+        "description": "Cumulative production from type 1 through type i (forward running total)",
+        "label": "cumulative_production",
+        "domain": [
+          "ContainerTypes"
+        ],
+        "type": "integer",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "cum_prod_chain_init": {
+        "domain": [],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "cum_prod",
+            "indices": [
+              "ContainerTypes[0]"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "produce",
+            "indices": [
+              "ContainerTypes[0]"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "cum_prod_chain": {
+        "domain": [
+          "ContainerTypes"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "subtract",
+            "left": {
+              "type": "variable",
+              "name": "cum_prod",
+              "indices": [
+                "i"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "cum_prod",
+              "indices": [
+                "i"
+              ],
+              "lag": -1
+            }
+          },
+          "right": {
+            "type": "variable",
+            "name": "produce",
+            "indices": [
+              "i"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "demand_satisfaction": {
+        "domain": [
+          "ContainerTypes"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "cum_prod",
+            "indices": [
+              "ContainerTypes[-1]"
+            ]
+          },
+          "right": {
+            "operation": "subtract",
+            "left": {
+              "type": "variable",
+              "name": "cum_prod",
+              "indices": [
+                "i"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "produce",
+              "indices": [
+                "i"
+              ]
+            }
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "parameter",
+          "name": "cum_demand",
+          "indices": [
+            "i"
+          ]
+        }
+      },
+      "produce_linking": {
+        "domain": [
+          "ContainerTypes"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "produce",
+            "indices": [
+              "i"
+            ]
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "constant",
+              "value": 5000
+            },
+            "right": {
+              "type": "variable",
+              "name": "active",
+              "indices": [
+                "i"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "sum",
+        "left": {
+          "operation": "indexed_sum",
+          "over": [
+            "ContainerTypes"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "unit_variable_cost",
+              "indices": [
+                "i"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "produce",
+              "indices": [
+                "i"
+              ]
+            }
+          }
+        },
+        "right": {
+          "operation": "indexed_sum",
+          "over": [
+            "ContainerTypes"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "setup_cost",
+              "indices": []
+            },
+            "right": {
+              "type": "variable",
+              "name": "active",
+              "indices": [
+                "i"
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "modeling_patterns": [
+    "big-M linking",
+    "temporal lag"
+  ]
+}

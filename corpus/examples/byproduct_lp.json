@@ -1,0 +1,253 @@
+{
+  "problem": {
+    "title": "By-product LP: Maximize Profit with Sell-or-Dispose Decision",
+    "description": "Produce products A and B using two chemical processes. A: 2h process1 + 3h process2. B: 3h process1 + 4h process2. Process1 capacity: 16h. Process2 capacity: 24h. Each unit of B generates 2 units of by-product C at no extra cost. C can be sold (up to 5 units at 3 yuan/unit) or disposed (at -2 yuan/unit cost). Profit: A=4, B=10 yuan/unit. Maximize total profit.",
+    "problem_type": "linear_programming",
+    "objective": "maximize",
+    "objective_description": "Profit = 4*A + 10*B + 3*C_sold - 2*C_dispose",
+    "constraints": [
+      {
+        "description": "Process 1 capacity: 2*A + 3*B <= 16 hours"
+      },
+      {
+        "description": "Process 2 capacity: 3*A + 4*B <= 24 hours"
+      },
+      {
+        "description": "By-product balance: C_sold + C_dispose = 2*B (all by-product accounted for)"
+      },
+      {
+        "description": "Sales limit: C_sold <= 5 units (market limit on by-product C)"
+      }
+    ],
+    "decision_variables": [
+      "A: units of product A produced (continuous, >=0)",
+      "B: units of product B produced (continuous, >=0)",
+      "C_sold: units of by-product C sold (continuous, 0 <= C_sold <= 5)",
+      "C_dispose: units of by-product C disposed (continuous, >=0)"
+    ],
+    "parameters": [],
+    "additional_notes": "All scalar variables, no CSV data. Optimal: B=16/3, C_sold=5, C_dispose=32/3-5=17/3. Obj=57."
+  },
+  "csv_schemas": {},
+  "ir": {
+    "problem_class": "ByProductLP",
+    "model_type": "Linear Program",
+    "sense": "maximize",
+    "sets": {},
+    "parameters": {},
+    "variables": {
+      "A": {
+        "description": "Units of product A produced",
+        "label": "A",
+        "domain": [],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "B": {
+        "description": "Units of product B produced",
+        "label": "B",
+        "domain": [],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "C_sold": {
+        "description": "Units of by-product C sold (max 5)",
+        "label": "C_sold",
+        "domain": [],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": 5,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "C_dispose": {
+        "description": "Units of by-product C disposed of",
+        "label": "C_dispose",
+        "domain": [],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "process1_cap": {
+        "domain": [],
+        "expression": {
+          "operation": "sum",
+          "left": {
+            "operation": "multiply",
+            "left": {
+              "type": "constant",
+              "value": 2
+            },
+            "right": {
+              "type": "variable",
+              "name": "A",
+              "indices": []
+            }
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "constant",
+              "value": 3
+            },
+            "right": {
+              "type": "variable",
+              "name": "B",
+              "indices": []
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 16
+        }
+      },
+      "process2_cap": {
+        "domain": [],
+        "expression": {
+          "operation": "sum",
+          "left": {
+            "operation": "multiply",
+            "left": {
+              "type": "constant",
+              "value": 3
+            },
+            "right": {
+              "type": "variable",
+              "name": "A",
+              "indices": []
+            }
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "constant",
+              "value": 4
+            },
+            "right": {
+              "type": "variable",
+              "name": "B",
+              "indices": []
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 24
+        }
+      },
+      "byproduct_balance": {
+        "domain": [],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "C_sold",
+              "indices": []
+            },
+            "right": {
+              "type": "variable",
+              "name": "C_dispose",
+              "indices": []
+            }
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "constant",
+              "value": 2
+            },
+            "right": {
+              "type": "variable",
+              "name": "B",
+              "indices": []
+            }
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "maximize",
+      "expression": {
+        "operation": "subtract",
+        "left": {
+          "operation": "sum",
+          "left": {
+            "operation": "multiply",
+            "left": {
+              "type": "constant",
+              "value": 4
+            },
+            "right": {
+              "type": "variable",
+              "name": "A",
+              "indices": []
+            }
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "operation": "multiply",
+              "left": {
+                "type": "constant",
+                "value": 10
+              },
+              "right": {
+                "type": "variable",
+                "name": "B",
+                "indices": []
+              }
+            },
+            "right": {
+              "operation": "multiply",
+              "left": {
+                "type": "constant",
+                "value": 3
+              },
+              "right": {
+                "type": "variable",
+                "name": "C_sold",
+                "indices": []
+              }
+            }
+          }
+        },
+        "right": {
+          "operation": "multiply",
+          "left": {
+            "type": "constant",
+            "value": 2
+          },
+          "right": {
+            "type": "variable",
+            "name": "C_dispose",
+            "indices": []
+          }
+        }
+      }
+    }
+  },
+  "modeling_patterns": [
+    "balance constraint",
+    "no sets"
+  ]
+}

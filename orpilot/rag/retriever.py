@@ -1,4 +1,4 @@
-"""Hybrid retriever: embedding cosine similarity + BM25, fused via RRF."""
+"""Hybrid retriever: BM25 + semantic embeddings + structural Jaccard, fused via RRF."""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ from typing import Any
 import numpy as np
 
 from .bm25 import BM25
+from .structural import jaccard
 from .indexer import expand_synonyms
 
 
@@ -52,18 +53,28 @@ class Retriever:
         else:
             self._emb_matrix = None
 
+        # Load canonical modeling pattern tokens only (pat: prefix) for Jaccard.
+        # Restricting to pat: tokens avoids the Jaccard size-bias problem where
+        # generic structural tokens (model:lp, sense:minimize) inflate scores for
+        # small/simple models that share a minimal fingerprint with the query.
+        self._modeling_patterns: list[set[str]] = [
+            {t for t in (e.get("fingerprint") or []) if t.startswith("pat:")}
+            for e in self._examples
+        ]
+
     def retrieve(
         self,
         query_text: str,
-        k: int = 2,
+        k: int = 3,
         embedder=None,  # override instance embedder
         semantic_only: bool = False,
+        modeling_patterns: set[str] | None = None,
     ) -> list[dict[str, Any]]:
         """Return up to k most relevant examples.
 
         semantic_only=True: rank by cosine similarity alone (no BM25).
-        Default: hybrid RRF fusion of BM25 + semantic when embeddings are
-        available, falling back to BM25 alone.
+        modeling_patterns: if provided, adds a structural Jaccard channel to RRF.
+        Default: RRF fusion of all available channels (BM25, semantic, Jaccard).
         """
         n = len(self._examples)
         emb = embedder or self._embedder
@@ -88,6 +99,16 @@ class Retriever:
             sem_scores = _cosine_scores(query_emb, self._emb_matrix)
             sem_order = list(np.argsort(-sem_scores))
             rankings.append(sem_order)
+
+        # --- Structural Jaccard ranking (pat: tokens only) ---
+        # Only activate when at least 2 canonical patterns are detected; a single
+        # common pattern (e.g. binary variable) matches too many examples to add signal.
+        if modeling_patterns and any(self._modeling_patterns):
+            query_pats = {t for t in modeling_patterns if t.startswith("pat:")}
+            if len(query_pats) >= 2:
+                jac_scores = [jaccard(query_pats, fp) for fp in self._modeling_patterns]
+                jac_order = sorted(range(n), key=lambda i: jac_scores[i], reverse=True)
+                rankings.append(jac_order)
 
         # --- RRF fusion ---
         fused = _rrf_fusion(rankings)
@@ -143,7 +164,7 @@ class Retriever:
         )
         for i, ex in enumerate(examples, 1):
             title = ex.get("problem_title", ex["name"])
-            kw = ", ".join(ex.get("ir_patterns", []))
+            kw = ", ".join(ex.get("modeling_patterns", []))
             problem = ex.get("problem", {})
             ir_str = json.dumps(ex["ir"], indent=2)
             parts.append(f"### Reference {i}: {title}")

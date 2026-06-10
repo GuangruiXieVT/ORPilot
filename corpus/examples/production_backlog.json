@@ -1,0 +1,515 @@
+{
+  "problem": {
+    "title": "Multi-Product Quarterly Production with Backlog Compensation",
+    "description": "A factory produces three products (I, II, III) over four quarters. Contract delivery requirements are given per product per quarter. Initial inventory is zero; final inventory must be at least 150 units per product. The factory has 15,000 production hours per quarter. Each unit of product I requires 2 hours, product II 4 hours, product III 3 hours. Product I cannot be produced in Q2 (equipment change). If a delivery is late, the factory pays compensation: 20 yuan/unit/quarter delay for products I and II, 10 yuan/unit/quarter delay for product III. Carrying inventory costs 5 yuan/unit/quarter. Minimize total cost.",
+    "problem_type": "mixed_integer_programming",
+    "objective": "minimize",
+    "objective_description": "Total cost = 5*sum(inventory) + sum(comp_rate[p]*backlog[p,t]) over all products and quarters",
+    "constraints": [
+      {
+        "description": "Inventory balance init (Q1): inventory[p,Q1] - backlog[p,Q1] = produce[p,Q1] - demand[p,Q1], with zero initial stock"
+      },
+      {
+        "description": "Inventory balance (Q2-Q4): inventory[p,t] - backlog[p,t] = inventory[p,t-1] - backlog[p,t-1] + produce[p,t] - demand[p,t]"
+      },
+      {
+        "description": "Production capacity: total production hours per quarter must not exceed 15,000"
+      },
+      {
+        "description": "Product I cannot be produced in Q2: produce[I,Q2] = 0"
+      },
+      {
+        "description": "End-of-horizon inventory for each product must be at least 150 units"
+      },
+      {
+        "description": "End-of-horizon backlog must be zero (all contracts fulfilled by Q4)"
+      }
+    ],
+    "decision_variables": [
+      "produce[p,t]: units of product p produced in quarter t (continuous, non-negative)",
+      "inventory[p,t]: units of product p held in inventory at end of quarter t (continuous, non-negative)",
+      "backlog[p,t]: units of product p still owed (not yet delivered) at end of quarter t (continuous, non-negative)"
+    ],
+    "parameters": [
+      "demand[p,t]: contract delivery requirement for product p in quarter t",
+      "hours_per_unit[p]: production hours required per unit of product p",
+      "comp_rate[p]: compensation cost in yuan per unit per quarter of delay"
+    ],
+    "additional_notes": "Uses split-variable backlogging IR pattern from lot_sizing_backlog. balance_init domain=[Products], uses Quarters[0] for first period. balance domain=[Products,Quarters] with lag:-1 on inventory and backlog. no_produce_I_Q2 is a scalar constraint (domain=[]) with hardcoded reference produce['I','Q2'] <= 0. end_stock: inventory[p,'Q4'] >= 150, domain=[Products]. end_no_backlog: backlog[p,'Q4'] <= 0, domain=[Products]. Objective: 5*indexed_sum(inventory) + indexed_sum(comp_rate[p]*backlog[p,t]).",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "demand": "demand.csv",
+      "product_params": "product_params.csv"
+    }
+  },
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "products",
+        "element": "I"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "products",
+          "quarters"
+        ],
+        "element": [
+          "I",
+          "II",
+          "III",
+          "Q1",
+          "Q2",
+          "Q3",
+          "Q4"
+        ]
+      }
+    },
+    "demand": {
+      "columns": {
+        "product_id": "str",
+        "quarter_id": "str",
+        "demand": "int"
+      },
+      "sample": {
+        "product_id": "I",
+        "quarter_id": "Q1",
+        "demand": 1500
+      },
+      "optional": false,
+      "distinct_values": {
+        "product_id": [
+          "I",
+          "II",
+          "III"
+        ],
+        "quarter_id": [
+          "Q1",
+          "Q2",
+          "Q3",
+          "Q4"
+        ],
+        "demand": [
+          "1000",
+          "1200",
+          "1500",
+          "2000",
+          "2500"
+        ]
+      }
+    },
+    "product_params": {
+      "columns": {
+        "product_id": "str",
+        "hours_per_unit": "float",
+        "comp_rate": "float"
+      },
+      "sample": {
+        "product_id": "I",
+        "hours_per_unit": 2.0,
+        "comp_rate": 20.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "product_id": [
+          "I",
+          "II",
+          "III"
+        ],
+        "hours_per_unit": [
+          "2.0",
+          "3.0",
+          "4.0"
+        ],
+        "comp_rate": [
+          "10.0",
+          "20.0"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "MultiPeriodProductionBacklog",
+    "model_type": "Mixed Integer Program",
+    "sense": "minimize",
+    "sets": {
+      "Products": {
+        "size": null,
+        "index_symbol": "p",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "products",
+        "ordered": false
+      },
+      "Quarters": {
+        "size": null,
+        "index_symbol": "t",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "quarters",
+        "ordered": true
+      }
+    },
+    "parameters": {
+      "demand": {
+        "domain": [
+          "Products",
+          "Quarters"
+        ],
+        "type": "float",
+        "source": "demand.csv",
+        "column": "demand",
+        "index_columns": [
+          "product_id",
+          "quarter_id"
+        ],
+        "missing_default": "zero"
+      },
+      "hours_per_unit": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "product_params.csv",
+        "column": "hours_per_unit",
+        "index_columns": [
+          "product_id"
+        ],
+        "missing_default": "zero"
+      },
+      "comp_rate": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "product_params.csv",
+        "column": "comp_rate",
+        "index_columns": [
+          "product_id"
+        ],
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "produce": {
+        "description": "Units of product p produced in quarter t (integer)",
+        "label": "produce",
+        "domain": [
+          "Products",
+          "Quarters"
+        ],
+        "type": "integer",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "inventory": {
+        "description": "Units of product p in inventory at end of quarter t",
+        "label": "inventory",
+        "domain": [
+          "Products",
+          "Quarters"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "backlog": {
+        "description": "Units of product p still owed at end of quarter t",
+        "label": "backlog",
+        "domain": [
+          "Products",
+          "Quarters"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "balance_init": {
+        "domain": [
+          "Products"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "inventory",
+              "indices": [
+                "p",
+                "Quarters[0]"
+              ]
+            },
+            "right": {
+              "type": "parameter",
+              "name": "demand",
+              "indices": [
+                "p",
+                "Quarters[0]"
+              ]
+            }
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "backlog",
+              "indices": [
+                "p",
+                "Quarters[0]"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "produce",
+              "indices": [
+                "p",
+                "Quarters[0]"
+              ]
+            }
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "balance": {
+        "domain": [
+          "Products",
+          "Quarters"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "operation": "subtract",
+              "left": {
+                "type": "variable",
+                "name": "inventory",
+                "indices": [
+                  "p",
+                  "t"
+                ]
+              },
+              "right": {
+                "type": "variable",
+                "name": "backlog",
+                "indices": [
+                  "p",
+                  "t"
+                ]
+              }
+            },
+            "right": {
+              "type": "parameter",
+              "name": "demand",
+              "indices": [
+                "p",
+                "t"
+              ]
+            }
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "operation": "subtract",
+              "left": {
+                "type": "variable",
+                "name": "inventory",
+                "indices": [
+                  "p",
+                  "t"
+                ],
+                "lag": -1
+              },
+              "right": {
+                "type": "variable",
+                "name": "backlog",
+                "indices": [
+                  "p",
+                  "t"
+                ],
+                "lag": -1
+              }
+            },
+            "right": {
+              "type": "variable",
+              "name": "produce",
+              "indices": [
+                "p",
+                "t"
+              ]
+            }
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "capacity": {
+        "domain": [
+          "Quarters"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Products:p"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "hours_per_unit",
+              "indices": [
+                "p"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "produce",
+              "indices": [
+                "p",
+                "t"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 15000
+        }
+      },
+      "no_produce_I_Q2": {
+        "domain": [],
+        "expression": {
+          "type": "variable",
+          "name": "produce",
+          "indices": [
+            "I",
+            "Q2"
+          ]
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "end_stock": {
+        "domain": [
+          "Products"
+        ],
+        "expression": {
+          "type": "variable",
+          "name": "inventory",
+          "indices": [
+            "p",
+            "Q4"
+          ]
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "constant",
+          "value": 150
+        }
+      },
+      "end_no_backlog": {
+        "domain": [
+          "Products"
+        ],
+        "expression": {
+          "type": "variable",
+          "name": "backlog",
+          "indices": [
+            "p",
+            "Q4"
+          ]
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "sum",
+        "left": {
+          "operation": "multiply",
+          "left": {
+            "type": "constant",
+            "value": 5
+          },
+          "right": {
+            "operation": "indexed_sum",
+            "over": [
+              "Products:p",
+              "Quarters:t"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "inventory",
+              "indices": [
+                "p",
+                "t"
+              ]
+            }
+          }
+        },
+        "right": {
+          "operation": "indexed_sum",
+          "over": [
+            "Products:p",
+            "Quarters:t"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "comp_rate",
+              "indices": [
+                "p"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "backlog",
+              "indices": [
+                "p",
+                "t"
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "modeling_patterns": [
+    "balance constraint",
+    "deviation variables",
+    "init constraint",
+    "temporal lag"
+  ]
+}

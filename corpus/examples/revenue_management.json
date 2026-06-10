@@ -30,11 +30,6 @@
       "uses_flight": "uses_flight.csv"
     }
   },
-  "ir_patterns": [
-    "sparse parameter in constraint",
-    "domain_filter",
-    "maximize"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -320,5 +315,9 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "domain filter",
+    "sparse filter"
+  ]
 }

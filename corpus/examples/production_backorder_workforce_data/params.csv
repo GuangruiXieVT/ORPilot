@@ -1,0 +1,2 @@
+initial_workforce,initial_inventory,sales_price,raw_material_cost,outsource_cost,holding_cost,backorder_penalty,labor_per_unit,regular_hours_per_worker,regular_wage,overtime_wage,max_overtime_per_worker,hire_cost,fire_cost,min_terminal_inventory
+1000,15000,300,90,200,15,35,5,160,30,40,20,5000,8000,10000

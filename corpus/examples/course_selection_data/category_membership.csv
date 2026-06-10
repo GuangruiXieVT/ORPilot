@@ -1,0 +1,13 @@
+course_id,category_id,is_member
+calculus,math,1
+operations_research,or,1
+operations_research,math,1
+data_structures,cs,1
+data_structures,math,1
+management_statistics,math,1
+management_statistics,or,1
+computer_simulation,cs,1
+computer_simulation,or,1
+computer_programming,cs,1
+forecasting,or,1
+forecasting,math,1

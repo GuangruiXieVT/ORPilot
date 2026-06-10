@@ -30,9 +30,6 @@
       "bom": "bom.csv"
     }
   },
-  "ir_patterns": [
-    "BOM parameter"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -355,5 +352,8 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "BOM parameter"
+  ]
 }

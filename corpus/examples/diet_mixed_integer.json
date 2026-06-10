@@ -1,0 +1,557 @@
+{
+  "problem": {
+    "title": "Mixed-Integer Diet Problem with Binary Vegetable Selection",
+    "description": "Mary wants to maximize protein intake for dinner. She can buy proteins (chicken, salmon, tofu) in any continuous quantity (100g units) and vegetables (broccoli, carrots, spinach, bell pepper, mushrooms) in integer packs of 100g. She must select at least 3 different vegetable types (binary selection variable). A linking constraint ensures zero packs are bought for unselected vegetables. Total budget is $20 and total weight must not exceed 800g (8 units of 100g each).",
+    "problem_type": "mixed_integer_programming",
+    "objective": "maximize",
+    "objective_description": "Total protein intake in grams from all selected proteins and vegetables",
+    "constraints": [
+      {
+        "description": "Budget: total cost of all proteins and vegetables does not exceed $20"
+      },
+      {
+        "description": "Weight: total weight (sum of all units) does not exceed 8 units (800g)"
+      },
+      {
+        "description": "Minimum variety: at least 3 different vegetable types must be selected (sum of veg_selected >= 3)"
+      },
+      {
+        "description": "Vegetable upper link: packs bought are zero if not selected (eat_veg[v] <= big_m * veg_selected[v])"
+      },
+      {
+        "description": "Vegetable lower link: if vegetable is selected at least 1 pack must be bought (veg_selected[v] <= eat_veg[v])"
+      }
+    ],
+    "decision_variables": [
+      "eat_protein[p]: quantity of protein p in 100g units (continuous, non-negative)",
+      "eat_veg[v]: integer packs of vegetable v to buy (integer, non-negative)",
+      "veg_selected[v]: binary, 1 if any packs of vegetable v are bought"
+    ],
+    "parameters": [
+      "protein_per_100g[p]: grams of protein per 100g unit of protein food p",
+      "cost_per_100g[p]: cost per 100g unit of protein food p",
+      "protein_per_pack[v]: grams of protein per 100g pack of vegetable v",
+      "cost_per_pack[v]: cost per 100g pack of vegetable v",
+      "budget: total spending budget ($20)",
+      "max_weight_units: maximum total units of food (8 units = 800g)",
+      "min_veg_types: minimum number of different vegetable types to select (3)",
+      "big_m: big-M upper bound for linking constraint (equal to max_weight_units)"
+    ],
+    "additional_notes": "Key patterns: (1) Two separate item types with different variable types: Proteins (continuous) and Vegetables (integer). Both sets come from the same sets.csv using filter_column. (2) Binary veg_selected variable with TWO linking constraints: upper (eat_veg <= big_m*veg_selected forces zero if unselected) AND lower (veg_selected <= eat_veg forces at least 1 pack if selected). Both directions are required. (3) A single budget constraint spans both Proteins and Vegetables sets, requiring a sum of two indexed_sums. (4) min_veg_types is a scalar parameter from parameters.csv (wide format, single row). (5) big_m = max_weight_units ensures eat_veg is bounded above.",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "proteins": "proteins.csv",
+      "vegetables": "vegetables.csv",
+      "parameters": "parameters.csv"
+    }
+  },
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "proteins",
+        "element": "chicken"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "proteins",
+          "vegetables"
+        ],
+        "element": [
+          "chicken",
+          "salmon",
+          "tofu",
+          "broccoli",
+          "carrots",
+          "spinach",
+          "bell_pepper",
+          "mushrooms"
+        ]
+      }
+    },
+    "proteins": {
+      "columns": {
+        "protein_id": "str",
+        "protein_per_100g": "float",
+        "spend_per_100g": "float"
+      },
+      "sample": {
+        "protein_id": "chicken",
+        "protein_per_100g": 23.0,
+        "spend_per_100g": 3.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "protein_id": [
+          "chicken",
+          "salmon",
+          "tofu"
+        ],
+        "protein_per_100g": [
+          "23.0",
+          "20.0",
+          "8.0"
+        ],
+        "spend_per_100g": [
+          "3.0",
+          "5.0",
+          "1.5"
+        ]
+      }
+    },
+    "vegetables": {
+      "columns": {
+        "veg_id": "str",
+        "protein_per_pack": "float",
+        "spend_per_pack": "float"
+      },
+      "sample": {
+        "veg_id": "broccoli",
+        "protein_per_pack": 2.8,
+        "spend_per_pack": 1.2
+      },
+      "optional": false,
+      "distinct_values": {
+        "veg_id": [
+          "broccoli",
+          "carrots",
+          "spinach",
+          "bell_pepper",
+          "mushrooms"
+        ],
+        "protein_per_pack": [
+          "2.8",
+          "0.9",
+          "2.9",
+          "1.0",
+          "3.1"
+        ],
+        "spend_per_pack": [
+          "1.2",
+          "0.8",
+          "1.5",
+          "1.0",
+          "2.0"
+        ]
+      }
+    },
+    "parameters": {
+      "columns": {
+        "budget": "float",
+        "max_weight_units": "int",
+        "min_veg_types": "int",
+        "big_m": "int"
+      },
+      "sample": {
+        "budget": 20.0,
+        "max_weight_units": 8,
+        "min_veg_types": 3,
+        "big_m": 8
+      },
+      "optional": false,
+      "distinct_values": {
+        "budget": [
+          "20.0"
+        ],
+        "max_weight_units": [
+          "8"
+        ],
+        "min_veg_types": [
+          "3"
+        ],
+        "big_m": [
+          "8"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "DietProblem",
+    "model_type": "Mixed Integer Program",
+    "sense": "maximize",
+    "sets": {
+      "Proteins": {
+        "size": null,
+        "index_symbol": "p",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "proteins",
+        "ordered": false
+      },
+      "Vegetables": {
+        "size": null,
+        "index_symbol": "v",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "vegetables",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "protein_per_100g": {
+        "domain": [
+          "Proteins"
+        ],
+        "type": "float",
+        "source": "proteins.csv",
+        "column": "protein_per_100g",
+        "index_columns": [
+          "protein_id"
+        ],
+        "missing_default": "zero"
+      },
+      "spend_per_100g": {
+        "domain": [
+          "Proteins"
+        ],
+        "type": "float",
+        "source": "proteins.csv",
+        "column": "spend_per_100g",
+        "index_columns": [
+          "protein_id"
+        ],
+        "missing_default": "inf"
+      },
+      "protein_per_pack": {
+        "domain": [
+          "Vegetables"
+        ],
+        "type": "float",
+        "source": "vegetables.csv",
+        "column": "protein_per_pack",
+        "index_columns": [
+          "veg_id"
+        ],
+        "missing_default": "zero"
+      },
+      "spend_per_pack": {
+        "domain": [
+          "Vegetables"
+        ],
+        "type": "float",
+        "source": "vegetables.csv",
+        "column": "spend_per_pack",
+        "index_columns": [
+          "veg_id"
+        ],
+        "missing_default": "inf"
+      },
+      "budget": {
+        "domain": [],
+        "type": "float",
+        "source": "parameters.csv",
+        "column": "budget",
+        "index_columns": null,
+        "missing_default": "zero"
+      },
+      "max_weight_units": {
+        "domain": [],
+        "type": "float",
+        "source": "parameters.csv",
+        "column": "max_weight_units",
+        "index_columns": null,
+        "missing_default": "zero"
+      },
+      "min_veg_types": {
+        "domain": [],
+        "type": "float",
+        "source": "parameters.csv",
+        "column": "min_veg_types",
+        "index_columns": null,
+        "missing_default": "zero"
+      },
+      "big_m": {
+        "domain": [],
+        "type": "float",
+        "source": "parameters.csv",
+        "column": "big_m",
+        "index_columns": null,
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "eat_protein": {
+        "description": "Continuous quantity of protein p to buy in 100g units",
+        "label": "protein_quantity",
+        "domain": [
+          "Proteins"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "eat_veg": {
+        "description": "Integer packs of vegetable v to buy",
+        "label": "vegetable_packs",
+        "domain": [
+          "Vegetables"
+        ],
+        "type": "integer",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "veg_selected": {
+        "description": "Binary: 1 if any packs of vegetable v are bought",
+        "label": "vegetable_selection",
+        "domain": [
+          "Vegetables"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "budget_limit": {
+        "domain": [],
+        "expression": {
+          "operation": "sum",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Proteins:p"
+            ],
+            "body": {
+              "operation": "multiply",
+              "left": {
+                "type": "parameter",
+                "name": "spend_per_100g",
+                "indices": [
+                  "p"
+                ]
+              },
+              "right": {
+                "type": "variable",
+                "name": "eat_protein",
+                "indices": [
+                  "p"
+                ]
+              }
+            }
+          },
+          "right": {
+            "operation": "indexed_sum",
+            "over": [
+              "Vegetables:v"
+            ],
+            "body": {
+              "operation": "multiply",
+              "left": {
+                "type": "parameter",
+                "name": "spend_per_pack",
+                "indices": [
+                  "v"
+                ]
+              },
+              "right": {
+                "type": "variable",
+                "name": "eat_veg",
+                "indices": [
+                  "v"
+                ]
+              }
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "parameter",
+          "name": "budget",
+          "indices": []
+        }
+      },
+      "weight_limit": {
+        "domain": [],
+        "expression": {
+          "operation": "sum",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Proteins:p"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "eat_protein",
+              "indices": [
+                "p"
+              ]
+            }
+          },
+          "right": {
+            "operation": "indexed_sum",
+            "over": [
+              "Vegetables:v"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "eat_veg",
+              "indices": [
+                "v"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "parameter",
+          "name": "max_weight_units",
+          "indices": []
+        }
+      },
+      "min_variety": {
+        "domain": [],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Vegetables:v"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "veg_selected",
+            "indices": [
+              "v"
+            ]
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "parameter",
+          "name": "min_veg_types",
+          "indices": []
+        }
+      },
+      "veg_link": {
+        "domain": [
+          "Vegetables"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "eat_veg",
+            "indices": [
+              "v"
+            ]
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "big_m",
+              "indices": []
+            },
+            "right": {
+              "type": "variable",
+              "name": "veg_selected",
+              "indices": [
+                "v"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "veg_force": {
+        "domain": [
+          "Vegetables"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "veg_selected",
+            "indices": [
+              "v"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "eat_veg",
+            "indices": [
+              "v"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "maximize",
+      "expression": {
+        "operation": "sum",
+        "left": {
+          "operation": "indexed_sum",
+          "over": [
+            "Proteins:p"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "protein_per_100g",
+              "indices": [
+                "p"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "eat_protein",
+              "indices": [
+                "p"
+              ]
+            }
+          }
+        },
+        "right": {
+          "operation": "indexed_sum",
+          "over": [
+            "Vegetables:v"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "protein_per_pack",
+              "indices": [
+                "v"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "eat_veg",
+              "indices": [
+                "v"
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "modeling_patterns": [
+    "big-M linking",
+    "binary variable",
+    "filter_column subset",
+    "integer variable"
+  ]
+}

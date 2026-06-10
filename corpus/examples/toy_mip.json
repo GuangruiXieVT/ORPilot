@@ -1,0 +1,432 @@
+{
+  "problem": {
+    "title": "Toy Manufacturing MIP: Maximize Profit with Logical Production Rules",
+    "description": "Factory makes robots ($15 profit), model cars ($8), building blocks ($12), dolls ($5). Resources: 1200 plastic units, 800 electronics units. Usage per unit: robot(30p,8e), car(10p,5e), block(20p,3e), doll(15p,2e). Rules: if robots produced → no dolls; if cars produced → blocks must also be produced; dolls ≤ cars count. Maximize profit.",
+    "problem_type": "mixed_integer_programming",
+    "objective": "maximize",
+    "objective_description": "Profit = 15*x_robots + 8*x_cars + 12*x_blocks + 5*x_dolls",
+    "constraints": [
+      {
+        "description": "Plastic: 30*robots + 10*cars + 20*blocks + 15*dolls <= 1200"
+      },
+      {
+        "description": "Electronics: 8*robots + 5*cars + 3*blocks + 2*dolls <= 800"
+      },
+      {
+        "description": "Dolls <= cars: x_dolls <= x_cars"
+      },
+      {
+        "description": "Robots indicator: x_robots <= 10000 * z_robots"
+      },
+      {
+        "description": "If robots, no dolls: x_dolls <= 10000 * (1 - z_robots)"
+      },
+      {
+        "description": "Cars indicator: x_cars <= 10000 * z_cars"
+      },
+      {
+        "description": "If cars, must produce blocks: x_blocks >= z_cars"
+      }
+    ],
+    "decision_variables": [
+      "x_robots, x_cars, x_blocks, x_dolls: continuous production amounts (>=0)",
+      "z_robots, z_cars: binary indicators (1 if that product is manufactured)"
+    ],
+    "parameters": [],
+    "additional_notes": "Optimal: x_cars=118, x_blocks=1. Profit=8*118+12*1=956."
+  },
+  "csv_schemas": {},
+  "ir": {
+    "problem_class": "ToyManufacturingMIP",
+    "model_type": "Mixed Integer Program",
+    "sense": "maximize",
+    "sets": {},
+    "parameters": {},
+    "variables": {
+      "x_robots": {
+        "description": "Units of robots produced",
+        "label": "x_robots",
+        "domain": [],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "x_cars": {
+        "description": "Units of model cars produced",
+        "label": "x_cars",
+        "domain": [],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "x_blocks": {
+        "description": "Units of building blocks produced",
+        "label": "x_blocks",
+        "domain": [],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "x_dolls": {
+        "description": "Units of dolls produced",
+        "label": "x_dolls",
+        "domain": [],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "z_robots": {
+        "description": "1 if robots are manufactured",
+        "label": "z_robots",
+        "domain": [],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "z_cars": {
+        "description": "1 if model cars are manufactured",
+        "label": "z_cars",
+        "domain": [],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "plastic": {
+        "domain": [],
+        "expression": {
+          "operation": "sum",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "operation": "multiply",
+              "left": {
+                "type": "constant",
+                "value": 30
+              },
+              "right": {
+                "type": "variable",
+                "name": "x_robots",
+                "indices": []
+              }
+            },
+            "right": {
+              "operation": "multiply",
+              "left": {
+                "type": "constant",
+                "value": 10
+              },
+              "right": {
+                "type": "variable",
+                "name": "x_cars",
+                "indices": []
+              }
+            }
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "operation": "multiply",
+              "left": {
+                "type": "constant",
+                "value": 20
+              },
+              "right": {
+                "type": "variable",
+                "name": "x_blocks",
+                "indices": []
+              }
+            },
+            "right": {
+              "operation": "multiply",
+              "left": {
+                "type": "constant",
+                "value": 15
+              },
+              "right": {
+                "type": "variable",
+                "name": "x_dolls",
+                "indices": []
+              }
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 1200
+        }
+      },
+      "electronics": {
+        "domain": [],
+        "expression": {
+          "operation": "sum",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "operation": "multiply",
+              "left": {
+                "type": "constant",
+                "value": 8
+              },
+              "right": {
+                "type": "variable",
+                "name": "x_robots",
+                "indices": []
+              }
+            },
+            "right": {
+              "operation": "multiply",
+              "left": {
+                "type": "constant",
+                "value": 5
+              },
+              "right": {
+                "type": "variable",
+                "name": "x_cars",
+                "indices": []
+              }
+            }
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "operation": "multiply",
+              "left": {
+                "type": "constant",
+                "value": 3
+              },
+              "right": {
+                "type": "variable",
+                "name": "x_blocks",
+                "indices": []
+              }
+            },
+            "right": {
+              "operation": "multiply",
+              "left": {
+                "type": "constant",
+                "value": 2
+              },
+              "right": {
+                "type": "variable",
+                "name": "x_dolls",
+                "indices": []
+              }
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 800
+        }
+      },
+      "dolls_le_cars": {
+        "domain": [],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "x_dolls",
+            "indices": []
+          },
+          "right": {
+            "type": "variable",
+            "name": "x_cars",
+            "indices": []
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "robots_indicator": {
+        "domain": [],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "x_robots",
+            "indices": []
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "constant",
+              "value": 10000
+            },
+            "right": {
+              "type": "variable",
+              "name": "z_robots",
+              "indices": []
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "no_dolls_if_robots": {
+        "domain": [],
+        "expression": {
+          "operation": "sum",
+          "left": {
+            "type": "variable",
+            "name": "x_dolls",
+            "indices": []
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "constant",
+              "value": 10000
+            },
+            "right": {
+              "type": "variable",
+              "name": "z_robots",
+              "indices": []
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 10000
+        }
+      },
+      "cars_indicator": {
+        "domain": [],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "x_cars",
+            "indices": []
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "constant",
+              "value": 10000
+            },
+            "right": {
+              "type": "variable",
+              "name": "z_cars",
+              "indices": []
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "blocks_if_cars": {
+        "domain": [],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "x_blocks",
+            "indices": []
+          },
+          "right": {
+            "type": "variable",
+            "name": "z_cars",
+            "indices": []
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "maximize",
+      "expression": {
+        "operation": "sum",
+        "left": {
+          "operation": "sum",
+          "left": {
+            "operation": "multiply",
+            "left": {
+              "type": "constant",
+              "value": 15
+            },
+            "right": {
+              "type": "variable",
+              "name": "x_robots",
+              "indices": []
+            }
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "constant",
+              "value": 8
+            },
+            "right": {
+              "type": "variable",
+              "name": "x_cars",
+              "indices": []
+            }
+          }
+        },
+        "right": {
+          "operation": "sum",
+          "left": {
+            "operation": "multiply",
+            "left": {
+              "type": "constant",
+              "value": 12
+            },
+            "right": {
+              "type": "variable",
+              "name": "x_blocks",
+              "indices": []
+            }
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "constant",
+              "value": 5
+            },
+            "right": {
+              "type": "variable",
+              "name": "x_dolls",
+              "indices": []
+            }
+          }
+        }
+      }
+    }
+  },
+  "modeling_patterns": [
+    "big-M linking",
+    "implication constraint",
+    "mutual exclusion",
+    "no sets"
+  ]
+}

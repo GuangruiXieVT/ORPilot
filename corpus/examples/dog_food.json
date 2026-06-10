@@ -1,0 +1,331 @@
+{
+  "problem": {
+    "title": "Dog Food Production Profit Maximization",
+    "description": "Healthy Pet Foods Company produces two types of dog food: Meaties and Yummies. Each pack of Meaties uses 2 lbs grain + 3 lbs meat; each Yummies pack uses 3 lbs grain + 1.5 lbs meat. Monthly limits: 400,000 lbs grain ($0.20/lb) and 300,000 lbs meat ($0.50/lb). Meaties have a special machine capacity of 90,000 packs/month. Variable (mixing/packaging) cost: $0.25/pack Meaties, $0.20/pack Yummies. Selling price: $2.80 Meaties, $2.00 Yummies. Maximize monthly profit.",
+    "problem_type": "linear_programming",
+    "objective": "maximize",
+    "objective_description": "Monthly profit = revenue minus raw material and variable production costs",
+    "constraints": [
+      {
+        "description": "Total grain used across all products cannot exceed monthly grain supply"
+      },
+      {
+        "description": "Total meat used across all products cannot exceed monthly meat supply"
+      },
+      {
+        "description": "Meaties production cannot exceed the special machine monthly capacity of 90,000 packs"
+      }
+    ],
+    "decision_variables": [
+      "produce[p]: number of packs of product p to produce per month (continuous, non-negative)"
+    ],
+    "parameters": [
+      "profit_per_pack[p]: net profit per pack after subtracting raw material and variable costs (meaties=0.65, yummies=0.45)",
+      "resource_use[p,r]: lbs of resource r required per pack of product p",
+      "resource_limit[r]: monthly supply limit in lbs for resource r",
+      "machine_capacity[p]: monthly production cap for product p (sparse, only meaties has 90000)"
+    ],
+    "additional_notes": "Profit per pack computed as: price - grain_cost - meat_cost - variable_cost. Meaties: 2.80 - 0.40 - 1.50 - 0.25 = 0.65. Yummies: 2.00 - 0.60 - 0.75 - 0.20 = 0.45. Machine capacity stored as sparse parameter (only meaties row exists); constraint uses sparse_filter=true. Optimal: produce[meaties]=50000, produce[yummies]=100000, obj=77500.",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "profit": "profit.csv",
+      "resource_use": "resource_use.csv",
+      "resource_limit": "resource_limit.csv",
+      "machine_capacity": "machine_capacity.csv"
+    }
+  },
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "products",
+        "element": "meaties"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "products",
+          "resources"
+        ],
+        "element": [
+          "meaties",
+          "yummies",
+          "grain",
+          "meat"
+        ]
+      }
+    },
+    "profit": {
+      "columns": {
+        "product_id": "str",
+        "profit": "float"
+      },
+      "sample": {
+        "product_id": "meaties",
+        "profit": 0.65
+      },
+      "optional": false,
+      "distinct_values": {
+        "product_id": [
+          "meaties",
+          "yummies"
+        ],
+        "profit": [
+          "0.45",
+          "0.65"
+        ]
+      }
+    },
+    "resource_use": {
+      "columns": {
+        "product_id": "str",
+        "resource_id": "str",
+        "amount_per_pack": "float"
+      },
+      "sample": {
+        "product_id": "meaties",
+        "resource_id": "grain",
+        "amount_per_pack": 2.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "product_id": [
+          "meaties",
+          "yummies"
+        ],
+        "resource_id": [
+          "grain",
+          "meat"
+        ],
+        "amount_per_pack": [
+          "1.5",
+          "2.0",
+          "3.0"
+        ]
+      }
+    },
+    "resource_limit": {
+      "columns": {
+        "resource_id": "str",
+        "max_amount": "float"
+      },
+      "sample": {
+        "resource_id": "grain",
+        "max_amount": 400000.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "resource_id": [
+          "grain",
+          "meat"
+        ],
+        "max_amount": [
+          "300000.0",
+          "400000.0"
+        ]
+      }
+    },
+    "machine_capacity": {
+      "columns": {
+        "product_id": "str",
+        "capacity": "float"
+      },
+      "sample": {
+        "product_id": "meaties",
+        "capacity": 90000.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "product_id": [
+          "meaties"
+        ],
+        "capacity": [
+          "90000.0"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "ProductionLP",
+    "model_type": "Linear Program",
+    "sense": "maximize",
+    "sets": {
+      "Products": {
+        "size": null,
+        "index_symbol": "p",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "products",
+        "ordered": false
+      },
+      "Resources": {
+        "size": null,
+        "index_symbol": "r",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "resources",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "profit_per_pack": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "profit.csv",
+        "column": "profit",
+        "index_columns": [
+          "product_id"
+        ],
+        "missing_default": "zero"
+      },
+      "resource_use": {
+        "domain": [
+          "Products",
+          "Resources"
+        ],
+        "type": "float",
+        "source": "resource_use.csv",
+        "column": "amount_per_pack",
+        "index_columns": [
+          "product_id",
+          "resource_id"
+        ],
+        "missing_default": "zero"
+      },
+      "resource_limit": {
+        "domain": [
+          "Resources"
+        ],
+        "type": "float",
+        "source": "resource_limit.csv",
+        "column": "max_amount",
+        "index_columns": [
+          "resource_id"
+        ],
+        "missing_default": "inf"
+      },
+      "machine_capacity": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "machine_capacity.csv",
+        "column": "capacity",
+        "index_columns": [
+          "product_id"
+        ],
+        "missing_default": "inf"
+      }
+    },
+    "variables": {
+      "produce": {
+        "description": "Number of packs of product p to produce per month",
+        "label": "produce",
+        "domain": [
+          "Products"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "resource_limit_constr": {
+        "domain": [
+          "Resources"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Products:p"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "resource_use",
+              "indices": [
+                "p",
+                "r"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "produce",
+              "indices": [
+                "p"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "parameter",
+          "name": "resource_limit",
+          "indices": [
+            "r"
+          ]
+        }
+      },
+      "machine_cap_constr": {
+        "domain": [
+          "Products"
+        ],
+        "sparse_filter": "machine_capacity",
+        "expression": {
+          "type": "variable",
+          "name": "produce",
+          "indices": [
+            "p"
+          ]
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "parameter",
+          "name": "machine_capacity",
+          "indices": [
+            "p"
+          ]
+        }
+      }
+    },
+    "objective": {
+      "sense": "maximize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Products:p"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "type": "parameter",
+            "name": "profit_per_pack",
+            "indices": [
+              "p"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "produce",
+            "indices": [
+              "p"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "modeling_patterns": [
+    "sparse filter"
+  ]
+}

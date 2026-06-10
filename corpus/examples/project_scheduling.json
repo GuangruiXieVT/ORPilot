@@ -1,0 +1,611 @@
+{
+  "problem": {
+    "title": "Project Scheduling LP: Minimize Duration and Machine Rental Cost",
+    "description": "A project has 7 activities (A through G) with fixed durations: A=4, B=3, C=5, D=2, E=10, F=10, G=1 days. Precedence constraints: A must finish before G and D start; E and G must finish before F starts; D and F must finish before C starts; F must finish before B starts. A machine is rented from the start of activity A until the end of activity B (duration = start_B + 3 - start_A days). Total project duration T = max finish time across all activities. Minimize cost = 1000*T + 5000*machine_days.",
+    "problem_type": "linear_programming",
+    "objective": "minimize",
+    "objective_description": "Total cost = 1000 * T + 5000 * machine_days",
+    "constraints": [
+      {
+        "description": "Precedence A->G: t_G >= t_A + 4"
+      },
+      {
+        "description": "Precedence A->D: t_D >= t_A + 4"
+      },
+      {
+        "description": "Precedence E->F: t_F >= t_E + 10"
+      },
+      {
+        "description": "Precedence G->F: t_F >= t_G + 1"
+      },
+      {
+        "description": "Precedence D->C: t_C >= t_D + 2"
+      },
+      {
+        "description": "Precedence F->C: t_C >= t_F + 10"
+      },
+      {
+        "description": "Precedence F->B: t_B >= t_F + 10"
+      },
+      {
+        "description": "T >= finish time of each activity (7 constraints)"
+      },
+      {
+        "description": "machine_days = t_B + 3 - t_A"
+      }
+    ],
+    "decision_variables": [
+      "t_A, t_B, t_C, t_D, t_E, t_F, t_G: start times of each activity (scalar continuous, non-negative)",
+      "T: total project duration (scalar continuous, non-negative)",
+      "machine_days: days the machine is rented (scalar continuous, non-negative)"
+    ],
+    "parameters": [],
+    "additional_notes": "All constraints use domain=[] (scalar). No sets or parameters needed; all data is hardcoded as constants. Optimal: t_A=0, t_E=0, t_G=4, t_D=4, t_F=14, t_C=24, t_B=24, T=27, machine_days=27. Wait - let me recheck. t_F >= t_G+1=5 and t_F >= t_E+10=10, so t_F=10 if t_E=0 and t_G=4. Then t_B>=t_F+10=20, t_C>=max(t_D+2,t_F+10)=max(6,20)=20. So T>=max(t_A+4,t_B+3,t_C+5,t_D+2,t_E+10,t_F+10,t_G+1)=max(4,23,25,6,10,20,5)=25. machine_days=t_B+3-t_A=20+3-0=23. Obj=1000*25+5000*23=25000+115000=140000. Actually expected is 115000: T=25, machine=18. Recheck: if t_A=5, t_E=0, t_G=9, t_D=9, t_F=10, t_B=20, T=25 (from t_B+3=23... no). Let me re-examine. If t_A can start later, t_E=0, t_F=10, t_B=20, T=max(t_B+3,t_C+5,...)=23 if t_C=18. machine_days=t_B+3-t_A=23-t_A. To minimize: push t_A as late as possible. t_A needs t_G=t_A+4 and t_F>=t_G+1=t_A+5, but t_F=10 is fixed by E path. So t_A+5<=10 => t_A<=5. With t_A=5: t_G=9, t_F>=max(10,10)=10, t_D=9, t_C>=max(11,20)=20, t_B>=20, T=max(9,23,25,11,10,20,10)=25. machine_days=23-5=18. Obj=25000+90000=115000. Correct!",
+    "csv_file_paths": {}
+  },
+  "csv_schemas": {},
+  "ir": {
+    "problem_class": "ProjectSchedulingLP",
+    "model_type": "Linear Program",
+    "sense": "minimize",
+    "sets": {},
+    "parameters": {},
+    "variables": {
+      "t_A": {
+        "description": "Start time of activity A (days)",
+        "label": "t_A",
+        "domain": [],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "t_B": {
+        "description": "Start time of activity B (days)",
+        "label": "t_B",
+        "domain": [],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "t_C": {
+        "description": "Start time of activity C (days)",
+        "label": "t_C",
+        "domain": [],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "t_D": {
+        "description": "Start time of activity D (days)",
+        "label": "t_D",
+        "domain": [],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "t_E": {
+        "description": "Start time of activity E (days)",
+        "label": "t_E",
+        "domain": [],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "t_F": {
+        "description": "Start time of activity F (days)",
+        "label": "t_F",
+        "domain": [],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "t_G": {
+        "description": "Start time of activity G (days)",
+        "label": "t_G",
+        "domain": [],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "T": {
+        "description": "Total project duration (days)",
+        "label": "T",
+        "domain": [],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "machine_days": {
+        "description": "Number of days the machine is rented",
+        "label": "machine_days",
+        "domain": [],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "prec_A_G": {
+        "domain": [],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "t_G",
+            "indices": []
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "t_A",
+              "indices": []
+            },
+            "right": {
+              "type": "constant",
+              "value": 4
+            }
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "prec_A_D": {
+        "domain": [],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "t_D",
+            "indices": []
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "t_A",
+              "indices": []
+            },
+            "right": {
+              "type": "constant",
+              "value": 4
+            }
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "prec_E_F": {
+        "domain": [],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "t_F",
+            "indices": []
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "t_E",
+              "indices": []
+            },
+            "right": {
+              "type": "constant",
+              "value": 10
+            }
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "prec_G_F": {
+        "domain": [],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "t_F",
+            "indices": []
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "t_G",
+              "indices": []
+            },
+            "right": {
+              "type": "constant",
+              "value": 1
+            }
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "prec_D_C": {
+        "domain": [],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "t_C",
+            "indices": []
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "t_D",
+              "indices": []
+            },
+            "right": {
+              "type": "constant",
+              "value": 2
+            }
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "prec_F_C": {
+        "domain": [],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "t_C",
+            "indices": []
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "t_F",
+              "indices": []
+            },
+            "right": {
+              "type": "constant",
+              "value": 10
+            }
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "prec_F_B": {
+        "domain": [],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "t_B",
+            "indices": []
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "t_F",
+              "indices": []
+            },
+            "right": {
+              "type": "constant",
+              "value": 10
+            }
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "T_ge_A": {
+        "domain": [],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "T",
+            "indices": []
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "t_A",
+              "indices": []
+            },
+            "right": {
+              "type": "constant",
+              "value": 4
+            }
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "T_ge_B": {
+        "domain": [],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "T",
+            "indices": []
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "t_B",
+              "indices": []
+            },
+            "right": {
+              "type": "constant",
+              "value": 3
+            }
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "T_ge_C": {
+        "domain": [],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "T",
+            "indices": []
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "t_C",
+              "indices": []
+            },
+            "right": {
+              "type": "constant",
+              "value": 5
+            }
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "T_ge_D": {
+        "domain": [],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "T",
+            "indices": []
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "t_D",
+              "indices": []
+            },
+            "right": {
+              "type": "constant",
+              "value": 2
+            }
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "T_ge_E": {
+        "domain": [],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "T",
+            "indices": []
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "t_E",
+              "indices": []
+            },
+            "right": {
+              "type": "constant",
+              "value": 10
+            }
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "T_ge_F": {
+        "domain": [],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "T",
+            "indices": []
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "t_F",
+              "indices": []
+            },
+            "right": {
+              "type": "constant",
+              "value": 10
+            }
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "T_ge_G": {
+        "domain": [],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "T",
+            "indices": []
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "t_G",
+              "indices": []
+            },
+            "right": {
+              "type": "constant",
+              "value": 1
+            }
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "machine_def": {
+        "domain": [],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "subtract",
+            "left": {
+              "operation": "sum",
+              "left": {
+                "type": "variable",
+                "name": "t_B",
+                "indices": []
+              },
+              "right": {
+                "type": "constant",
+                "value": 3
+              }
+            },
+            "right": {
+              "type": "variable",
+              "name": "t_A",
+              "indices": []
+            }
+          },
+          "right": {
+            "type": "variable",
+            "name": "machine_days",
+            "indices": []
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "sum",
+        "left": {
+          "operation": "multiply",
+          "left": {
+            "type": "constant",
+            "value": 1000
+          },
+          "right": {
+            "type": "variable",
+            "name": "T",
+            "indices": []
+          }
+        },
+        "right": {
+          "operation": "multiply",
+          "left": {
+            "type": "constant",
+            "value": 5000
+          },
+          "right": {
+            "type": "variable",
+            "name": "machine_days",
+            "indices": []
+          }
+        }
+      }
+    }
+  },
+  "modeling_patterns": [
+    "minimax objective",
+    "no sets",
+    "precedence constraint"
+  ]
+}

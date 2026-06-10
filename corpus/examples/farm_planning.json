@@ -1,0 +1,492 @@
+{
+  "problem": {
+    "title": "Farm Planning LP: Crops, Livestock, and External Labor",
+    "description": "A farm has 100 hectares of land and 15,000 yuan capital. Labor available: 3,500 person-days in autumn/winter and 4,000 in spring/summer. Three crops (soybeans, corn, wheat) can be planted; dairy cows and chickens can be raised. Unused labor can be sold externally at 2.1 yuan/day (spring/summer) and 1.8 yuan/day (autumn/winter). Cows require 1.5 ha land and capital 400 yuan each; barn holds max 32 cows. Chickens require no land, capital 3 yuan each; coop holds max 3000 chickens. Maximize total annual net income.",
+    "problem_type": "mixed_integer_programming",
+    "objective": "maximize",
+    "objective_description": "Total annual net income from crops, livestock, and externally sold labor",
+    "constraints": [
+      {
+        "description": "Total land used by crops and cow feed (1.5 ha per cow) cannot exceed 100 hectares"
+      },
+      {
+        "description": "Total capital investment in cows (400 yuan each) and chickens (3 yuan each) cannot exceed 15,000 yuan"
+      },
+      {
+        "description": "Total spring/summer labor used by crops, cows (50 person-days), chickens (0.3 person-days) plus externally sold labor cannot exceed 4,000 person-days"
+      },
+      {
+        "description": "Total autumn/winter labor used by crops, cows (100 person-days), chickens (0.6 person-days) plus externally sold labor cannot exceed 3,500 person-days"
+      },
+      {
+        "description": "Number of cows cannot exceed barn capacity of 32"
+      },
+      {
+        "description": "Number of chickens cannot exceed coop capacity of 3,000"
+      }
+    ],
+    "decision_variables": [
+      "plant[crop]: hectares of each crop to plant (continuous, non-negative)",
+      "cows: number of dairy cows (continuous, non-negative)",
+      "chickens: number of chickens (continuous, non-negative)",
+      "ext_spring: person-days of labor sold externally in spring/summer (continuous, non-negative)",
+      "ext_autumn: person-days of labor sold externally in autumn/winter (continuous, non-negative)"
+    ],
+    "parameters": [
+      "spring_labor_per_ha[crop]: spring/summer person-days required per hectare of crop",
+      "autumn_labor_per_ha[crop]: autumn/winter person-days required per hectare of crop",
+      "income_per_ha[crop]: annual net income per hectare of crop"
+    ],
+    "additional_notes": "Scalar variables (domain=[]) for cows, chickens, ext_spring, ext_autumn. Constraints mix indexed_sum over Crops with scalar terms (multiply(constant, scalar_var)). Land constraint: indexed_sum(plant[c]) + 1.5*cows <= 100. Capital: 400*cows + 3*chickens <= 15000. Objective: indexed_sum(income_per_ha[c]*plant[c]) + 400*cows + 2*chickens + 2.1*ext_spring + 1.8*ext_autumn. Optimal obj=20241.8.",
+    "csv_file_paths": {
+      "crops": "crops.csv"
+    }
+  },
+  "csv_schemas": {
+    "crops": {
+      "columns": {
+        "crop_id": "str",
+        "spring_labor_per_ha": "float",
+        "autumn_labor_per_ha": "float",
+        "income_per_ha": "float"
+      },
+      "sample": {
+        "crop_id": "soybeans",
+        "spring_labor_per_ha": 50.0,
+        "autumn_labor_per_ha": 20.0,
+        "income_per_ha": 175.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "crop_id": [
+          "soybeans",
+          "corn",
+          "wheat"
+        ],
+        "spring_labor_per_ha": [
+          "40.0",
+          "50.0",
+          "75.0"
+        ],
+        "autumn_labor_per_ha": [
+          "10.0",
+          "20.0",
+          "35.0"
+        ],
+        "income_per_ha": [
+          "120.0",
+          "175.0",
+          "300.0"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "FarmPlanningLP",
+    "model_type": "Mixed Integer Program",
+    "sense": "maximize",
+    "sets": {
+      "Crops": {
+        "size": null,
+        "index_symbol": "c",
+        "source": "crops.csv",
+        "column": "crop_id",
+        "filter_column": null,
+        "filter_value": null,
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "spring_labor_per_ha": {
+        "domain": [
+          "Crops"
+        ],
+        "type": "float",
+        "source": "crops.csv",
+        "column": "spring_labor_per_ha",
+        "index_columns": [
+          "crop_id"
+        ],
+        "missing_default": "zero"
+      },
+      "autumn_labor_per_ha": {
+        "domain": [
+          "Crops"
+        ],
+        "type": "float",
+        "source": "crops.csv",
+        "column": "autumn_labor_per_ha",
+        "index_columns": [
+          "crop_id"
+        ],
+        "missing_default": "zero"
+      },
+      "income_per_ha": {
+        "domain": [
+          "Crops"
+        ],
+        "type": "float",
+        "source": "crops.csv",
+        "column": "income_per_ha",
+        "index_columns": [
+          "crop_id"
+        ],
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "plant": {
+        "description": "Hectares of crop c to plant",
+        "label": "plant",
+        "domain": [
+          "Crops"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "cows": {
+        "description": "Number of dairy cows (integer)",
+        "label": "cows",
+        "domain": [],
+        "type": "integer",
+        "lower_bound": 0,
+        "upper_bound": 32,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "chickens": {
+        "description": "Number of chickens (integer)",
+        "label": "chickens",
+        "domain": [],
+        "type": "integer",
+        "lower_bound": 0,
+        "upper_bound": 3000,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "ext_spring": {
+        "description": "Person-days of labor sold externally in spring/summer (whole days, integer)",
+        "label": "ext_spring",
+        "domain": [],
+        "type": "integer",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "ext_autumn": {
+        "description": "Person-days of labor sold externally in autumn/winter (whole days, integer)",
+        "label": "ext_autumn",
+        "domain": [],
+        "type": "integer",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "land_limit": {
+        "domain": [],
+        "expression": {
+          "operation": "sum",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Crops:c"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "plant",
+              "indices": [
+                "c"
+              ]
+            }
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "constant",
+              "value": 1.5
+            },
+            "right": {
+              "type": "variable",
+              "name": "cows",
+              "indices": []
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 100
+        }
+      },
+      "capital_limit": {
+        "domain": [],
+        "expression": {
+          "operation": "sum",
+          "left": {
+            "operation": "multiply",
+            "left": {
+              "type": "constant",
+              "value": 400
+            },
+            "right": {
+              "type": "variable",
+              "name": "cows",
+              "indices": []
+            }
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "constant",
+              "value": 3
+            },
+            "right": {
+              "type": "variable",
+              "name": "chickens",
+              "indices": []
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 15000
+        }
+      },
+      "spring_labor": {
+        "domain": [],
+        "expression": {
+          "operation": "sum",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "operation": "sum",
+              "left": {
+                "operation": "indexed_sum",
+                "over": [
+                  "Crops:c"
+                ],
+                "body": {
+                  "operation": "multiply",
+                  "left": {
+                    "type": "parameter",
+                    "name": "spring_labor_per_ha",
+                    "indices": [
+                      "c"
+                    ]
+                  },
+                  "right": {
+                    "type": "variable",
+                    "name": "plant",
+                    "indices": [
+                      "c"
+                    ]
+                  }
+                }
+              },
+              "right": {
+                "operation": "multiply",
+                "left": {
+                  "type": "constant",
+                  "value": 50
+                },
+                "right": {
+                  "type": "variable",
+                  "name": "cows",
+                  "indices": []
+                }
+              }
+            },
+            "right": {
+              "operation": "multiply",
+              "left": {
+                "type": "constant",
+                "value": 0.3
+              },
+              "right": {
+                "type": "variable",
+                "name": "chickens",
+                "indices": []
+              }
+            }
+          },
+          "right": {
+            "type": "variable",
+            "name": "ext_spring",
+            "indices": []
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 4000
+        }
+      },
+      "autumn_labor": {
+        "domain": [],
+        "expression": {
+          "operation": "sum",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "operation": "sum",
+              "left": {
+                "operation": "indexed_sum",
+                "over": [
+                  "Crops:c"
+                ],
+                "body": {
+                  "operation": "multiply",
+                  "left": {
+                    "type": "parameter",
+                    "name": "autumn_labor_per_ha",
+                    "indices": [
+                      "c"
+                    ]
+                  },
+                  "right": {
+                    "type": "variable",
+                    "name": "plant",
+                    "indices": [
+                      "c"
+                    ]
+                  }
+                }
+              },
+              "right": {
+                "operation": "multiply",
+                "left": {
+                  "type": "constant",
+                  "value": 100
+                },
+                "right": {
+                  "type": "variable",
+                  "name": "cows",
+                  "indices": []
+                }
+              }
+            },
+            "right": {
+              "operation": "multiply",
+              "left": {
+                "type": "constant",
+                "value": 0.6
+              },
+              "right": {
+                "type": "variable",
+                "name": "chickens",
+                "indices": []
+              }
+            }
+          },
+          "right": {
+            "type": "variable",
+            "name": "ext_autumn",
+            "indices": []
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 3500
+        }
+      }
+    },
+    "objective": {
+      "sense": "maximize",
+      "expression": {
+        "operation": "sum",
+        "left": {
+          "operation": "sum",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "operation": "sum",
+              "left": {
+                "operation": "indexed_sum",
+                "over": [
+                  "Crops:c"
+                ],
+                "body": {
+                  "operation": "multiply",
+                  "left": {
+                    "type": "parameter",
+                    "name": "income_per_ha",
+                    "indices": [
+                      "c"
+                    ]
+                  },
+                  "right": {
+                    "type": "variable",
+                    "name": "plant",
+                    "indices": [
+                      "c"
+                    ]
+                  }
+                }
+              },
+              "right": {
+                "operation": "multiply",
+                "left": {
+                  "type": "constant",
+                  "value": 400
+                },
+                "right": {
+                  "type": "variable",
+                  "name": "cows",
+                  "indices": []
+                }
+              }
+            },
+            "right": {
+              "operation": "multiply",
+              "left": {
+                "type": "constant",
+                "value": 2
+              },
+              "right": {
+                "type": "variable",
+                "name": "chickens",
+                "indices": []
+              }
+            }
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "constant",
+              "value": 2.1
+            },
+            "right": {
+              "type": "variable",
+              "name": "ext_spring",
+              "indices": []
+            }
+          }
+        },
+        "right": {
+          "operation": "multiply",
+          "left": {
+            "type": "constant",
+            "value": 1.8
+          },
+          "right": {
+            "type": "variable",
+            "name": "ext_autumn",
+            "indices": []
+          }
+        }
+      }
+    }
+  },
+  "modeling_patterns": [
+    "scalar variable"
+  ]
+}

@@ -39,6 +39,7 @@ class WorkflowState(TypedDict, total=False):
 
     # Workflow control
     current_node: str
+    mode: str
     solver_name: str
     retry_count: int
     max_retries: int
@@ -77,6 +78,9 @@ class WorkflowState(TypedDict, total=False):
     # API key and model for OpenAI embedding (used by RAG retrieval)
     embed_api_key: str | None
     embed_model: str | None
+
+    # How many times the solution validator has routed back to ir_builder
+    validation_attempts: int
 
     # Observability: per-node token counts and latency (accumulated by graph.py instrumentation)
     metrics: dict

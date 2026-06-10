@@ -1,0 +1,580 @@
+{
+  "problem": {
+    "title": "Two-Echelon Transshipment MIP with Fixed Station Costs",
+    "description": "Minimize cost to ship containers from 2 production sites (S1 supply=100, S2 supply=150) through 2 intermediate stations (K1 cap=100 fixed=10, K2 cap=100 fixed=15) to 2 demand points (D1=80, D2=120). Per-unit shipping costs: site-to-station c1[S1,K1]=2, c1[S1,K2]=3, c1[S2,K1]=4, c1[S2,K2]=1; station-to-demand c2[K1,D1]=3, c2[K1,D2]=2, c2[K2,D1]=1, c2[K2,D2]=4. A station incurs its fixed cost only if it handles any flow (binary open variable linked to capacity).",
+    "problem_type": "mixed_integer_programming",
+    "objective": "minimize",
+    "objective_description": "Total cost = sum(c1*flow1) + sum(c2*flow2) + sum(fixed_cost*open)",
+    "constraints": [
+      {
+        "description": "Supply limit: total flow from site s to all stations <= supply[s]"
+      },
+      {
+        "description": "Demand satisfaction: total flow to demand d from all stations >= demand[d]"
+      },
+      {
+        "description": "Flow conservation at station k: inflow from sites = outflow to demands"
+      },
+      {
+        "description": "Station capacity: total inflow to station k <= capacity[k] * open[k]"
+      }
+    ],
+    "decision_variables": [
+      "flow1[s,k]: continuous, units shipped from site s to station k (lb=0)",
+      "flow2[k,d]: continuous, units shipped from station k to demand d (lb=0)",
+      "open[k]: binary, 1 if station k is used"
+    ],
+    "parameters": [
+      "supply[s]: production capacity of site s",
+      "demand_req[d]: demand at demand point d",
+      "capacity[k]: throughput capacity of station k",
+      "fixed_cost[k]: fixed operating cost if station k is opened",
+      "cost1[s,k]: per-unit shipping cost from site s to station k",
+      "cost2[k,d]: per-unit shipping cost from station k to demand d"
+    ],
+    "additional_notes": "Expected obj=685. Optimal: S1->K1=100, S2->K2=100 (remaining 50 unused). K1->D2=100, K2->D1=80, K2->D2=20. Cost: c1(S1->K1)=200, c1(S2->K2)=100, c2(K1->D2)=200, c2(K2->D1)=80, c2(K2->D2)=80, fixed(K1)=10, fixed(K2)=15. Total=685. Flow conservation: flow_in[k]=flow_out[k] enforces station pass-through. Station capacity links flow to open binary via big-M=capacity[k].",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "supply": "supply.csv",
+      "demand": "demand.csv",
+      "station_params": "station_params.csv",
+      "cost1": "cost1.csv",
+      "cost2": "cost2.csv"
+    }
+  },
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "sites",
+        "element": "S1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "sites",
+          "demands",
+          "stations"
+        ],
+        "element": [
+          "S1",
+          "S2",
+          "D1",
+          "D2",
+          "K1",
+          "K2"
+        ]
+      }
+    },
+    "supply": {
+      "columns": {
+        "site_id": "str",
+        "supply": "int"
+      },
+      "sample": {
+        "site_id": "S1",
+        "supply": 100
+      },
+      "optional": false,
+      "distinct_values": {
+        "site_id": [
+          "S1",
+          "S2"
+        ],
+        "supply": [
+          "100",
+          "150"
+        ]
+      }
+    },
+    "demand": {
+      "columns": {
+        "demand_id": "str",
+        "demand": "int"
+      },
+      "sample": {
+        "demand_id": "D1",
+        "demand": 80
+      },
+      "optional": false,
+      "distinct_values": {
+        "demand_id": [
+          "D1",
+          "D2"
+        ],
+        "demand": [
+          "80",
+          "120"
+        ]
+      }
+    },
+    "station_params": {
+      "columns": {
+        "station_id": "str",
+        "capacity": "int",
+        "fixed_cost": "int"
+      },
+      "sample": {
+        "station_id": "K1",
+        "capacity": 100,
+        "fixed_cost": 10
+      },
+      "optional": false,
+      "distinct_values": {
+        "station_id": [
+          "K1",
+          "K2"
+        ],
+        "capacity": [
+          "100"
+        ],
+        "fixed_cost": [
+          "10",
+          "15"
+        ]
+      }
+    },
+    "cost1": {
+      "columns": {
+        "site_id": "str",
+        "station_id": "str",
+        "unit_cost": "int"
+      },
+      "sample": {
+        "site_id": "S1",
+        "station_id": "K1",
+        "unit_cost": 2
+      },
+      "optional": false,
+      "distinct_values": {
+        "site_id": [
+          "S1",
+          "S2"
+        ],
+        "station_id": [
+          "K1",
+          "K2"
+        ],
+        "unit_cost": [
+          "1",
+          "2",
+          "3",
+          "4"
+        ]
+      }
+    },
+    "cost2": {
+      "columns": {
+        "station_id": "str",
+        "demand_id": "str",
+        "unit_cost": "int"
+      },
+      "sample": {
+        "station_id": "K1",
+        "demand_id": "D1",
+        "unit_cost": 3
+      },
+      "optional": false,
+      "distinct_values": {
+        "station_id": [
+          "K1",
+          "K2"
+        ],
+        "demand_id": [
+          "D1",
+          "D2"
+        ],
+        "unit_cost": [
+          "1",
+          "2",
+          "3",
+          "4"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "TransshipmentMIP",
+    "model_type": "Mixed Integer Program",
+    "sense": "minimize",
+    "sets": {
+      "Sites": {
+        "size": null,
+        "index_symbol": "s",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "sites",
+        "ordered": false
+      },
+      "Demands": {
+        "size": null,
+        "index_symbol": "d",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "demands",
+        "ordered": false
+      },
+      "Stations": {
+        "size": null,
+        "index_symbol": "k",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "stations",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "supply": {
+        "domain": [
+          "Sites"
+        ],
+        "type": "float",
+        "source": "supply.csv",
+        "column": "supply",
+        "index_columns": [
+          "site_id"
+        ],
+        "missing_default": "zero"
+      },
+      "demand_req": {
+        "domain": [
+          "Demands"
+        ],
+        "type": "float",
+        "source": "demand.csv",
+        "column": "demand",
+        "index_columns": [
+          "demand_id"
+        ],
+        "missing_default": "zero"
+      },
+      "capacity": {
+        "domain": [
+          "Stations"
+        ],
+        "type": "float",
+        "source": "station_params.csv",
+        "column": "capacity",
+        "index_columns": [
+          "station_id"
+        ],
+        "missing_default": "inf"
+      },
+      "fixed_cost": {
+        "domain": [
+          "Stations"
+        ],
+        "type": "float",
+        "source": "station_params.csv",
+        "column": "fixed_cost",
+        "index_columns": [
+          "station_id"
+        ],
+        "missing_default": "inf"
+      },
+      "cost1": {
+        "domain": [
+          "Sites",
+          "Stations"
+        ],
+        "type": "float",
+        "source": "cost1.csv",
+        "column": "unit_cost",
+        "index_columns": [
+          "site_id",
+          "station_id"
+        ],
+        "missing_default": "inf"
+      },
+      "cost2": {
+        "domain": [
+          "Stations",
+          "Demands"
+        ],
+        "type": "float",
+        "source": "cost2.csv",
+        "column": "unit_cost",
+        "index_columns": [
+          "station_id",
+          "demand_id"
+        ],
+        "missing_default": "inf"
+      }
+    },
+    "variables": {
+      "flow1": {
+        "description": "Units shipped from site s to station k",
+        "label": "flow1",
+        "domain": [
+          "Sites",
+          "Stations"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "flow2": {
+        "description": "Units shipped from station k to demand d",
+        "label": "flow2",
+        "domain": [
+          "Stations",
+          "Demands"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "open": {
+        "description": "1 if station k is opened and used",
+        "label": "open",
+        "domain": [
+          "Stations"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "supply_limit": {
+        "domain": [
+          "Sites"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Stations:k"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "flow1",
+            "indices": [
+              "s",
+              "k"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "parameter",
+          "name": "supply",
+          "indices": [
+            "s"
+          ]
+        }
+      },
+      "demand_meet": {
+        "domain": [
+          "Demands"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Stations:k"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "flow2",
+            "indices": [
+              "k",
+              "d"
+            ]
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "parameter",
+          "name": "demand_req",
+          "indices": [
+            "d"
+          ]
+        }
+      },
+      "flow_conservation": {
+        "domain": [
+          "Stations"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Sites:s"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "flow1",
+              "indices": [
+                "s",
+                "k"
+              ]
+            }
+          },
+          "right": {
+            "operation": "indexed_sum",
+            "over": [
+              "Demands:d"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "flow2",
+              "indices": [
+                "k",
+                "d"
+              ]
+            }
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "station_cap": {
+        "domain": [
+          "Stations"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Sites:s"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "flow1",
+              "indices": [
+                "s",
+                "k"
+              ]
+            }
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "capacity",
+              "indices": [
+                "k"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "open",
+              "indices": [
+                "k"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "sum",
+        "left": {
+          "operation": "sum",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Sites:s",
+              "Stations:k"
+            ],
+            "body": {
+              "operation": "multiply",
+              "left": {
+                "type": "parameter",
+                "name": "cost1",
+                "indices": [
+                  "s",
+                  "k"
+                ]
+              },
+              "right": {
+                "type": "variable",
+                "name": "flow1",
+                "indices": [
+                  "s",
+                  "k"
+                ]
+              }
+            }
+          },
+          "right": {
+            "operation": "indexed_sum",
+            "over": [
+              "Stations:k",
+              "Demands:d"
+            ],
+            "body": {
+              "operation": "multiply",
+              "left": {
+                "type": "parameter",
+                "name": "cost2",
+                "indices": [
+                  "k",
+                  "d"
+                ]
+              },
+              "right": {
+                "type": "variable",
+                "name": "flow2",
+                "indices": [
+                  "k",
+                  "d"
+                ]
+              }
+            }
+          }
+        },
+        "right": {
+          "operation": "indexed_sum",
+          "over": [
+            "Stations:k"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "fixed_cost",
+              "indices": [
+                "k"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "open",
+              "indices": [
+                "k"
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "modeling_patterns": [
+    "big-M linking",
+    "flow conservation"
+  ]
+}

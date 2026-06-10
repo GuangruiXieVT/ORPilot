@@ -40,12 +40,6 @@
       "scenarios": "scenarios.csv"
     }
   },
-  "ir_patterns": [
-    "stochastic two-stage",
-    "scenario weighted sum",
-    "receive link constraint",
-    "first-stage vs second-stage variables"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -545,5 +539,10 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "flow conservation",
+    "scenario weighted sum",
+    "two-stage stochastic"
+  ]
 }

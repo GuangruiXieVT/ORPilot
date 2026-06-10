@@ -1,0 +1,160 @@
+{
+  "problem": {
+    "title": "Refrigerated Cargo Truck Fleet IP",
+    "description": "A logistics company needs to transport 3000 m³ of refrigerated cargo and 4000 m³ of non-refrigerated cargo. Two truck types are available: Type A (20 m³ refrigerated + 40 m³ non-refrigerated capacity, £30/km) and Type B (30 m³ refrigerated + 30 m³ non-refrigerated capacity, £40/km). Minimize total transport cost by choosing how many of each truck type to use.",
+    "problem_type": "integer_programming",
+    "objective": "minimize",
+    "objective_description": "Total transport cost in £ per km for the required cargo volumes",
+    "constraints": [
+      {
+        "description": "Total refrigerated capacity from all trucks must meet or exceed 3000 m³ demand"
+      },
+      {
+        "description": "Total non-refrigerated capacity from all trucks must meet or exceed 4000 m³ demand"
+      }
+    ],
+    "decision_variables": [
+      "n_A: number of Type A trucks to use (integer, non-negative)",
+      "n_B: number of Type B trucks to use (integer, non-negative)"
+    ],
+    "parameters": [],
+    "additional_notes": "All data is hardcoded as constants. No CSV files needed. Optimal: n_A=51, n_B=66. Check: refrig=20*51+30*66=1020+1980=3000>=3000, non-refrig=40*51+30*66=2040+1980=4020>=4000. Cost=30*51+40*66=1530+2640=4170.",
+    "csv_file_paths": {}
+  },
+  "csv_schemas": {},
+  "ir": {
+    "problem_class": "TruckFleetIP",
+    "model_type": "Integer Program",
+    "sense": "minimize",
+    "sets": {},
+    "parameters": {},
+    "variables": {
+      "n_A": {
+        "description": "Number of Type A trucks to use",
+        "label": "n_A",
+        "domain": [],
+        "type": "integer",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "n_B": {
+        "description": "Number of Type B trucks to use",
+        "label": "n_B",
+        "domain": [],
+        "type": "integer",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "refrig_req": {
+        "domain": [],
+        "expression": {
+          "operation": "sum",
+          "left": {
+            "operation": "multiply",
+            "left": {
+              "type": "constant",
+              "value": 20
+            },
+            "right": {
+              "type": "variable",
+              "name": "n_A",
+              "indices": []
+            }
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "constant",
+              "value": 30
+            },
+            "right": {
+              "type": "variable",
+              "name": "n_B",
+              "indices": []
+            }
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "constant",
+          "value": 3000
+        }
+      },
+      "nonrefrig_req": {
+        "domain": [],
+        "expression": {
+          "operation": "sum",
+          "left": {
+            "operation": "multiply",
+            "left": {
+              "type": "constant",
+              "value": 40
+            },
+            "right": {
+              "type": "variable",
+              "name": "n_A",
+              "indices": []
+            }
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "constant",
+              "value": 30
+            },
+            "right": {
+              "type": "variable",
+              "name": "n_B",
+              "indices": []
+            }
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "constant",
+          "value": 4000
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "sum",
+        "left": {
+          "operation": "multiply",
+          "left": {
+            "type": "constant",
+            "value": 30
+          },
+          "right": {
+            "type": "variable",
+            "name": "n_A",
+            "indices": []
+          }
+        },
+        "right": {
+          "operation": "multiply",
+          "left": {
+            "type": "constant",
+            "value": 40
+          },
+          "right": {
+            "type": "variable",
+            "name": "n_B",
+            "indices": []
+          }
+        }
+      }
+    }
+  },
+  "modeling_patterns": [
+    "integer variable",
+    "no sets"
+  ]
+}

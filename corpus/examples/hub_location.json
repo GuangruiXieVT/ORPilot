@@ -56,14 +56,6 @@
       "hub_params": "hub_params.csv"
     }
   },
-  "ir_patterns": [
-    "binary variable",
-    "big-M linking",
-    "exclude_diagonal",
-    "duplicate set domain",
-    "aliased indexed_sum",
-    "sparse parameter"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -866,5 +858,12 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "big-M linking",
+    "binary variable",
+    "duplicate set",
+    "exclude diagonal",
+    "sparse filter"
+  ]
 }

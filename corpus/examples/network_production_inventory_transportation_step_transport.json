@@ -97,17 +97,6 @@
       "fixed_costs_wr": "fixed_costs_wr.csv"
     }
   },
-  "ir_patterns": [
-    "binary variable",
-    "integer variable",
-    "domain filter",
-    "sparse filter",
-    "ordered set",
-    "temporal lag",
-    "init constraint",
-    "big-M linking",
-    "step cost"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -1881,5 +1870,15 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "big-M linking",
+    "binary variable",
+    "domain filter",
+    "init constraint",
+    "integer variable",
+    "sparse filter",
+    "step cost",
+    "temporal lag"
+  ]
 }

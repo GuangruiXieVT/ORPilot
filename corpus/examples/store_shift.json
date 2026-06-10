@@ -1,0 +1,249 @@
+{
+  "problem": {
+    "title": "24-Hour Convenience Store Shift Scheduling",
+    "description": "A 24-hour convenience store has different staffing needs in each 4-hour time block. Workers start shifts at 2am, 6am, 10am, 2pm, 6pm, or 10pm and work 8 continuous hours (two consecutive 4-hour blocks). Minimize the total number of salespeople hired to cover all time periods.",
+    "problem_type": "integer_programming",
+    "objective": "minimize",
+    "objective_description": "Total number of salespeople hired across all shift start times",
+    "constraints": [
+      {
+        "description": "For each 4-hour period, the sum of workers from all shifts that cover that period must be at least the required staffing level"
+      }
+    ],
+    "decision_variables": [
+      "workers[s]: number of salespeople starting at shift s (non-negative integer)"
+    ],
+    "parameters": [
+      "demand[p]: minimum salespeople required in period p",
+      "coverage[p,s]: 1 if shift s covers period p, 0 otherwise"
+    ],
+    "additional_notes": "Periods p1..p6 correspond to 2-6, 6-10, 10-14, 14-18, 18-22, 22-2. Shifts s1..s6 start at 2am, 6am, 10am, 2pm, 6pm, 10pm. Each shift covers two consecutive periods (8 hours). Coverage is sparse (only 1s in CSV). Optimal: workers=[7,8,17,3,15,3], total=53.",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "demand": "demand.csv",
+      "coverage": "coverage.csv"
+    }
+  },
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "periods",
+        "element": "p1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "periods",
+          "shifts"
+        ],
+        "element": [
+          "p1",
+          "p2",
+          "p3",
+          "p4",
+          "p5",
+          "p6",
+          "s1",
+          "s2",
+          "s3",
+          "s4",
+          "s5",
+          "s6"
+        ]
+      }
+    },
+    "demand": {
+      "columns": {
+        "period_id": "str",
+        "demand": "int"
+      },
+      "sample": {
+        "period_id": "p1",
+        "demand": 10
+      },
+      "optional": false,
+      "distinct_values": {
+        "period_id": [
+          "p1",
+          "p2",
+          "p3",
+          "p4",
+          "p5",
+          "p6"
+        ],
+        "demand": [
+          "10",
+          "12",
+          "15",
+          "18",
+          "20",
+          "25"
+        ]
+      }
+    },
+    "coverage": {
+      "columns": {
+        "period_id": "str",
+        "shift_id": "str",
+        "covers": "int"
+      },
+      "sample": {
+        "period_id": "p1",
+        "shift_id": "s1",
+        "covers": 1
+      },
+      "optional": false,
+      "distinct_values": {
+        "period_id": [
+          "p1",
+          "p2",
+          "p3",
+          "p4",
+          "p5",
+          "p6"
+        ],
+        "shift_id": [
+          "s1",
+          "s2",
+          "s3",
+          "s4",
+          "s5",
+          "s6"
+        ],
+        "covers": [
+          "1"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "ShiftScheduling",
+    "model_type": "Integer Program",
+    "sense": "minimize",
+    "sets": {
+      "Periods": {
+        "size": null,
+        "index_symbol": "p",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "periods",
+        "ordered": false
+      },
+      "Shifts": {
+        "size": null,
+        "index_symbol": "s",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "shifts",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "demand": {
+        "domain": [
+          "Periods"
+        ],
+        "type": "float",
+        "source": "demand.csv",
+        "column": "demand",
+        "index_columns": [
+          "period_id"
+        ],
+        "missing_default": "zero"
+      },
+      "coverage": {
+        "domain": [
+          "Periods",
+          "Shifts"
+        ],
+        "type": "float",
+        "source": "coverage.csv",
+        "column": "covers",
+        "index_columns": [
+          "period_id",
+          "shift_id"
+        ],
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "workers": {
+        "description": "Number of salespeople starting at shift s",
+        "label": "workers",
+        "domain": [
+          "Shifts"
+        ],
+        "type": "integer",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "staffing_coverage": {
+        "domain": [
+          "Periods"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Shifts:s"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "coverage",
+              "indices": [
+                "p",
+                "s"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "workers",
+              "indices": [
+                "s"
+              ]
+            }
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "parameter",
+          "name": "demand",
+          "indices": [
+            "p"
+          ]
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Shifts:s"
+        ],
+        "body": {
+          "type": "variable",
+          "name": "workers",
+          "indices": [
+            "s"
+          ]
+        }
+      }
+    }
+  },
+  "modeling_patterns": [
+    "integer variable",
+    "sparse filter"
+  ]
+}

@@ -1,0 +1,4 @@
+product_id,margin,quota,activation_cost,min_batch,max_demand,big_m,days_per_unit
+A1,50.70,500,170000,20,5300,5300,0.002
+A2,56.10,450,150000,20,4500,4500,0.002222222
+A3,49.60,550,100000,16,5400,5400,0.001818182

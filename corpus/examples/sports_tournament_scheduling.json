@@ -28,11 +28,6 @@
       "round_weights": "round_weights.csv"
     }
   },
-  "ir_patterns": [
-    "binary variable",
-    "sparse parameter",
-    "domain filter free (dense matchup)"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -359,5 +354,9 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "binary variable",
+    "sparse filter"
+  ]
 }

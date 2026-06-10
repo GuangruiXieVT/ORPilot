@@ -34,12 +34,6 @@
       "capital": "capital.csv"
     }
   },
-  "ir_patterns": [
-    "binary variable",
-    "resource constraints",
-    "project selection",
-    "maximize NPV"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -431,5 +425,8 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "binary variable"
+  ]
 }

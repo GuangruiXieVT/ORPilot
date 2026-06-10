@@ -1,0 +1,279 @@
+{
+  "problem": {
+    "title": "OR Master's Course Selection: Minimum Set Covering with Prerequisites",
+    "description": "An OR master's student must take at least 2 courses from each of three categories: Mathematics, Operations Research, and Computer Science. Seven courses are available; some belong to multiple categories and count toward all their categories. Prerequisites must also be satisfied: Computer Simulation and Data Structures require Computer Programming; Management Statistics requires Calculus; Forecasting requires Management Statistics. Minimize the total number of courses taken.",
+    "problem_type": "integer_programming",
+    "objective": "minimize",
+    "objective_description": "Total number of courses taken",
+    "constraints": [
+      {
+        "description": "For each category, the sum of selected courses belonging to that category must be at least 2"
+      },
+      {
+        "description": "For each (course, prerequisite) pair in the prerequisites table, if the course is selected its prerequisite must also be selected: take[course] <= take[prereq]"
+      }
+    ],
+    "decision_variables": [
+      "take[c]: 1 if course c is taken, 0 otherwise (binary)"
+    ],
+    "parameters": [
+      "category_membership[c, cat]: 1 if course c belongs to category cat, 0 otherwise (sparse)",
+      "prerequisites[c1, c2]: 1 if c1 requires c2 as a prerequisite (sparse, course-prereq pairs)"
+    ],
+    "additional_notes": "Category coverage: sum_c(category_membership[c,cat]*take[c]) >= 2. Prerequisite constraint uses sparse_filter: take[c1] - take[prereq] <= 0, enforced only for rows in prerequisites.csv. Optimal solution: take {calculus, operations_research, computer_programming, computer_simulation} = 4 courses. These satisfy math(calculus+OR), OR(OR+simulation), CS(programming+simulation) and all prerequisites.",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "category_membership": "category_membership.csv",
+      "prerequisites": "prerequisites.csv"
+    }
+  },
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "courses",
+        "element": "calculus"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "courses",
+          "categories"
+        ],
+        "element": [
+          "calculus",
+          "operations_research",
+          "data_structures",
+          "management_statistics",
+          "computer_simulation",
+          "computer_programming",
+          "forecasting",
+          "math",
+          "or",
+          "cs"
+        ]
+      }
+    },
+    "category_membership": {
+      "columns": {
+        "course_id": "str",
+        "category_id": "str",
+        "is_member": "int"
+      },
+      "sample": {
+        "course_id": "calculus",
+        "category_id": "math",
+        "is_member": 1
+      },
+      "optional": false,
+      "distinct_values": {
+        "course_id": [
+          "calculus",
+          "operations_research",
+          "data_structures",
+          "management_statistics",
+          "computer_simulation",
+          "computer_programming",
+          "forecasting"
+        ],
+        "category_id": [
+          "math",
+          "or",
+          "cs"
+        ],
+        "is_member": [
+          "1"
+        ]
+      }
+    },
+    "prerequisites": {
+      "columns": {
+        "course_id": "str",
+        "prereq_id": "str",
+        "is_required": "int"
+      },
+      "sample": {
+        "course_id": "computer_simulation",
+        "prereq_id": "computer_programming",
+        "is_required": 1
+      },
+      "optional": false,
+      "distinct_values": {
+        "course_id": [
+          "computer_simulation",
+          "data_structures",
+          "management_statistics",
+          "forecasting"
+        ],
+        "prereq_id": [
+          "computer_programming",
+          "calculus",
+          "management_statistics"
+        ],
+        "is_required": [
+          "1"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "SetCoveringIP",
+    "model_type": "Integer Program",
+    "sense": "minimize",
+    "sets": {
+      "Courses": {
+        "size": null,
+        "index_symbol": "c",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "courses",
+        "ordered": false
+      },
+      "Categories": {
+        "size": null,
+        "index_symbol": "cat",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "categories",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "category_membership": {
+        "domain": [
+          "Courses",
+          "Categories"
+        ],
+        "type": "float",
+        "source": "category_membership.csv",
+        "column": "is_member",
+        "index_columns": [
+          "course_id",
+          "category_id"
+        ],
+        "missing_default": "zero"
+      },
+      "prerequisites": {
+        "domain": [
+          "Courses",
+          "Courses"
+        ],
+        "type": "float",
+        "source": "prerequisites.csv",
+        "column": "is_required",
+        "index_columns": [
+          "course_id",
+          "prereq_id"
+        ],
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "take": {
+        "description": "1 if course c is taken, 0 otherwise",
+        "label": "take",
+        "domain": [
+          "Courses"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "category_coverage": {
+        "domain": [
+          "Categories"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Courses:c"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "category_membership",
+              "indices": [
+                "c",
+                "cat"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "take",
+              "indices": [
+                "c"
+              ]
+            }
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "constant",
+          "value": 2
+        }
+      },
+      "prerequisite_satisfied": {
+        "domain": [
+          "Courses",
+          "Courses"
+        ],
+        "sparse_filter": "prerequisites",
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "take",
+            "indices": [
+              "c1"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "take",
+            "indices": [
+              "c2"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Courses:c"
+        ],
+        "body": {
+          "type": "variable",
+          "name": "take",
+          "indices": [
+            "c"
+          ]
+        }
+      }
+    }
+  },
+  "modeling_patterns": [
+    "binary variable",
+    "filter_column subset",
+    "precedence constraint",
+    "set covering",
+    "sparse filter"
+  ]
+}

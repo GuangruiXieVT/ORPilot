@@ -1,0 +1,373 @@
+{
+  "problem": {
+    "title": "Empty Container Transport Cost Minimization (Italy)",
+    "description": "An Italian transportation company moves empty containers from 6 warehouses to 5 ports using trucks. Each truck carries at most 2 containers and costs 30 EUR per km. Warehouse supply: Verona=10, Perugia=12, Rome=20, Pescara=24, Taranto=18, Lamezia=40 containers. Port demand: Genoa=20, Venice=15, Ancona=25, Naples=33, Bari=21. Minimize total truck cost.",
+    "problem_type": "integer_programming",
+    "objective": "minimize",
+    "objective_description": "Total transport cost = sum over all warehouse-port pairs of 30*distance[w,p] * trucks[w,p]",
+    "constraints": [
+      {
+        "description": "Total containers shipped from each warehouse cannot exceed its supply"
+      },
+      {
+        "description": "Total containers received at each port must meet its demand"
+      },
+      {
+        "description": "Number of trucks on each route covers the containers (at most 2 containers per truck): containers[w,p] <= 2 * trucks[w,p]"
+      }
+    ],
+    "decision_variables": [
+      "containers[w,p]: integer number of containers shipped from warehouse w to port p",
+      "trucks[w,p]: integer number of trucks used from warehouse w to port p"
+    ],
+    "parameters": [
+      "supply[w]: container supply at warehouse w",
+      "demand[p]: container demand at port p",
+      "truck_cost[w,p]: cost per truck from warehouse w to port p (= 30 * distance_km)"
+    ],
+    "additional_notes": "IP formulation: trucks are integer, each carries at most 2 containers. Objective uses truck_cost (30*distance) times number of trucks. Optimal: verona->venice 5 trucks (10 containers), taranto->bari 1 truck (2 containers), etc. Expected obj=468510.",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "supply": "supply.csv",
+      "demand": "demand.csv",
+      "truck_cost": "truck_cost.csv"
+    }
+  },
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "warehouses",
+        "element": "verona"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "warehouses",
+          "ports"
+        ],
+        "element": [
+          "verona",
+          "perugia",
+          "rome",
+          "pescara",
+          "taranto",
+          "lamezia",
+          "genoa",
+          "venice",
+          "ancona",
+          "naples",
+          "bari"
+        ]
+      }
+    },
+    "supply": {
+      "columns": {
+        "warehouse_id": "str",
+        "supply": "int"
+      },
+      "sample": {
+        "warehouse_id": "verona",
+        "supply": 10
+      },
+      "optional": false,
+      "distinct_values": {
+        "warehouse_id": [
+          "verona",
+          "perugia",
+          "rome",
+          "pescara",
+          "taranto",
+          "lamezia"
+        ],
+        "supply": [
+          "10",
+          "12",
+          "18",
+          "20",
+          "24",
+          "40"
+        ]
+      }
+    },
+    "demand": {
+      "columns": {
+        "port_id": "str",
+        "demand": "int"
+      },
+      "sample": {
+        "port_id": "genoa",
+        "demand": 20
+      },
+      "optional": false,
+      "distinct_values": {
+        "port_id": [
+          "genoa",
+          "venice",
+          "ancona",
+          "naples",
+          "bari"
+        ],
+        "demand": [
+          "15",
+          "20",
+          "21",
+          "25",
+          "33"
+        ]
+      }
+    },
+    "truck_cost": {
+      "columns": {
+        "warehouse_id": "str",
+        "port_id": "str",
+        "cost_per_truck": "float"
+      },
+      "sample": {
+        "warehouse_id": "verona",
+        "port_id": "genoa",
+        "cost_per_truck": 8700.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "warehouse_id": [
+          "verona",
+          "perugia",
+          "rome",
+          "pescara",
+          "taranto",
+          "lamezia"
+        ],
+        "port_id": [
+          "genoa",
+          "venice",
+          "ancona",
+          "naples",
+          "bari"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "ContainerTransportIP",
+    "model_type": "Integer Program",
+    "sense": "minimize",
+    "sets": {
+      "Warehouses": {
+        "size": null,
+        "index_symbol": "w",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "warehouses",
+        "ordered": false
+      },
+      "Ports": {
+        "size": null,
+        "index_symbol": "p",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "ports",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "supply": {
+        "domain": [
+          "Warehouses"
+        ],
+        "type": "float",
+        "source": "supply.csv",
+        "column": "supply",
+        "index_columns": [
+          "warehouse_id"
+        ],
+        "missing_default": "zero"
+      },
+      "demand": {
+        "domain": [
+          "Ports"
+        ],
+        "type": "float",
+        "source": "demand.csv",
+        "column": "demand",
+        "index_columns": [
+          "port_id"
+        ],
+        "missing_default": "zero"
+      },
+      "truck_cost": {
+        "domain": [
+          "Warehouses",
+          "Ports"
+        ],
+        "type": "float",
+        "source": "truck_cost.csv",
+        "column": "cost_per_truck",
+        "index_columns": [
+          "warehouse_id",
+          "port_id"
+        ],
+        "missing_default": "inf"
+      }
+    },
+    "variables": {
+      "containers": {
+        "description": "Integer number of containers shipped from warehouse w to port p",
+        "label": "containers",
+        "domain": [
+          "Warehouses",
+          "Ports"
+        ],
+        "type": "integer",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "trucks": {
+        "description": "Integer number of trucks used from warehouse w to port p",
+        "label": "trucks",
+        "domain": [
+          "Warehouses",
+          "Ports"
+        ],
+        "type": "integer",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "supply_limit": {
+        "domain": [
+          "Warehouses"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Ports:p"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "containers",
+            "indices": [
+              "w",
+              "p"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "parameter",
+          "name": "supply",
+          "indices": [
+            "w"
+          ]
+        }
+      },
+      "demand_meet": {
+        "domain": [
+          "Ports"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Warehouses:w"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "containers",
+            "indices": [
+              "w",
+              "p"
+            ]
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "parameter",
+          "name": "demand",
+          "indices": [
+            "p"
+          ]
+        }
+      },
+      "truck_capacity": {
+        "domain": [
+          "Warehouses",
+          "Ports"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "containers",
+            "indices": [
+              "w",
+              "p"
+            ]
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "constant",
+              "value": 2
+            },
+            "right": {
+              "type": "variable",
+              "name": "trucks",
+              "indices": [
+                "w",
+                "p"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Warehouses:w",
+          "Ports:p"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "type": "parameter",
+            "name": "truck_cost",
+            "indices": [
+              "w",
+              "p"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "trucks",
+            "indices": [
+              "w",
+              "p"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "modeling_patterns": [
+    "big-M linking",
+    "integer variable"
+  ]
+}

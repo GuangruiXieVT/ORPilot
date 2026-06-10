@@ -23,11 +23,6 @@
       "serving": "serving.csv"
     }
   },
-  "ir_patterns": [
-    "binary variable",
-    "set partitioning equality",
-    "sparse coverage parameter"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -254,5 +249,10 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "binary variable",
+    "mutual exclusion",
+    "sparse filter"
+  ]
 }

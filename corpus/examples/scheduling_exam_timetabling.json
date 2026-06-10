@@ -29,11 +29,6 @@
       "timeslots": "timeslots.csv"
     }
   },
-  "ir_patterns": [
-    "binary variable",
-    "domain filter",
-    "big-M linking"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -328,5 +323,10 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "big-M linking",
+    "binary variable",
+    "domain filter"
+  ]
 }

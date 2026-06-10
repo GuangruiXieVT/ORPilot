@@ -36,12 +36,6 @@
       "values": "values.csv"
     }
   },
-  "ir_patterns": [
-    "LP",
-    "sequential stage constraints",
-    "hardcoded stage member references",
-    "yield flow balance"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -410,5 +404,9 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "balance constraint",
+    "precedence constraint"
+  ]
 }

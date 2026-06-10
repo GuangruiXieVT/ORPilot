@@ -32,13 +32,6 @@
       "big_m": "big_m.csv"
     }
   },
-  "ir_patterns": [
-    "scalar variable",
-    "binary variable",
-    "big-M linking",
-    "duplicate set domain",
-    "exclude_diagonal"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -373,5 +366,12 @@
         "indices": []
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "big-M linking",
+    "binary variable",
+    "duplicate set",
+    "exclude diagonal",
+    "scalar variable"
+  ]
 }

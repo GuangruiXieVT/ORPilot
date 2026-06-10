@@ -39,6 +39,10 @@ class BenchmarkResult:
     lp_content: str = ""
     error: str | None = None
     solve_time: float | None = None
+    validation_attempts: int = 0
+    first_validated_objective: float | None = None
+    code_gen_retries: int = 0
+    validator_inconclusive: int = 0
     # Token usage for this case: {"input_tokens": int, "output_tokens": int}
     metrics: dict = field(default_factory=dict)
     # Extracted data tables: stem → list of row dicts (populated by solve pipelines)

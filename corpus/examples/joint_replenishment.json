@@ -36,12 +36,6 @@
       "params": "params.csv"
     }
   },
-  "ir_patterns": [
-    "temporal lag",
-    "init constraint",
-    "binary big-M linking",
-    "joint ordering cost"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -515,5 +509,10 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "big-M linking",
+    "init constraint",
+    "temporal lag"
+  ]
 }

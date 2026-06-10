@@ -41,11 +41,6 @@
       "demand": "demand.csv"
     }
   },
-  "ir_patterns": [
-    "ordered set",
-    "temporal lag",
-    "init constraint"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -457,5 +452,9 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "init constraint",
+    "temporal lag"
+  ]
 }

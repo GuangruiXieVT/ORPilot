@@ -1,0 +1,1074 @@
+{
+  "problem": {
+    "title": "Production Planning with Workforce Management and Backorders",
+    "description": "A company makes foldable tables over 6 months (Jan-Jun). Each month, it decides how many units to produce in-house, how many to outsource, how many workers to hire or fire, and how much overtime to use. Demand may exceed supply, creating backorders carried to the next month. A 'sold' variable tracks units sold each period (= demand fulfilled + prior backorders cleared). Maximize total net profit = sum(sales_price * sold[t]) minus all costs. Initial workforce: 1000, initial inventory: 15000. Terminal conditions: ending inventory >= 10000, ending backorder = 0.",
+    "problem_type": "linear_programming",
+    "objective": "maximize",
+    "objective_description": "Total net profit: revenue from all units sold minus all production, labor, and inventory costs",
+    "constraints": [
+      {
+        "description": "Workforce balance (init): workforce[jan] = initial_workforce + hire[jan] - fire[jan]"
+      },
+      {
+        "description": "Workforce balance (lag): workforce[t] = workforce[t-1] + hire[t] - fire[t] for t > jan"
+      },
+      {
+        "description": "Sold definition (init): sold[jan] + backlog[jan] = demand[jan] (all demand either sold or backordered)"
+      },
+      {
+        "description": "Sold definition (lag): sold[t] + backlog[t] = demand[t] + backlog[t-1] (current demand plus prior backlog either sold or re-backordered)"
+      },
+      {
+        "description": "Inventory balance (init): inventory[jan] = initial_inventory + produce[jan] + outsource[jan] - sold[jan]"
+      },
+      {
+        "description": "Inventory balance (lag): inventory[t] = inventory[t-1] + produce[t] + outsource[t] - sold[t]"
+      },
+      {
+        "description": "Labor capacity: produce[t] * labor_per_unit <= regular_hours_per_worker * workforce[t] + overtime_hours[t]"
+      },
+      {
+        "description": "Overtime limit: overtime_hours[t] <= max_overtime_per_worker * workforce[t]"
+      },
+      {
+        "description": "Terminal inventory: inventory[jun] >= min_terminal_inventory"
+      },
+      {
+        "description": "Terminal backorder: backlog[jun] = 0"
+      }
+    ],
+    "decision_variables": [
+      "produce[t]: in-house production quantity in month t (continuous, >=0)",
+      "outsource[t]: outsourced quantity in month t (continuous, >=0)",
+      "sold[t]: units sold (demand fulfilled) in month t (continuous, >=0)",
+      "inventory[t]: ending inventory at month t (continuous, >=0)",
+      "backlog[t]: ending backlog (unfulfilled demand) at month t (continuous, >=0)",
+      "workforce[t]: workforce level at end of month t (continuous, >=0)",
+      "hire[t]: new hires in month t (continuous, >=0)",
+      "fire[t]: firings in month t (continuous, >=0)",
+      "overtime_hours[t]: total overtime hours in month t (continuous, >=0)"
+    ],
+    "parameters": [
+      "demand[t]: forecasted demand in month t",
+      "initial_workforce: workforce at start of January",
+      "initial_inventory: inventory at start of January",
+      "sales_price: revenue per unit sold",
+      "raw_material_cost: raw material cost per in-house unit",
+      "outsource_cost: all-inclusive cost per outsourced unit",
+      "holding_cost: inventory holding cost per unit per month",
+      "backorder_penalty: backorder cost per unit per month",
+      "labor_per_unit: labor hours required per in-house unit",
+      "regular_hours_per_worker: regular working hours per worker per month",
+      "regular_wage: wage per regular hour",
+      "overtime_wage: wage per overtime hour",
+      "max_overtime_per_worker: maximum overtime hours per worker per month",
+      "hire_cost: cost to hire one worker",
+      "fire_cost: cost to fire one worker",
+      "min_terminal_inventory: required ending inventory at end of June"
+    ],
+    "additional_notes": "Key patterns: (1) ORDERED set Months with THREE lag-based equality constraints (workforce_balance, sold_definition, inventory_balance). Each needs a corresponding _init constraint using Months[0]. (2) A sold[t] variable is used as the outflow in the inventory balance — this ensures the inventory balance passes the sign check: inventory(+) + sold(+) - inventory_lag(-) - produce(-) - outsource(-) = 0. (3) Revenue is sum(sales_price * sold[t]) over Months — a variable-based sum, not a parameter constant. (4) Terminal constraints use Months[5] (June = index 5). (5) params.csv is wide-format single-row with all scalar parameters (index_columns=null). (6) Regular wage total = multiply(regular_wage_param, multiply(regular_hours_per_worker_param, workforce[t])) — product of two scalar params then multiply by variable.",
+    "csv_file_paths": {
+      "sets": "sets.csv",
+      "demand": "demand.csv",
+      "params": "params.csv"
+    }
+  },
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "months",
+        "element": "jan"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "months"
+        ],
+        "element": [
+          "jan",
+          "feb",
+          "mar",
+          "apr",
+          "may",
+          "jun"
+        ]
+      }
+    },
+    "demand": {
+      "columns": {
+        "period_id": "str",
+        "demand": "float"
+      },
+      "sample": {
+        "period_id": "jan",
+        "demand": 20000.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "period_id": [
+          "jan",
+          "feb",
+          "mar",
+          "apr",
+          "may",
+          "jun"
+        ],
+        "demand": [
+          "20000",
+          "40000",
+          "42000",
+          "35000",
+          "19000",
+          "18500"
+        ]
+      }
+    },
+    "params": {
+      "columns": {
+        "initial_workforce": "int",
+        "initial_inventory": "int",
+        "sales_price": "float",
+        "raw_material_cost": "float",
+        "outsource_cost": "float",
+        "holding_cost": "float",
+        "backorder_penalty": "float",
+        "labor_per_unit": "float",
+        "regular_hours_per_worker": "float",
+        "regular_wage": "float",
+        "overtime_wage": "float",
+        "max_overtime_per_worker": "float",
+        "hire_cost": "float",
+        "fire_cost": "float",
+        "min_terminal_inventory": "float"
+      },
+      "sample": {
+        "initial_workforce": 1000,
+        "initial_inventory": 15000,
+        "sales_price": 300.0,
+        "raw_material_cost": 90.0,
+        "outsource_cost": 200.0,
+        "holding_cost": 15.0,
+        "backorder_penalty": 35.0,
+        "labor_per_unit": 5.0,
+        "regular_hours_per_worker": 160.0,
+        "regular_wage": 30.0,
+        "overtime_wage": 40.0,
+        "max_overtime_per_worker": 20.0,
+        "hire_cost": 5000.0,
+        "fire_cost": 8000.0,
+        "min_terminal_inventory": 10000.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "initial_workforce": [
+          "1000"
+        ],
+        "initial_inventory": [
+          "15000"
+        ],
+        "sales_price": [
+          "300.0"
+        ],
+        "raw_material_cost": [
+          "90.0"
+        ],
+        "outsource_cost": [
+          "200.0"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "ProductionPlanning",
+    "model_type": "Linear Program",
+    "sense": "maximize",
+    "sets": {
+      "Months": {
+        "size": null,
+        "index_symbol": "t",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "months",
+        "ordered": true
+      }
+    },
+    "parameters": {
+      "demand": {
+        "domain": [
+          "Months"
+        ],
+        "type": "float",
+        "source": "demand.csv",
+        "column": "demand",
+        "index_columns": [
+          "period_id"
+        ],
+        "missing_default": "zero"
+      },
+      "initial_workforce": {
+        "domain": [],
+        "type": "float",
+        "source": "params.csv",
+        "column": "initial_workforce",
+        "index_columns": null,
+        "missing_default": "zero"
+      },
+      "initial_inventory": {
+        "domain": [],
+        "type": "float",
+        "source": "params.csv",
+        "column": "initial_inventory",
+        "index_columns": null,
+        "missing_default": "zero"
+      },
+      "sales_price": {
+        "domain": [],
+        "type": "float",
+        "source": "params.csv",
+        "column": "sales_price",
+        "index_columns": null,
+        "missing_default": "zero"
+      },
+      "raw_material_cost": {
+        "domain": [],
+        "type": "float",
+        "source": "params.csv",
+        "column": "raw_material_cost",
+        "index_columns": null,
+        "missing_default": "zero"
+      },
+      "outsource_cost": {
+        "domain": [],
+        "type": "float",
+        "source": "params.csv",
+        "column": "outsource_cost",
+        "index_columns": null,
+        "missing_default": "zero"
+      },
+      "holding_cost": {
+        "domain": [],
+        "type": "float",
+        "source": "params.csv",
+        "column": "holding_cost",
+        "index_columns": null,
+        "missing_default": "zero"
+      },
+      "backorder_penalty": {
+        "domain": [],
+        "type": "float",
+        "source": "params.csv",
+        "column": "backorder_penalty",
+        "index_columns": null,
+        "missing_default": "zero"
+      },
+      "labor_per_unit": {
+        "domain": [],
+        "type": "float",
+        "source": "params.csv",
+        "column": "labor_per_unit",
+        "index_columns": null,
+        "missing_default": "zero"
+      },
+      "regular_hours_per_worker": {
+        "domain": [],
+        "type": "float",
+        "source": "params.csv",
+        "column": "regular_hours_per_worker",
+        "index_columns": null,
+        "missing_default": "zero"
+      },
+      "regular_wage": {
+        "domain": [],
+        "type": "float",
+        "source": "params.csv",
+        "column": "regular_wage",
+        "index_columns": null,
+        "missing_default": "zero"
+      },
+      "overtime_wage": {
+        "domain": [],
+        "type": "float",
+        "source": "params.csv",
+        "column": "overtime_wage",
+        "index_columns": null,
+        "missing_default": "zero"
+      },
+      "max_overtime_per_worker": {
+        "domain": [],
+        "type": "float",
+        "source": "params.csv",
+        "column": "max_overtime_per_worker",
+        "index_columns": null,
+        "missing_default": "zero"
+      },
+      "hire_cost": {
+        "domain": [],
+        "type": "float",
+        "source": "params.csv",
+        "column": "hire_cost",
+        "index_columns": null,
+        "missing_default": "zero"
+      },
+      "fire_cost": {
+        "domain": [],
+        "type": "float",
+        "source": "params.csv",
+        "column": "fire_cost",
+        "index_columns": null,
+        "missing_default": "zero"
+      },
+      "min_terminal_inventory": {
+        "domain": [],
+        "type": "float",
+        "source": "params.csv",
+        "column": "min_terminal_inventory",
+        "index_columns": null,
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "produce": {
+        "description": "In-house production quantity in month t",
+        "label": "production",
+        "domain": [
+          "Months"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "outsource": {
+        "description": "Outsourced quantity in month t",
+        "label": "outsourcing",
+        "domain": [
+          "Months"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "sold": {
+        "description": "Units sold (demand fulfilled) in month t",
+        "label": "sales",
+        "domain": [
+          "Months"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "inventory": {
+        "description": "Ending inventory at month t",
+        "label": "inventory_level",
+        "domain": [
+          "Months"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "backlog": {
+        "description": "Ending backlog (unfulfilled demand) at month t",
+        "label": "backlog_level",
+        "domain": [
+          "Months"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "workforce": {
+        "description": "Workforce level at end of month t",
+        "label": "workforce_level",
+        "domain": [
+          "Months"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "hire": {
+        "description": "Number of workers hired in month t",
+        "label": "hiring",
+        "domain": [
+          "Months"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "fire": {
+        "description": "Number of workers fired in month t",
+        "label": "firing",
+        "domain": [
+          "Months"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "overtime_hours": {
+        "description": "Total overtime hours in month t",
+        "label": "overtime",
+        "domain": [
+          "Months"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "workforce_balance_init": {
+        "domain": [],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "workforce",
+              "indices": [
+                "Months[0]"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "fire",
+              "indices": [
+                "Months[0]"
+              ]
+            }
+          },
+          "right": {
+            "type": "variable",
+            "name": "hire",
+            "indices": [
+              "Months[0]"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "parameter",
+          "name": "initial_workforce",
+          "indices": []
+        }
+      },
+      "workforce_balance": {
+        "domain": [
+          "Months"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "workforce",
+              "indices": [
+                "t"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "fire",
+              "indices": [
+                "t"
+              ]
+            }
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "hire",
+              "indices": [
+                "t"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "workforce",
+              "indices": [
+                "t"
+              ],
+              "lag": -1
+            }
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "sold_definition_init": {
+        "domain": [],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "sold",
+              "indices": [
+                "Months[0]"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "backlog",
+              "indices": [
+                "Months[0]"
+              ]
+            }
+          },
+          "right": {
+            "type": "parameter",
+            "name": "demand",
+            "indices": [
+              "Months[0]"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "sold_definition": {
+        "domain": [
+          "Months"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "sold",
+              "indices": [
+                "t"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "backlog",
+              "indices": [
+                "t"
+              ]
+            }
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "type": "parameter",
+              "name": "demand",
+              "indices": [
+                "t"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "backlog",
+              "indices": [
+                "t"
+              ],
+              "lag": -1
+            }
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "inventory_balance_init": {
+        "domain": [],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "inventory",
+              "indices": [
+                "Months[0]"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "sold",
+              "indices": [
+                "Months[0]"
+              ]
+            }
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "type": "parameter",
+              "name": "initial_inventory",
+              "indices": []
+            },
+            "right": {
+              "operation": "sum",
+              "left": {
+                "type": "variable",
+                "name": "produce",
+                "indices": [
+                  "Months[0]"
+                ]
+              },
+              "right": {
+                "type": "variable",
+                "name": "outsource",
+                "indices": [
+                  "Months[0]"
+                ]
+              }
+            }
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "inventory_balance": {
+        "domain": [
+          "Months"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "inventory",
+              "indices": [
+                "t"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "sold",
+              "indices": [
+                "t"
+              ]
+            }
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "type": "variable",
+              "name": "inventory",
+              "indices": [
+                "t"
+              ],
+              "lag": -1
+            },
+            "right": {
+              "operation": "sum",
+              "left": {
+                "type": "variable",
+                "name": "produce",
+                "indices": [
+                  "t"
+                ]
+              },
+              "right": {
+                "type": "variable",
+                "name": "outsource",
+                "indices": [
+                  "t"
+                ]
+              }
+            }
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "labor_capacity": {
+        "domain": [
+          "Months"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "subtract",
+            "left": {
+              "operation": "multiply",
+              "left": {
+                "type": "parameter",
+                "name": "labor_per_unit",
+                "indices": []
+              },
+              "right": {
+                "type": "variable",
+                "name": "produce",
+                "indices": [
+                  "t"
+                ]
+              }
+            },
+            "right": {
+              "type": "variable",
+              "name": "overtime_hours",
+              "indices": [
+                "t"
+              ]
+            }
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "regular_hours_per_worker",
+              "indices": []
+            },
+            "right": {
+              "type": "variable",
+              "name": "workforce",
+              "indices": [
+                "t"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "overtime_limit": {
+        "domain": [
+          "Months"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "overtime_hours",
+            "indices": [
+              "t"
+            ]
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "max_overtime_per_worker",
+              "indices": []
+            },
+            "right": {
+              "type": "variable",
+              "name": "workforce",
+              "indices": [
+                "t"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "terminal_inventory": {
+        "domain": [],
+        "expression": {
+          "type": "variable",
+          "name": "inventory",
+          "indices": [
+            "Months[5]"
+          ]
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "parameter",
+          "name": "min_terminal_inventory",
+          "indices": []
+        }
+      },
+      "terminal_backorder": {
+        "domain": [],
+        "expression": {
+          "type": "variable",
+          "name": "backlog",
+          "indices": [
+            "Months[5]"
+          ]
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "maximize",
+      "expression": {
+        "operation": "subtract",
+        "left": {
+          "operation": "subtract",
+          "left": {
+            "operation": "subtract",
+            "left": {
+              "operation": "subtract",
+              "left": {
+                "operation": "subtract",
+                "left": {
+                  "operation": "subtract",
+                  "left": {
+                    "operation": "subtract",
+                    "left": {
+                      "operation": "subtract",
+                      "left": {
+                        "operation": "indexed_sum",
+                        "over": [
+                          "Months:t"
+                        ],
+                        "body": {
+                          "operation": "multiply",
+                          "left": {
+                            "type": "parameter",
+                            "name": "sales_price",
+                            "indices": []
+                          },
+                          "right": {
+                            "type": "variable",
+                            "name": "sold",
+                            "indices": [
+                              "t"
+                            ]
+                          }
+                        }
+                      },
+                      "right": {
+                        "operation": "indexed_sum",
+                        "over": [
+                          "Months:t"
+                        ],
+                        "body": {
+                          "operation": "multiply",
+                          "left": {
+                            "type": "parameter",
+                            "name": "raw_material_cost",
+                            "indices": []
+                          },
+                          "right": {
+                            "type": "variable",
+                            "name": "produce",
+                            "indices": [
+                              "t"
+                            ]
+                          }
+                        }
+                      }
+                    },
+                    "right": {
+                      "operation": "indexed_sum",
+                      "over": [
+                        "Months:t"
+                      ],
+                      "body": {
+                        "operation": "multiply",
+                        "left": {
+                          "type": "parameter",
+                          "name": "outsource_cost",
+                          "indices": []
+                        },
+                        "right": {
+                          "type": "variable",
+                          "name": "outsource",
+                          "indices": [
+                            "t"
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  "right": {
+                    "operation": "indexed_sum",
+                    "over": [
+                      "Months:t"
+                    ],
+                    "body": {
+                      "operation": "multiply",
+                      "left": {
+                        "type": "parameter",
+                        "name": "holding_cost",
+                        "indices": []
+                      },
+                      "right": {
+                        "type": "variable",
+                        "name": "inventory",
+                        "indices": [
+                          "t"
+                        ]
+                      }
+                    }
+                  }
+                },
+                "right": {
+                  "operation": "indexed_sum",
+                  "over": [
+                    "Months:t"
+                  ],
+                  "body": {
+                    "operation": "multiply",
+                    "left": {
+                      "type": "parameter",
+                      "name": "backorder_penalty",
+                      "indices": []
+                    },
+                    "right": {
+                      "type": "variable",
+                      "name": "backlog",
+                      "indices": [
+                        "t"
+                      ]
+                    }
+                  }
+                }
+              },
+              "right": {
+                "operation": "indexed_sum",
+                "over": [
+                  "Months:t"
+                ],
+                "body": {
+                  "operation": "multiply",
+                  "left": {
+                    "operation": "multiply",
+                    "left": {
+                      "type": "parameter",
+                      "name": "regular_wage",
+                      "indices": []
+                    },
+                    "right": {
+                      "type": "parameter",
+                      "name": "regular_hours_per_worker",
+                      "indices": []
+                    }
+                  },
+                  "right": {
+                    "type": "variable",
+                    "name": "workforce",
+                    "indices": [
+                      "t"
+                    ]
+                  }
+                }
+              }
+            },
+            "right": {
+              "operation": "indexed_sum",
+              "over": [
+                "Months:t"
+              ],
+              "body": {
+                "operation": "multiply",
+                "left": {
+                  "type": "parameter",
+                  "name": "overtime_wage",
+                  "indices": []
+                },
+                "right": {
+                  "type": "variable",
+                  "name": "overtime_hours",
+                  "indices": [
+                    "t"
+                  ]
+                }
+              }
+            }
+          },
+          "right": {
+            "operation": "indexed_sum",
+            "over": [
+              "Months:t"
+            ],
+            "body": {
+              "operation": "multiply",
+              "left": {
+                "type": "parameter",
+                "name": "hire_cost",
+                "indices": []
+              },
+              "right": {
+                "type": "variable",
+                "name": "hire",
+                "indices": [
+                  "t"
+                ]
+              }
+            }
+          }
+        },
+        "right": {
+          "operation": "indexed_sum",
+          "over": [
+            "Months:t"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "fire_cost",
+              "indices": []
+            },
+            "right": {
+              "type": "variable",
+              "name": "fire",
+              "indices": [
+                "t"
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "modeling_patterns": [
+    "balance constraint",
+    "deviation variables",
+    "init constraint",
+    "temporal lag"
+  ]
+}

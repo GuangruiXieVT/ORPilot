@@ -25,11 +25,6 @@
       "capacity": "capacity.csv"
     }
   },
-  "ir_patterns": [
-    "binary variable",
-    "scalar parameter",
-    "big-M linking"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -239,5 +234,9 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "big-M linking",
+    "binary variable"
+  ]
 }

@@ -29,11 +29,6 @@
       "job_requirements": "job_requirements.csv"
     }
   },
-  "ir_patterns": [
-    "binary variable",
-    "domain filter",
-    "sparse filter"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -347,5 +342,10 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "binary variable",
+    "domain filter",
+    "sparse filter"
+  ]
 }

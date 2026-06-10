@@ -67,13 +67,6 @@
       "arc_caps_wr": "arc_caps_wr.csv"
     }
   },
-  "ir_patterns": [
-    "domain filter",
-    "sparse filter",
-    "ordered set",
-    "temporal lag",
-    "init constraint"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -1136,5 +1129,11 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "domain filter",
+    "init constraint",
+    "sparse filter",
+    "temporal lag"
+  ]
 }

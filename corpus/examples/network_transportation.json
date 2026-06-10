@@ -45,10 +45,6 @@
       "arc_caps_wr": "arc_caps_wr.csv"
     }
   },
-  "ir_patterns": [
-    "domain filter",
-    "sparse filter"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -608,5 +604,9 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "domain filter",
+    "sparse filter"
+  ]
 }

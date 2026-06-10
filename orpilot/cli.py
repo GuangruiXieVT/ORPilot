@@ -392,6 +392,7 @@ def run(
     provider: Optional[str] = typer.Option(None, "--provider", "-p", help="LLM provider (openai, anthropic, google)"),
     model: Optional[str] = typer.Option(None, "--model", "-m", help="Model name override"),
     solver: Optional[str] = typer.Option(None, "--solver", "-s", help="OR solver backend: pulp, pyomo, ortools, gurobi, cplex"),
+    mode: Optional[str] = typer.Option(None, "--mode", help="Code generation mode: direct or ir. Default: direct"),
     problem_file: Optional[Path] = typer.Option(None, "--problem", help="Load problem definition from JSON file"),
     data_file: Optional[Path] = typer.Option(None, "--data", help="Load data from JSON file"),
     data_dir: Optional[Path] = typer.Option(None, "--data-dir", "-d", help="Directory for CSV data files"),
@@ -428,6 +429,7 @@ def run(
     provider        = provider        or cfg.get("provider")        or os.environ.get("ORPILOT_LLM_PROVIDER", "openai")
     model           = model           or cfg.get("model")           or os.environ.get("ORPILOT_MODEL")
     solver          = solver          or cfg.get("solver")          or os.environ.get("ORPILOT_DEFAULT_SOLVER", "pulp")
+    mode            = mode            or cfg.get("mode",            "direct")
     max_retries     = max_retries     if max_retries     is not None else cfg.get("max_retries",     3)
     time_limit      = time_limit      if time_limit      is not None else cfg.get("time_limit",      300)
     verbose         = verbose         if verbose         is not None else cfg.get("verbose",         False)
@@ -440,6 +442,10 @@ def run(
     embed_api_key   = embed_api_key   or cfg.get("embed_api_key")
     embed_model     = embed_model     or cfg.get("embed_model")
     max_tokens      = int(cfg.get("max_tokens", 8192))
+
+    if mode not in ("direct", "ir"):
+        console.print(f"[red]Unknown mode '{mode}'. Choose 'direct' or 'ir'.[/red]")
+        raise typer.Exit(1)
 
     # Resolve path options: relative paths from a config file are relative to
     # the config file's directory; CLI-supplied paths are relative to CWD.
@@ -485,6 +491,7 @@ def run(
         "solution": None,
         "report": "",
         "current_node": "interview",
+        "mode": mode,
         "solver_name": solver,
         "retry_count": 0,
         "max_retries": max_retries,
@@ -1376,7 +1383,7 @@ def rag_query(
     console.print(f"\n[bold]Top {len(results)} results for:[/bold] {text!r}\n")
     for i, ex in enumerate(results, 1):
         title = ex.get("problem_title", ex["name"])
-        kw = ", ".join(ex.get("ir_patterns", []))
+        kw = ", ".join(ex.get("modeling_patterns", []))
         console.print(f"  {i}. [green]{title}[/green]")
         console.print(f"     [dim]{ex['name']}[/dim]")
         if kw:

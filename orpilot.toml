@@ -70,7 +70,7 @@ show_solver_log = true
 mode = "direct"
 
 # Maximum number of LLM retry attempts per workflow node when validation fails.
-max_retries = 3
+max_retries = 5
 
 # Print detailed per-node progress and intermediate outputs.
 verbose = true

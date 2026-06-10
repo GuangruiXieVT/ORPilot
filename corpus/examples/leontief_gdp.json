@@ -1,0 +1,211 @@
+{
+  "problem": {
+    "title": "Leontief GDP Maximization (Carelland)",
+    "description": "Maximize Carelland's GDP (value added) by choosing production quantities of 4 commodities: steel, engines, electronics, plastic. Value-added coefficients (yuan/ton): steel=208, engines=623, electronics=170, plastic=740. Labor requirements (person-months/ton): steel=6, engines=12, electronics=6, plastic=24. Capacity constraints: engines<=650000, plastic<=60000. Total labor available: 830000 person-months.",
+    "problem_type": "linear_programming",
+    "objective": "maximize",
+    "objective_description": "Total GDP = sum over commodities of va_coeff[c] * x[c]",
+    "constraints": [
+      {
+        "description": "Engine production capacity: x[engines] <= 650000"
+      },
+      {
+        "description": "Plastic production capacity: x[plastic] <= 60000"
+      },
+      {
+        "description": "Total labor constraint: sum_c(labor_pm[c]*x[c]) <= 830000"
+      }
+    ],
+    "decision_variables": [
+      "x[c]: production quantity of commodity c in tons (continuous, non-negative)"
+    ],
+    "parameters": [
+      "va_coeff[c]: value-added coefficient for commodity c (yuan per ton)",
+      "labor_pm[c]: labor requirement for commodity c (person-months per ton)"
+    ],
+    "additional_notes": "Engines has highest VA per labor-month (623/12=51.92 vs steel 208/6=34.67 vs plastic 740/24=30.83 vs electronics 170/6=28.33). Optimal: all labor to engines: x[engines]=830000/12=69166.67 tons. GDP=623*69166.67=43090833. Engine cap (650000) is not binding. Plastic cap (60000) not binding.",
+    "csv_file_paths": {
+      "commodities": "commodities.csv"
+    }
+  },
+  "csv_schemas": {
+    "commodities": {
+      "columns": {
+        "commodity_id": "str",
+        "va_coeff": "int",
+        "labor_pm": "int"
+      },
+      "sample": {
+        "commodity_id": "steel",
+        "va_coeff": 208,
+        "labor_pm": 6
+      },
+      "optional": false,
+      "distinct_values": {
+        "commodity_id": [
+          "steel",
+          "engines",
+          "electronics",
+          "plastic"
+        ],
+        "va_coeff": [
+          "170",
+          "208",
+          "623",
+          "740"
+        ],
+        "labor_pm": [
+          "6",
+          "12",
+          "24"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "LeontievGDPLP",
+    "model_type": "Linear Program",
+    "sense": "maximize",
+    "sets": {
+      "Commodities": {
+        "size": null,
+        "index_symbol": "c",
+        "source": "commodities.csv",
+        "column": "commodity_id",
+        "filter_column": null,
+        "filter_value": null,
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "va_coeff": {
+        "domain": [
+          "Commodities"
+        ],
+        "type": "float",
+        "source": "commodities.csv",
+        "column": "va_coeff",
+        "index_columns": [
+          "commodity_id"
+        ],
+        "missing_default": "zero"
+      },
+      "labor_pm": {
+        "domain": [
+          "Commodities"
+        ],
+        "type": "float",
+        "source": "commodities.csv",
+        "column": "labor_pm",
+        "index_columns": [
+          "commodity_id"
+        ],
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "x": {
+        "description": "Production quantity of commodity c in tons",
+        "label": "x",
+        "domain": [
+          "Commodities"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "engine_cap": {
+        "domain": [],
+        "expression": {
+          "type": "variable",
+          "name": "x",
+          "indices": [
+            "engines"
+          ]
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 650000
+        }
+      },
+      "plastic_cap": {
+        "domain": [],
+        "expression": {
+          "type": "variable",
+          "name": "x",
+          "indices": [
+            "plastic"
+          ]
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 60000
+        }
+      },
+      "labor_limit": {
+        "domain": [],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Commodities:c"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "labor_pm",
+              "indices": [
+                "c"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "x",
+              "indices": [
+                "c"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 830000
+        }
+      }
+    },
+    "objective": {
+      "sense": "maximize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Commodities:c"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "type": "parameter",
+            "name": "va_coeff",
+            "indices": [
+              "c"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "x",
+            "indices": [
+              "c"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "modeling_patterns": []
+}

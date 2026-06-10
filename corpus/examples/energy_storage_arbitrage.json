@@ -41,13 +41,6 @@
       "params": "params.csv"
     }
   },
-  "ir_patterns": [
-    "ordered set",
-    "temporal lag",
-    "init constraint",
-    "scalar parameter",
-    "maximize revenue"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -491,5 +484,9 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "init constraint",
+    "temporal lag"
+  ]
 }

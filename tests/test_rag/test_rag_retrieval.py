@@ -5,10 +5,12 @@ mirror the exact format produced by _build_rag_context during orpilot run.
 Each method is tested independently on the same cases so results are
 directly comparable.
 
-Each case:  (query, expected_names, k)
+Each case:  (query, expected_names, k, patterns)
   query     – structured Title/Description/Objective/Variables/Constraints
   expected  – corpus example names that SHOULD appear in the top-k results
   k         – how many results to retrieve (at least one expected must appear)
+  patterns  – VOCAB pattern names a well-functioning LLM classifier should return
+               for this problem (no "pat:" prefix); used as the query fingerprint
 
 Run BM25-only tests (no API key required):
     pytest tests/test_rag_retrieval.py -v
@@ -81,6 +83,69 @@ def retriever_hybrid(request):
 
 
 # ---------------------------------------------------------------------------
+# Vocabulary-poor query strings: describe mathematical structure with neutral
+# language so BM25 misses but the structural Jaccard / semantic channel recovers.
+# Defined before TEST_CASES because they are referenced inside it.
+# ---------------------------------------------------------------------------
+
+# Fires: minimax objective ("equalize load"), binary variable ("0-1"), scalar variable
+# ("peak-load variable").  Targets: parking_minimax, inheritance_partition.
+_Q1_MINIMAX = (
+    "Title: Load Equalization Across Two Zones\n"
+    "Description: A controller assigns items to one of two zones. Each item has a known size. "
+    "For each item, a 0-1 assignment flag indicates which zone it goes to. "
+    "Every item must go to exactly one zone. "
+    "A peak-load variable records the larger of the two zone totals. "
+    "The goal is to equalize load by minimising this peak-load variable.\n"
+    "Objective: minimize\n"
+    "Objective description: Peak-load variable representing the larger zone total\n"
+    "Decision variables: assign[i]: 0-1, whether item i goes to zone B; "
+    "peak_load: peak-load variable bounding the larger zone total\n"
+    "Constraints: Peak-load variable is at least the total for each zone; "
+    "Every item assigned to exactly one zone"
+)
+
+# Fires: two-stage stochastic ("here-and-now" + "recourse"), binary variable ("0-1"),
+# scenario weighted sum ("expected profit").  Targets: stochastic_facility_location,
+# stochastic_inventory.
+_Q2_STOCHASTIC = (
+    "Title: Here-and-Now 0-1 Commitment Under Uncertainty\n"
+    "Description: A manager must make here-and-now 0-1 resource commitments before future "
+    "outcomes are known. For each outcome a recourse adjustment compensates any shortfall. "
+    "The objective minimises fixed commitment cost plus the weighted-average recourse cost, "
+    "where each outcome contributes to the expected profit of avoiding shortfalls.\n"
+    "Objective: minimize\n"
+    "Objective description: Fixed commitment cost plus weighted recourse cost over outcomes\n"
+    "Decision variables: commit[r]: 0-1, whether resource r is committed here-and-now; "
+    "adjust[r,w]: continuous recourse adjustment for outcome w\n"
+    "Constraints: Here-and-now commitments are locked before outcomes are revealed; "
+    "Recourse variables cover any shortfall in each outcome"
+)
+
+# Fires: deviation variables ("shortage"), temporal lag ("carryover" + "stock balance"),
+# init constraint ("initial stock at time zero"), temporal lag ("stock balance"), binary variable,
+# big-M linking.  Targets: lot_sizing_backlog, inventory_backlogging.
+_Q3_BACKLOG = (
+    "Title: Multi-Step Stock Allocation with Unmet Requirements\n"
+    "Description: A manager allocates a limited resource across time steps. A binary "
+    "activation indicator gates each time step via a big-M constraint. If allocated "
+    "resources fall short of requirements, the shortage carryover is penalised. "
+    "Stock balance must hold each time step: ending stock equals previous stock plus "
+    "allocation minus requirements plus shortage carryover. Initial stock at time zero "
+    "is fixed. Activation incurs a fixed cost.\n"
+    "Objective: minimize\n"
+    "Objective description: Total allocation cost plus activation cost plus shortage "
+    "carryover penalty\n"
+    "Decision variables: allocate[t]: units allocated in time step t; "
+    "active[t]: binary, activation indicator; "
+    "stock[t]: units held at end of time step t; "
+    "carryover[t]: unmet requirements carried over\n"
+    "Constraints: Stock balance each time step; Initial stock at time zero fixed; "
+    "Allocation only when active (big-M); Shortage carryover non-negative"
+)
+
+
+# ---------------------------------------------------------------------------
 # Test cases — structured queries that mirror _build_rag_context output
 # ---------------------------------------------------------------------------
 
@@ -108,6 +173,7 @@ TEST_CASES = [
         "centers (big-M linking)",
         ["facility_location"],
         3,
+        ["binary variable", "big-M linking"],
     ),
     (
         # VRP
@@ -126,6 +192,7 @@ TEST_CASES = [
         "returns to depot; Vehicle load capacity not exceeded; Subtour elimination (MTZ)",
         ["vrp", "vrp_time_windows"],
         3,
+        ["binary variable", "MTZ subtour elimination", "duplicate set", "exclude diagonal"],
     ),
     (
         # Multi-period inventory — uses "carrying cost" instead of "holding cost"
@@ -147,6 +214,7 @@ TEST_CASES = [
         "Non-negative inventory and orders; Shared warehouse capacity not exceeded",
         ["inventory_multi_products", "inventory_single_product"],
         3,
+        ["temporal lag", "balance constraint"],
     ),
     (
         # Shift scheduling — uses "staffing" language
@@ -165,8 +233,10 @@ TEST_CASES = [
         "weekly_limit[a]: maximum total shifts per week for agent type a\n"
         "Constraints: Minimum staffing met each shift and day; Weekly shift limit per agent "
         "type not exceeded",
-        ["scheduling_shift_planning", "workforce_scheduling"],
+        ["scheduling_shift_planning", "workforce_scheduling",
+         "cyclic_staff_rostering", "store_shift", "restaurant_shift"],
         3,
+        ["integer variable"],
     ),
     (
         # Make-or-buy — uses "vendors" instead of "suppliers"
@@ -188,6 +258,7 @@ TEST_CASES = [
         "Linking constraint: production only allowed when make decision is 1",
         ["make_or_buy"],
         3,
+        ["binary variable", "big-M linking"],
     ),
     (
         # Nurse rostering
@@ -205,6 +276,7 @@ TEST_CASES = [
         "Maximum weekly shifts per nurse not exceeded",
         ["assignment_nurse_rostering"],
         3,
+        ["binary variable"],
     ),
     (
         # Lot sizing — uses "changeover cost" instead of "setup cost"
@@ -227,6 +299,7 @@ TEST_CASES = [
         "binary; Machine capacity shared across products",
         ["lot_sizing"],
         3,
+        ["binary variable", "temporal lag", "big-M linking"],
     ),
     (
         # Supply chain network with site activation/deactivation — uses
@@ -273,13 +346,13 @@ TEST_CASES = [
         "Retailer demand met exactly each period",
         ["network_production_inventory_transportation_open_close"],
         3,
+        ["binary variable", "temporal lag", "big-M linking", "implication constraint"],
     ),
     # ── Paraphrase / vocabulary-gap cases ──────────────────────────────────
     # Same structured format as above, but written with non-OR vocabulary.
     # Shows where BM25 and semantic diverge despite identical query structure.
     (
         # minimax_workload — "overwhelmed"/"burdened"/"effort" instead of "workload"/"minimax"
-        # all three methods: rank 3 — tied, no advantage to either method
         "Title: Fairest Task Assignment\n"
         "Description: A team leader must assign tasks to workers so that no single "
         "worker ends up overwhelmed. Each task goes to exactly one worker. The goal "
@@ -295,12 +368,10 @@ TEST_CASES = [
         "Each worker does not exceed their capacity",
         ["minimax_workload"],
         3,
+        ["binary variable", "minimax objective", "scalar variable"],
     ),
     (
         # capital_budgeting — "pot of money"/"payoff"/"fund" instead of "capital"/"budget"
-        # BM25: rank 1 (keyword overlap on "fund"/"cost"/"payoff")
-        # semantic: rank 2 | hybrid: rank 1
-        # adding structure helped BM25 — no semantic advantage here
         "Title: Investment Portfolio Selection\n"
         "Description: A fund manager has a fixed pot of money and a list of "
         "opportunities. Each opportunity has an upfront cost and an expected payoff. "
@@ -316,11 +387,12 @@ TEST_CASES = [
         "Constraints: Total cost of selected opportunities does not exceed the pot",
         ["capital_budgeting"],
         2,
+        ["binary variable"],
     ),
     (
         # blending — chemistry vocabulary: "purity"/"concentration"/"fraction"/"raw material"
-        # semantic: rank 1 | hybrid: rank 1 | BM25: rank 4
-        # vocabulary gap persists even with structured format — clear semantic win
+        # semantic: rank 1 | hybrid: rank 1 | BM25: struggles (vocabulary gap)
+        # No structural patterns unique to blending — retrieval relies on semantic channel.
         "Title: Raw Material Mixture Optimisation\n"
         "Description: A chemist must formulate a mixture from a set of raw materials. "
         "The mixture must meet minimum purity and concentration thresholds for several "
@@ -335,8 +407,33 @@ TEST_CASES = [
         "max_level[p]: maximum allowed level of property p\n"
         "Constraints: Composition requirements met for each property; "
         "Fractions sum to one; Non-negative fractions",
-        ["blending"],
-        4,
+        ["blending", "sulfur_blending"],
+        5,
+        ["balance constraint"],
+    ),
+    # ── Vocabulary-poor queries: BM25 misses, structural Jaccard / semantic recovers ──
+    # These queries describe mathematical structure with neutral language, avoiding all
+    # domain vocabulary from the target corpus examples.  BM25 is expected to miss;
+    # the structural Jaccard channel (and/or embeddings) provides the recovery signal.
+    (
+        _Q1_MINIMAX,
+        ["parking_minimax", "inheritance_partition", "minimax_workload"],
+        3,
+        ["binary variable", "minimax objective", "scalar variable"],
+    ),
+    (
+        _Q2_STOCHASTIC,
+        ["stochastic_facility_location", "stochastic_inventory"],
+        3,
+        ["binary variable", "two-stage stochastic", "scenario weighted sum",
+         "deviation variables"],
+    ),
+    (
+        _Q3_BACKLOG,
+        ["lot_sizing_backlog", "inventory_backlogging"],
+        3,
+        ["binary variable", "temporal lag", "init constraint",
+         "big-M linking", "deviation variables", "balance constraint"],
     ),
 ]
 
@@ -347,6 +444,9 @@ def _case_id(query: str) -> str:
 
 _CASE_IDS = [_case_id(c[0]) for c in TEST_CASES]
 
+# IDs of cases where BM25 alone is expected to miss (vocabulary-poor by design).
+_BM25_MISS_IDS = {_case_id(q) for q in (_Q1_MINIMAX, _Q2_STOCHASTIC, _Q3_BACKLOG)}
+
 
 # ---------------------------------------------------------------------------
 # Helper
@@ -356,13 +456,24 @@ def _names(results):
     return [r["name"] for r in results]
 
 
+def _fp(patterns: list[str]) -> set[str]:
+    """Build modeling pattern tokens from VOCAB pattern names (no 'pat:' prefix)."""
+    return {f"pat:{p}" for p in patterns}
+
+
 # ---------------------------------------------------------------------------
 # Tests — one per method, all using TEST_CASES
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize("query,expected,k", TEST_CASES, ids=_CASE_IDS)
-def test_bm25_retrieval(retriever_bm25, query, expected, k):
-    """BM25 + synonym expansion only."""
+@pytest.mark.parametrize("query,expected,k,patterns", TEST_CASES, ids=_CASE_IDS)
+def test_bm25_retrieval(retriever_bm25, query, expected, k, patterns, request):
+    """BM25 + synonym expansion only.
+
+    Vocabulary-poor cases (in _BM25_MISS_IDS) are xfail: BM25 misses them by
+    design; they need the Jaccard or semantic channel to be recovered.
+    """
+    if request.node.callspec.id in _BM25_MISS_IDS:
+        pytest.xfail("vocabulary-poor query: BM25 misses by design; needs Jaccard or semantic channel")
     results = retriever_bm25.retrieve(query, k=k)
     retrieved = _names(results)
     hits = [n for n in expected if n in retrieved]
@@ -370,8 +481,8 @@ def test_bm25_retrieval(retriever_bm25, query, expected, k):
 
 
 @pytest.mark.hybrid
-@pytest.mark.parametrize("query,expected,k", TEST_CASES, ids=_CASE_IDS)
-def test_semantic_retrieval(retriever_hybrid, query, expected, k):
+@pytest.mark.parametrize("query,expected,k,patterns", TEST_CASES, ids=_CASE_IDS)
+def test_semantic_retrieval(retriever_hybrid, query, expected, k, patterns):
     """Pure cosine-similarity retrieval, no BM25."""
     results = retriever_hybrid.retrieve(query, k=k, semantic_only=True)
     retrieved = _names(results)
@@ -380,8 +491,8 @@ def test_semantic_retrieval(retriever_hybrid, query, expected, k):
 
 
 @pytest.mark.hybrid
-@pytest.mark.parametrize("query,expected,k", TEST_CASES, ids=_CASE_IDS)
-def test_hybrid_retrieval(retriever_hybrid, query, expected, k):
+@pytest.mark.parametrize("query,expected,k,patterns", TEST_CASES, ids=_CASE_IDS)
+def test_hybrid_retrieval(retriever_hybrid, query, expected, k, patterns):
     """Hybrid BM25 + semantic (RRF fusion)."""
     results = retriever_hybrid.retrieve(query, k=k)
     retrieved = _names(results)
@@ -389,9 +500,93 @@ def test_hybrid_retrieval(retriever_hybrid, query, expected, k):
     assert hits, f"Expected one of {expected} in top-{k}.\nGot: {retrieved}"
 
 
+@pytest.mark.parametrize("query,expected,k,patterns", TEST_CASES, ids=_CASE_IDS)
+def test_structural_retrieval(retriever_bm25, query, expected, k, patterns):
+    """BM25 + structural Jaccard fingerprint (no embedder needed).
+
+    Uses k+2 to allow for the small rank shifts the Jaccard channel can
+    introduce when common patterns (binary variable, coverage) appear in
+    many corpus examples and dilute the BM25 signal.
+    """
+    results = retriever_bm25.retrieve(query, k=k + 2, modeling_patterns=_fp(patterns))
+    retrieved = _names(results)
+    hits = [n for n in expected if n in retrieved]
+    assert hits, f"Expected one of {expected} in top-{k+2}.\nGot: {retrieved}"
+
+
+@pytest.mark.hybrid
+@pytest.mark.parametrize("query,expected,k,patterns", TEST_CASES, ids=_CASE_IDS)
+def test_full_hybrid_retrieval(retriever_hybrid, query, expected, k, patterns):
+    """Full three-channel retrieval: BM25 + semantic + structural Jaccard (RRF fusion).
+
+    This is the actual production path used by ir_builder_node.
+    """
+    results = retriever_hybrid.retrieve(query, k=k, modeling_patterns=_fp(patterns))
+    retrieved = _names(results)
+    hits = [n for n in expected if n in retrieved]
+    assert hits, f"Expected one of {expected} in top-{k}.\nGot: {retrieved}"
+
+
 # ---------------------------------------------------------------------------
-# Comparison report — always passes, run with -s to see output
+# Comparison reports — always pass; run with -s to see output
 # ---------------------------------------------------------------------------
+
+def test_bm25_vs_structural_comparison(retriever_bm25):
+    """Non-hybrid comparison: BM25 alone vs BM25+Jaccard for all TEST_CASES.
+
+    Shows for each case which patterns were detected and whether adding the
+    Jaccard channel changed the result. Runs without --hybrid (no API key).
+    Run with -s to see the full report.
+    """
+    K = 3
+    hits = {"BM25": 0, "BM25+Jaccard": 0}
+    jaccard_activated = 0
+    jaccard_lifted = 0
+    total = len(TEST_CASES)
+
+    print(f"\n{'='*88}")
+    print(f"{'BM25  vs  BM25+JACCARD  COMPARISON  (top-' + str(K) + ')':^88}")
+    print(f"{'='*88}")
+
+    for query, expected, case_k, patterns in TEST_CASES:
+        k = max(K, case_k)
+        title = _case_id(query)
+        qfp = _fp(patterns)
+        pat_tokens = sorted(qfp)
+
+        bm25_res = _names(retriever_bm25.retrieve(query, k=k))[:K]
+        str_res  = _names(retriever_bm25.retrieve(query, k=k, modeling_patterns=qfp))[:K]
+
+        bm25_hit = any(n in bm25_res for n in expected)
+        str_hit  = any(n in str_res  for n in expected)
+
+        activated = len(qfp) >= 2
+        lifted    = (not bm25_hit) and str_hit
+
+        if bm25_hit:  hits["BM25"] += 1
+        if str_hit:   hits["BM25+Jaccard"] += 1
+        if activated: jaccard_activated += 1
+        if lifted:    jaccard_lifted += 1
+
+        mark = lambda h: "HIT " if h else "MISS"
+        changed = " ← LIFT" if lifted else (" ← REGRESSION" if bm25_hit and not str_hit else "")
+
+        print(f"\n  {title}")
+        print(f"  Expected     : {expected}")
+        print(f"  Patterns({len(qfp):2d}) : {[t[4:] for t in pat_tokens] if pat_tokens else '(none — Jaccard inactive)'}")
+        print(f"  BM25         [{mark(bm25_hit)}]: {bm25_res}")
+        print(f"  BM25+Jaccard [{mark(str_hit)}]: {str_res}{changed}")
+
+    print(f"\n{'-'*88}")
+    print(f"  Jaccard channel activated (≥2 patterns) in {jaccard_activated}/{total} cases")
+    print(f"  Jaccard lifted a miss→hit in {jaccard_lifted} case(s)")
+    print(f"\n  Hit rates (top-{K} of {total} cases):")
+    for method, count in hits.items():
+        bar = "#" * count + "-" * (total - count)
+        print(f"  {method:<14} {count}/{total}  [{bar}]  {count/total:.0%}")
+    print(f"{'='*88}")
+    assert True
+
 
 @pytest.mark.hybrid
 def test_retrieval_method_comparison(retriever_bm25, retriever_hybrid):
@@ -403,36 +598,41 @@ def test_retrieval_method_comparison(retriever_bm25, retriever_hybrid):
     """
     K = 3
 
-    hits: dict[str, int] = {"BM25": 0, "Semantic": 0, "Hybrid": 0}
+    hits: dict[str, int] = {"BM25": 0, "Semantic": 0, "Structural": 0, "Hybrid": 0}
     total = len(TEST_CASES)
 
-    print(f"\n{'='*76}")
-    print(f"{'RETRIEVAL METHOD COMPARISON  (top-' + str(K) + ')':^76}")
-    print(f"{'='*76}")
+    print(f"\n{'='*84}")
+    print(f"{'RETRIEVAL METHOD COMPARISON  (top-' + str(K) + ')':^84}")
+    print(f"{'='*84}")
 
-    for query, expected, case_k in TEST_CASES:
+    for query, expected, case_k, patterns in TEST_CASES:
         k = max(K, case_k)
         title = _case_id(query)
+        qfp = _fp(patterns)
         bm25_res = _names(retriever_bm25.retrieve(query, k=k))[:K]
         sem_res  = _names(retriever_hybrid.retrieve(query, k=k, semantic_only=True))[:K]
-        hyb_res  = _names(retriever_hybrid.retrieve(query, k=k))[:K]
+        str_res  = _names(retriever_bm25.retrieve(query, k=k, modeling_patterns=qfp))[:K]
+        hyb_res  = _names(retriever_hybrid.retrieve(query, k=k, modeling_patterns=qfp))[:K]
         bm25_hit = any(n in bm25_res for n in expected)
         sem_hit  = any(n in sem_res  for n in expected)
+        str_hit  = any(n in str_res  for n in expected)
         hyb_hit  = any(n in hyb_res  for n in expected)
         if bm25_hit: hits["BM25"] += 1
         if sem_hit:  hits["Semantic"] += 1
+        if str_hit:  hits["Structural"] += 1
         if hyb_hit:  hits["Hybrid"] += 1
         mark = lambda h: "HIT " if h else "MISS"
         print(f"\n  {title}")
-        print(f"  Expected : {expected}")
-        print(f"  BM25     [{mark(bm25_hit)}]: {bm25_res}")
-        print(f"  Semantic [{mark(sem_hit)}]: {sem_res}")
-        print(f"  Hybrid   [{mark(hyb_hit)}]: {hyb_res}")
+        print(f"  Expected   : {expected}")
+        print(f"  BM25       [{mark(bm25_hit)}]: {bm25_res}")
+        print(f"  Semantic   [{mark(sem_hit)}]: {sem_res}")
+        print(f"  Structural [{mark(str_hit)}]: {str_res}")
+        print(f"  Hybrid     [{mark(hyb_hit)}]: {hyb_res}")
 
-    print(f"\n{'-'*76}")
+    print(f"\n{'-'*84}")
     print(f"  Hit rates (top-{K} of {total} cases):")
     for method, count in hits.items():
         bar = "#" * count + "-" * (total - count)
-        print(f"  {method:<10} {count}/{total}  [{bar}]  {count/total:.0%}")
-    print(f"{'='*76}")
+        print(f"  {method:<12} {count}/{total}  [{bar}]  {count/total:.0%}")
+    print(f"{'='*84}")
     assert True

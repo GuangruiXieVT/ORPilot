@@ -38,12 +38,6 @@
       "run_cost": "run_cost.csv"
     }
   },
-  "ir_patterns": [
-    "binary variable",
-    "big-M linking",
-    "server activation",
-    "resource bin packing"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -495,5 +489,9 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "big-M linking",
+    "binary variable"
+  ]
 }

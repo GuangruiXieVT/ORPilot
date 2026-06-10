@@ -494,6 +494,8 @@ and the constraint:
   domain: [Customers, Customers, Trips], with c1==c2 diagonal guard auto-emitted.
 For all CVRP problems (capacity > 0, multiple customers), always use commodity flow.
 
+For all CVRP problems (capacity > 0, multiple customers), always use commodity flow.
+
 ========================================================
 OBJECTIVE
 ========================================================

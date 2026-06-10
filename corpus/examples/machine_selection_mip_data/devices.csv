@@ -1,0 +1,5 @@
+device_id,setup_cost,unit_cost,max_capacity
+A,1000,20,900
+B,920,24,1000
+C,800,16,1200
+D,700,28,1600

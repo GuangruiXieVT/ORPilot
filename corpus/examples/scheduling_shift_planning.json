@@ -29,9 +29,6 @@
       "weekly_capacity": "weekly_capacity.csv"
     }
   },
-  "ir_patterns": [
-    "integer variable"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -336,5 +333,8 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "integer variable"
+  ]
 }

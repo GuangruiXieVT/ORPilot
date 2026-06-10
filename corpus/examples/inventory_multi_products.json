@@ -35,12 +35,6 @@
       "warehouse": "warehouse.csv"
     }
   },
-  "ir_patterns": [
-    "ordered set",
-    "temporal lag",
-    "init constraint",
-    "scalar parameter"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -456,5 +450,9 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "init constraint",
+    "temporal lag"
+  ]
 }

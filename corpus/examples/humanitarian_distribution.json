@@ -28,11 +28,6 @@
       "shipping_cost": "shipping_cost.csv"
     }
   },
-  "ir_patterns": [
-    "domain filter",
-    "sparse network",
-    "supply-demand balance"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -324,5 +319,10 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "balance constraint",
+    "domain filter",
+    "sparse filter"
+  ]
 }

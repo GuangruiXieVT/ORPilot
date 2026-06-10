@@ -1,0 +1,388 @@
+{
+  "problem": {
+    "title": "Meal Planning MIP: Maximize Fiber with Binary Food Selection Constraints",
+    "description": "Maximize fiber intake from a 600g meal with $15 budget. Vegetables: okra(3.2g fiber/100g, $2.6/100g), carrots(2.7, $1.2), celery(1.6, $1.6), cabbage(2.0, $2.3). Proteins: salmon($4/100g), beef($3.6), pork($1.8). Must choose exactly 1 protein type and at least 2 vegetable types. If a food type is chosen (z=1), at least 10g must be included (minimum portion). Maximize total fiber.",
+    "problem_type": "mixed_integer_programming",
+    "objective": "maximize",
+    "objective_description": "Total fiber (g) = sum(fiber_per_100g[f] * x[f] / 100) over all foods",
+    "constraints": [
+      {
+        "description": "Total food weight: sum(x[f]) = 600 grams"
+      },
+      {
+        "description": "Budget: sum(price[f] * x[f] / 100) <= 15"
+      },
+      {
+        "description": "Exactly 1 protein type: sum(z[f] for f in Proteins) = 1"
+      },
+      {
+        "description": "At least 2 vegetable types: sum(z[f] for f in Vegetables) >= 2"
+      },
+      {
+        "description": "Big-M: x[f] <= 600 * z[f] (amount > 0 only if food type chosen)"
+      },
+      {
+        "description": "Minimum portion: x[f] >= 10 * z[f] (at least 10g if food type chosen)"
+      }
+    ],
+    "decision_variables": [
+      "x[f]: grams of food f included in the meal (continuous, >=0)",
+      "z[f]: binary, 1 if food type f is chosen for the meal"
+    ],
+    "parameters": [
+      "fiber_per_100g[f]: fiber content in grams per 100g of food f",
+      "budget_rate[f]: price in dollars per 100g of food f"
+    ],
+    "additional_notes": "Two sets: Vegetables (okra,carrots,celery,cabbage) and Proteins (salmon,beef,pork) from sets.csv. Optimal: z_pork=1 (10g min), z_okra=1 (552.86g), z_carrots=1 (37.14g). Total fiber≈18.6943g."
+  },
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "vegetables",
+        "element": "okra"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "vegetables",
+          "proteins"
+        ],
+        "element": [
+          "okra",
+          "carrots",
+          "celery",
+          "cabbage",
+          "salmon",
+          "beef",
+          "pork"
+        ]
+      }
+    },
+    "foods": {
+      "columns": {
+        "food_id": "str",
+        "fiber_per_g": "float",
+        "budget_rate": "float"
+      },
+      "sample": {
+        "food_id": "okra",
+        "fiber_per_g": 0.032,
+        "budget_rate": 0.026
+      },
+      "optional": false,
+      "distinct_values": {
+        "food_id": [
+          "okra",
+          "carrots",
+          "celery",
+          "cabbage",
+          "salmon",
+          "beef",
+          "pork"
+        ],
+        "fiber_per_g": [
+          "0.000",
+          "0.016",
+          "0.020",
+          "0.027",
+          "0.032"
+        ],
+        "budget_rate": [
+          "1.2",
+          "1.6",
+          "1.8",
+          "2.3",
+          "2.6",
+          "3.6",
+          "4.0"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "MealPlanningMIP",
+    "model_type": "Mixed Integer Program",
+    "sense": "maximize",
+    "sets": {
+      "Vegetables": {
+        "size": null,
+        "index_symbol": "v",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "vegetables",
+        "ordered": false
+      },
+      "Proteins": {
+        "size": null,
+        "index_symbol": "p",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "proteins",
+        "ordered": false
+      },
+      "Foods": {
+        "size": null,
+        "index_symbol": "f",
+        "source": "foods.csv",
+        "column": "food_id",
+        "filter_column": null,
+        "filter_value": null,
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "fiber": {
+        "domain": [
+          "Foods"
+        ],
+        "type": "float",
+        "source": "foods.csv",
+        "column": "fiber_per_g",
+        "index_columns": [
+          "food_id"
+        ],
+        "missing_default": "zero"
+      },
+      "budget_rate": {
+        "domain": [
+          "Foods"
+        ],
+        "type": "float",
+        "source": "foods.csv",
+        "column": "budget_rate",
+        "index_columns": [
+          "food_id"
+        ],
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "x": {
+        "description": "Grams of food f included in the meal",
+        "label": "x",
+        "domain": [
+          "Foods"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "z": {
+        "description": "1 if food type f is chosen for the meal",
+        "label": "z",
+        "domain": [
+          "Foods"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "total_weight": {
+        "domain": [],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Foods:f"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "x",
+            "indices": [
+              "f"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 600
+        }
+      },
+      "budget": {
+        "domain": [],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Foods:f"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "budget_rate",
+              "indices": [
+                "f"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "x",
+              "indices": [
+                "f"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 15
+        }
+      },
+      "one_protein": {
+        "domain": [],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Proteins:p"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "z",
+            "indices": [
+              "p"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 1
+        }
+      },
+      "two_vegs": {
+        "domain": [],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Vegetables:v"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "z",
+            "indices": [
+              "v"
+            ]
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "constant",
+          "value": 2
+        }
+      },
+      "bigm_upper": {
+        "domain": [
+          "Foods"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "x",
+            "indices": [
+              "f"
+            ]
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "constant",
+              "value": 600
+            },
+            "right": {
+              "type": "variable",
+              "name": "z",
+              "indices": [
+                "f"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "min_portion": {
+        "domain": [
+          "Foods"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "x",
+            "indices": [
+              "f"
+            ]
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "constant",
+              "value": 10
+            },
+            "right": {
+              "type": "variable",
+              "name": "z",
+              "indices": [
+                "f"
+              ]
+            }
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "maximize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Foods:f"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "type": "parameter",
+            "name": "fiber",
+            "indices": [
+              "f"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "x",
+            "indices": [
+              "f"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "modeling_patterns": [
+    "big-M linking",
+    "binary variable",
+    "mutual exclusion",
+    "subset indexed variable"
+  ]
+}

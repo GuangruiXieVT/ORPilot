@@ -1,0 +1,612 @@
+{
+  "problem": {
+    "title": "Multi-Stage Production Mix with Typed Machine Sets",
+    "description": "A factory produces three products (I, II, III). Each product must pass through two sequential processing stages: stage A and stage B. Two A-type machines (A1, A2) and three B-type machines (B1, B2, B3) are available. Processing times differ by machine-product pair; not all machine-product combinations are feasible (sparse). Each unit of a product must be processed on exactly one A-machine and exactly one B-machine. Maximize total profit = revenue - raw material cost - machine operating cost.",
+    "problem_type": "linear_programming",
+    "objective": "maximize",
+    "objective_description": "Total profit: revenue from all products minus raw material costs and machine operating costs (cost_per_hour * processing_time * units processed)",
+    "constraints": [
+      {
+        "description": "A-stage balance: total units processed on all A-machines for product p equals total units produced of p"
+      },
+      {
+        "description": "B-stage balance: total units processed on all B-machines for product p equals total units produced of p"
+      },
+      {
+        "description": "A-machine capacity: total processing time on each A-machine does not exceed effective available hours"
+      },
+      {
+        "description": "B-machine capacity: total processing time on each B-machine does not exceed effective available hours"
+      }
+    ],
+    "decision_variables": [
+      "process_A[mA, p]: units of product p processed on A-machine mA (continuous, non-negative; only feasible machine-product pairs)",
+      "process_B[mB, p]: units of product p processed on B-machine mB (continuous, non-negative; only feasible machine-product pairs)",
+      "produce[p]: total units of product p produced (continuous, non-negative)"
+    ],
+    "parameters": [
+      "unit_price[p]: selling price per unit of product p",
+      "raw_material_cost[p]: raw material cost per unit of product p",
+      "effective_hours_A[mA]: available processing hours on A-machine mA",
+      "effective_hours_B[mB]: available processing hours on B-machine mB",
+      "cost_per_hour_A[mA]: processing cost per hour on A-machine mA",
+      "cost_per_hour_B[mB]: processing cost per hour on B-machine mB",
+      "processing_time_A[mA, p]: hours to process one unit of p on A-machine mA (sparse: not all pairs defined)",
+      "processing_time_B[mB, p]: hours to process one unit of p on B-machine mB (sparse: not all pairs defined)"
+    ],
+    "additional_notes": "Key pattern: machines.csv contains all machines with a machine_type column (A or B). Use filter_column='machine_type', filter_value='A' to create MachinesA set and filter_value='B' for MachinesB set. Both set and parameter data come from shared CSV files. Processing times are sparse (missing pairs are infeasible). Use domain_filter on process_A and process_B variables to restrict to feasible pairs only.",
+    "csv_file_paths": {
+      "products": "products.csv",
+      "machines": "machines.csv",
+      "processing_times": "processing_times.csv"
+    }
+  },
+  "csv_schemas": {
+    "products": {
+      "columns": {
+        "product_id": "str",
+        "unit_price": "float",
+        "raw_material_cost": "float"
+      },
+      "sample": {
+        "product_id": "I",
+        "unit_price": 1.25,
+        "raw_material_cost": 0.25
+      },
+      "optional": false,
+      "distinct_values": {
+        "product_id": [
+          "I",
+          "II",
+          "III"
+        ],
+        "unit_price": [
+          "1.25",
+          "2.0",
+          "2.8"
+        ],
+        "raw_material_cost": [
+          "0.25",
+          "0.35",
+          "0.5"
+        ]
+      }
+    },
+    "machines": {
+      "columns": {
+        "machine_id": "str",
+        "machine_type": "str",
+        "effective_hours": "float",
+        "cost_per_hour": "float"
+      },
+      "sample": {
+        "machine_id": "A1",
+        "machine_type": "A",
+        "effective_hours": 6000.0,
+        "cost_per_hour": 0.05
+      },
+      "optional": false,
+      "distinct_values": {
+        "machine_id": [
+          "A1",
+          "A2",
+          "B1",
+          "B2",
+          "B3"
+        ],
+        "machine_type": [
+          "A",
+          "B"
+        ],
+        "effective_hours": [
+          "6000",
+          "10000",
+          "4000",
+          "7000"
+        ],
+        "cost_per_hour": [
+          "0.05",
+          "0.03",
+          "0.06",
+          "0.11"
+        ]
+      }
+    },
+    "processing_times": {
+      "columns": {
+        "from_id": "str",
+        "to_id": "str",
+        "processing_time": "float"
+      },
+      "sample": {
+        "from_id": "A1",
+        "to_id": "I",
+        "processing_time": 5.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "from_id": [
+          "A1",
+          "A2",
+          "B1",
+          "B2",
+          "B3"
+        ],
+        "to_id": [
+          "I",
+          "II",
+          "III"
+        ],
+        "processing_time": [
+          "5.0",
+          "10.0",
+          "7.0",
+          "9.0",
+          "12.0",
+          "6.0",
+          "8.0",
+          "4.0",
+          "11.0"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "ProductionPlanning",
+    "model_type": "Linear Program",
+    "sense": "maximize",
+    "sets": {
+      "MachinesA": {
+        "size": null,
+        "index_symbol": "mA",
+        "source": "machines.csv",
+        "column": "machine_id",
+        "filter_column": "machine_type",
+        "filter_value": "A",
+        "ordered": false
+      },
+      "MachinesB": {
+        "size": null,
+        "index_symbol": "mB",
+        "source": "machines.csv",
+        "column": "machine_id",
+        "filter_column": "machine_type",
+        "filter_value": "B",
+        "ordered": false
+      },
+      "Products": {
+        "size": null,
+        "index_symbol": "p",
+        "source": "products.csv",
+        "column": "product_id",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "unit_price": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "products.csv",
+        "column": "unit_price",
+        "index_columns": [
+          "product_id"
+        ],
+        "missing_default": "inf"
+      },
+      "raw_material_cost": {
+        "domain": [
+          "Products"
+        ],
+        "type": "float",
+        "source": "products.csv",
+        "column": "raw_material_cost",
+        "index_columns": [
+          "product_id"
+        ],
+        "missing_default": "inf"
+      },
+      "effective_hours_A": {
+        "domain": [
+          "MachinesA"
+        ],
+        "type": "float",
+        "source": "machines.csv",
+        "column": "effective_hours",
+        "index_columns": [
+          "machine_id"
+        ],
+        "missing_default": "zero"
+      },
+      "effective_hours_B": {
+        "domain": [
+          "MachinesB"
+        ],
+        "type": "float",
+        "source": "machines.csv",
+        "column": "effective_hours",
+        "index_columns": [
+          "machine_id"
+        ],
+        "missing_default": "zero"
+      },
+      "cost_per_hour_A": {
+        "domain": [
+          "MachinesA"
+        ],
+        "type": "float",
+        "source": "machines.csv",
+        "column": "cost_per_hour",
+        "index_columns": [
+          "machine_id"
+        ],
+        "missing_default": "inf"
+      },
+      "cost_per_hour_B": {
+        "domain": [
+          "MachinesB"
+        ],
+        "type": "float",
+        "source": "machines.csv",
+        "column": "cost_per_hour",
+        "index_columns": [
+          "machine_id"
+        ],
+        "missing_default": "inf"
+      },
+      "processing_time_A": {
+        "domain": [
+          "MachinesA",
+          "Products"
+        ],
+        "type": "float",
+        "source": "processing_times.csv",
+        "column": "processing_time",
+        "index_columns": [
+          "from_id",
+          "to_id"
+        ],
+        "missing_default": "inf"
+      },
+      "processing_time_B": {
+        "domain": [
+          "MachinesB",
+          "Products"
+        ],
+        "type": "float",
+        "source": "processing_times.csv",
+        "column": "processing_time",
+        "index_columns": [
+          "from_id",
+          "to_id"
+        ],
+        "missing_default": "inf"
+      }
+    },
+    "variables": {
+      "process_A": {
+        "description": "Units of product p processed on A-machine mA",
+        "label": "a_machine_assignments",
+        "domain": [
+          "MachinesA",
+          "Products"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false,
+        "domain_filter": "processing_time_A"
+      },
+      "process_B": {
+        "description": "Units of product p processed on B-machine mB",
+        "label": "b_machine_assignments",
+        "domain": [
+          "MachinesB",
+          "Products"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false,
+        "domain_filter": "processing_time_B"
+      },
+      "produce": {
+        "description": "Total units of product p produced",
+        "label": "production_quantities",
+        "domain": [
+          "Products"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "A_stage_balance": {
+        "domain": [
+          "Products"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "MachinesA:mA"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "process_A",
+              "indices": [
+                "mA",
+                "p"
+              ]
+            }
+          },
+          "right": {
+            "type": "variable",
+            "name": "produce",
+            "indices": [
+              "p"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "B_stage_balance": {
+        "domain": [
+          "Products"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "MachinesB:mB"
+            ],
+            "body": {
+              "type": "variable",
+              "name": "process_B",
+              "indices": [
+                "mB",
+                "p"
+              ]
+            }
+          },
+          "right": {
+            "type": "variable",
+            "name": "produce",
+            "indices": [
+              "p"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "A_machine_capacity": {
+        "domain": [
+          "MachinesA"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Products:p"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "processing_time_A",
+              "indices": [
+                "mA",
+                "p"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "process_A",
+              "indices": [
+                "mA",
+                "p"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "parameter",
+          "name": "effective_hours_A",
+          "indices": [
+            "mA"
+          ]
+        }
+      },
+      "B_machine_capacity": {
+        "domain": [
+          "MachinesB"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Products:p"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "processing_time_B",
+              "indices": [
+                "mB",
+                "p"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "process_B",
+              "indices": [
+                "mB",
+                "p"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "parameter",
+          "name": "effective_hours_B",
+          "indices": [
+            "mB"
+          ]
+        }
+      }
+    },
+    "objective": {
+      "sense": "maximize",
+      "expression": {
+        "operation": "subtract",
+        "left": {
+          "operation": "subtract",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "Products:p"
+            ],
+            "body": {
+              "operation": "multiply",
+              "left": {
+                "type": "parameter",
+                "name": "unit_price",
+                "indices": [
+                  "p"
+                ]
+              },
+              "right": {
+                "type": "variable",
+                "name": "produce",
+                "indices": [
+                  "p"
+                ]
+              }
+            }
+          },
+          "right": {
+            "operation": "indexed_sum",
+            "over": [
+              "Products:p"
+            ],
+            "body": {
+              "operation": "multiply",
+              "left": {
+                "type": "parameter",
+                "name": "raw_material_cost",
+                "indices": [
+                  "p"
+                ]
+              },
+              "right": {
+                "type": "variable",
+                "name": "produce",
+                "indices": [
+                  "p"
+                ]
+              }
+            }
+          }
+        },
+        "right": {
+          "operation": "sum",
+          "left": {
+            "operation": "indexed_sum",
+            "over": [
+              "MachinesA:mA",
+              "Products:p"
+            ],
+            "body": {
+              "operation": "multiply",
+              "left": {
+                "operation": "multiply",
+                "left": {
+                  "type": "parameter",
+                  "name": "cost_per_hour_A",
+                  "indices": [
+                    "mA"
+                  ]
+                },
+                "right": {
+                  "type": "parameter",
+                  "name": "processing_time_A",
+                  "indices": [
+                    "mA",
+                    "p"
+                  ]
+                }
+              },
+              "right": {
+                "type": "variable",
+                "name": "process_A",
+                "indices": [
+                  "mA",
+                  "p"
+                ]
+              }
+            }
+          },
+          "right": {
+            "operation": "indexed_sum",
+            "over": [
+              "MachinesB:mB",
+              "Products:p"
+            ],
+            "body": {
+              "operation": "multiply",
+              "left": {
+                "operation": "multiply",
+                "left": {
+                  "type": "parameter",
+                  "name": "cost_per_hour_B",
+                  "indices": [
+                    "mB"
+                  ]
+                },
+                "right": {
+                  "type": "parameter",
+                  "name": "processing_time_B",
+                  "indices": [
+                    "mB",
+                    "p"
+                  ]
+                }
+              },
+              "right": {
+                "type": "variable",
+                "name": "process_B",
+                "indices": [
+                  "mB",
+                  "p"
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "modeling_patterns": [
+    "balance constraint",
+    "domain filter",
+    "filter_column subset",
+    "sparse filter"
+  ]
+}

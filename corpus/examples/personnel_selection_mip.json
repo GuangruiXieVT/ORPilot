@@ -1,0 +1,320 @@
+{
+  "problem": {
+    "title": "Personnel Selection MIP: Minimize Salary with Skill and Experience Requirements",
+    "description": "5 candidates F,G,H,I,J with salaries 12k,15k,18k,5k,10k. Budget ≤ 40k, max 4 employees. Need total skill ≥ 8, total experience ≥ 8. G and J have similar backgrounds so at most one can be hired. Minimize total salary.",
+    "problem_type": "mixed_integer_programming",
+    "objective": "minimize",
+    "objective_description": "Total salary = sum(salary[c] * hire[c]) over all candidates",
+    "constraints": [
+      {
+        "description": "Budget: sum(salary * hire) <= 40000"
+      },
+      {
+        "description": "Max employees: sum(hire) <= 4"
+      },
+      {
+        "description": "Skill requirement: sum(skill_level * hire) >= 8"
+      },
+      {
+        "description": "Experience requirement: sum(experience * hire) >= 8"
+      },
+      {
+        "description": "G and J mutual exclusion: hire[G] + hire[J] <= 1"
+      }
+    ],
+    "decision_variables": [
+      "hire[c]: binary, 1 if candidate c is hired"
+    ],
+    "parameters": [
+      "salary[c]: annual salary requirement for candidate c",
+      "skill_level[c]: skill level of candidate c",
+      "experience[c]: years of project management experience for candidate c"
+    ],
+    "additional_notes": "Optimal: hire H+I+G = 18000+5000+15000=38000. Skill=4+1+3=8. Exp=2+5+2=9."
+  },
+  "csv_schemas": {
+    "candidates": {
+      "columns": {
+        "candidate_id": "str",
+        "salary": "float",
+        "skill_level": "float",
+        "experience": "float"
+      },
+      "sample": {
+        "candidate_id": "F",
+        "salary": 12000,
+        "skill_level": 2,
+        "experience": 1
+      },
+      "optional": false,
+      "distinct_values": {
+        "candidate_id": [
+          "F",
+          "G",
+          "H",
+          "I",
+          "J"
+        ],
+        "salary": [
+          "5000",
+          "10000",
+          "12000",
+          "15000",
+          "18000"
+        ],
+        "skill_level": [
+          "1",
+          "2",
+          "3",
+          "4"
+        ],
+        "experience": [
+          "1",
+          "2",
+          "4",
+          "5"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "PersonnelSelectionMIP",
+    "model_type": "Mixed Integer Program",
+    "sense": "minimize",
+    "sets": {
+      "Candidates": {
+        "size": null,
+        "index_symbol": "c",
+        "source": "candidates.csv",
+        "column": "candidate_id",
+        "filter_column": null,
+        "filter_value": null,
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "salary": {
+        "domain": [
+          "Candidates"
+        ],
+        "type": "float",
+        "source": "candidates.csv",
+        "column": "salary",
+        "index_columns": [
+          "candidate_id"
+        ],
+        "missing_default": "zero"
+      },
+      "skill_level": {
+        "domain": [
+          "Candidates"
+        ],
+        "type": "float",
+        "source": "candidates.csv",
+        "column": "skill_level",
+        "index_columns": [
+          "candidate_id"
+        ],
+        "missing_default": "zero"
+      },
+      "experience": {
+        "domain": [
+          "Candidates"
+        ],
+        "type": "float",
+        "source": "candidates.csv",
+        "column": "experience",
+        "index_columns": [
+          "candidate_id"
+        ],
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "hire": {
+        "description": "1 if candidate c is hired",
+        "label": "hire",
+        "domain": [
+          "Candidates"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "budget": {
+        "domain": [],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Candidates:c"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "salary",
+              "indices": [
+                "c"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "hire",
+              "indices": [
+                "c"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 40000
+        }
+      },
+      "max_employees": {
+        "domain": [],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Candidates:c"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "hire",
+            "indices": [
+              "c"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 4
+        }
+      },
+      "skill_req": {
+        "domain": [],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Candidates:c"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "skill_level",
+              "indices": [
+                "c"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "hire",
+              "indices": [
+                "c"
+              ]
+            }
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "constant",
+          "value": 8
+        }
+      },
+      "experience_req": {
+        "domain": [],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Candidates:c"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "experience",
+              "indices": [
+                "c"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "hire",
+              "indices": [
+                "c"
+              ]
+            }
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "constant",
+          "value": 8
+        }
+      },
+      "gj_exclusion": {
+        "domain": [],
+        "expression": {
+          "operation": "sum",
+          "left": {
+            "type": "variable",
+            "name": "hire",
+            "indices": [
+              "G"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "hire",
+            "indices": [
+              "J"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 1
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Candidates:c"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "type": "parameter",
+            "name": "salary",
+            "indices": [
+              "c"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "hire",
+            "indices": [
+              "c"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "modeling_patterns": [
+    "binary variable",
+    "mutual exclusion",
+    "ratio constraint"
+  ]
+}

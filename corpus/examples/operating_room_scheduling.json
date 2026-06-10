@@ -34,13 +34,6 @@
       "surgeons": "surgeons.csv"
     }
   },
-  "ir_patterns": [
-    "binary variable",
-    "domain filter",
-    "3D variable",
-    "multiply parameter in sum",
-    "maximize priority"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -426,5 +419,9 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "binary variable",
+    "domain filter"
+  ]
 }

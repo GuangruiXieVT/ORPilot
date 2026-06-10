@@ -1,0 +1,13 @@
+period_id,shift_id,covers
+p1,s1,1
+p1,s6,1
+p2,s1,1
+p2,s2,1
+p3,s2,1
+p3,s3,1
+p4,s3,1
+p4,s4,1
+p5,s4,1
+p5,s5,1
+p6,s5,1
+p6,s6,1

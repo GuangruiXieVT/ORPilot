@@ -1,0 +1,4 @@
+toy_id,profit,labor_hours,inspect_hours,max_demand
+high,300,17,8,50
+mid,200,10,4,80
+low,100,2,2,150

@@ -1,0 +1,317 @@
+{
+  "problem": {
+    "title": "Cutting Stock LP: Minimize Paper Waste from Multiple Roll Widths",
+    "description": "A paper mill has three orders: 1000m of 0.5m-wide strips, 3000m of 0.7m strips, 2000m of 0.9m strips. Standard roll widths: 1m and 2m (unlimited length). 10 cutting patterns are pre-enumerated (P1-P3 from 1m rolls, Q1-Q7 from 2m rolls). Variable x[p] = total length (meters) of rolls cut using pattern p. Minimize total waste area.",
+    "problem_type": "linear_programming",
+    "objective": "minimize",
+    "objective_description": "Total waste area (m²) = sum(waste_rate[p] * x[p]) over all patterns",
+    "constraints": [
+      {
+        "description": "Order fulfillment: sum(strips_per_unit[p,s]*x[p] over Patterns) >= demand[s] for each order type s"
+      }
+    ],
+    "decision_variables": [
+      "x[p]: total length (meters) of rolls cut using pattern p (continuous, >=0)"
+    ],
+    "parameters": [
+      "waste_rate[p]: waste width per unit length for pattern p (= roll_width - sum of strip widths cut)",
+      "strips_per_unit[p,s]: number of strips of type s yielded per unit length of pattern p",
+      "demand_m[s]: required total length of strip type s in meters"
+    ],
+    "additional_notes": "Patterns: P1=(2,0,0) from 1m, P2=(0,1,0), P3=(0,0,1), Q1=(4,0,0) from 2m, Q2=(0,2,0), Q3=(0,0,2), Q4=(2,1,0), Q5=(0,1,1), Q6=(2,0,1), Q7=(1,2,0). Optimal: x_P2=1000, x_P3=2000, x_Q7=1000. Waste=300+200+100=600m²."
+  },
+  "csv_schemas": {
+    "sets": {
+      "columns": {
+        "set_name": "str",
+        "element": "str"
+      },
+      "sample": {
+        "set_name": "patterns",
+        "element": "P1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "set_name": [
+          "patterns",
+          "order_types"
+        ],
+        "element": [
+          "P1",
+          "P2",
+          "P3",
+          "Q1",
+          "Q2",
+          "Q3",
+          "Q4",
+          "Q5",
+          "Q6",
+          "Q7",
+          "O1",
+          "O2",
+          "O3"
+        ]
+      }
+    },
+    "patterns": {
+      "columns": {
+        "pattern_id": "str",
+        "waste_rate": "float"
+      },
+      "sample": {
+        "pattern_id": "P2",
+        "waste_rate": 0.3
+      },
+      "optional": false,
+      "distinct_values": {
+        "pattern_id": [
+          "P1",
+          "P2",
+          "P3",
+          "Q1",
+          "Q2",
+          "Q3",
+          "Q4",
+          "Q5",
+          "Q6",
+          "Q7"
+        ],
+        "waste_rate": [
+          "0.0",
+          "0.1",
+          "0.2",
+          "0.3",
+          "0.4",
+          "0.6"
+        ]
+      }
+    },
+    "orders": {
+      "columns": {
+        "order_id": "str",
+        "demand_m": "float"
+      },
+      "sample": {
+        "order_id": "O1",
+        "demand_m": 1000
+      },
+      "optional": false,
+      "distinct_values": {
+        "order_id": [
+          "O1",
+          "O2",
+          "O3"
+        ],
+        "demand_m": [
+          "1000",
+          "2000",
+          "3000"
+        ]
+      }
+    },
+    "yields": {
+      "columns": {
+        "pattern_id": "str",
+        "order_id": "str",
+        "strips_per_unit": "float"
+      },
+      "sample": {
+        "pattern_id": "P1",
+        "order_id": "O1",
+        "strips_per_unit": 2
+      },
+      "optional": false,
+      "distinct_values": {
+        "pattern_id": [
+          "P1",
+          "P2",
+          "P3",
+          "Q1",
+          "Q2",
+          "Q3",
+          "Q4",
+          "Q5",
+          "Q6",
+          "Q7"
+        ],
+        "order_id": [
+          "O1",
+          "O2",
+          "O3"
+        ],
+        "strips_per_unit": [
+          "0",
+          "1",
+          "2",
+          "4"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "CuttingStockLP",
+    "model_type": "Linear Program",
+    "sense": "minimize",
+    "sets": {
+      "Patterns": {
+        "size": null,
+        "index_symbol": "p",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "patterns",
+        "ordered": false
+      },
+      "OrderTypes": {
+        "size": null,
+        "index_symbol": "s",
+        "source": "sets.csv",
+        "column": "element",
+        "filter_column": "set_name",
+        "filter_value": "order_types",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "waste_rate": {
+        "domain": [
+          "Patterns"
+        ],
+        "type": "float",
+        "source": "patterns.csv",
+        "column": "waste_rate",
+        "index_columns": [
+          "pattern_id"
+        ],
+        "missing_default": "zero"
+      },
+      "roll_width": {
+        "domain": [
+          "Patterns"
+        ],
+        "type": "float",
+        "source": "patterns.csv",
+        "column": "roll_width",
+        "index_columns": [
+          "pattern_id"
+        ],
+        "missing_default": "zero"
+      },
+      "demand_m": {
+        "domain": [
+          "OrderTypes"
+        ],
+        "type": "float",
+        "source": "orders.csv",
+        "column": "demand_m",
+        "index_columns": [
+          "order_id"
+        ],
+        "missing_default": "zero"
+      },
+      "strips_per_unit": {
+        "domain": [
+          "Patterns",
+          "OrderTypes"
+        ],
+        "type": "float",
+        "source": "yields.csv",
+        "column": "strips_per_unit",
+        "index_columns": [
+          "pattern_id",
+          "order_id"
+        ],
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "x": {
+        "description": "Total length (meters) of rolls cut using pattern p",
+        "label": "x",
+        "domain": [
+          "Patterns"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "order_fulfillment": {
+        "domain": [
+          "OrderTypes"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Patterns:p"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "strips_per_unit",
+              "indices": [
+                "p",
+                "s"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "x",
+              "indices": [
+                "p"
+              ]
+            }
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "parameter",
+          "name": "demand_m",
+          "indices": [
+            "s"
+          ]
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "subtract",
+        "left": {
+          "operation": "indexed_sum",
+          "over": [
+            "Patterns:p"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "roll_width",
+              "indices": [
+                "p"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "x",
+              "indices": [
+                "p"
+              ]
+            }
+          }
+        },
+        "right": {
+          "type": "constant",
+          "value": 4400
+        }
+      }
+    }
+  },
+  "modeling_patterns": [
+    "pre-enumerated options"
+  ]
+}

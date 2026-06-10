@@ -1,0 +1,9 @@
+toy_id,resource_id,amount
+trucks,wood,12
+trucks,steel,6
+airplanes,wood,20
+airplanes,steel,3
+boats,wood,15
+boats,steel,5
+trains,wood,10
+trains,steel,4

@@ -1,0 +1,320 @@
+{
+  "problem": {
+    "title": "Traveling Salesman Problem with MTZ Subtour Elimination",
+    "description": "A salesman must visit 7 cities exactly once and return to the starting city (city 1, the depot). The distance between every pair of cities is given in a symmetric matrix stored as directed arcs (both directions included). Minimize total travel distance. The model uses a depot/customer structure: city 1 is the depot and cities 2-7 are customers. MTZ subtour elimination constraints prevent disconnected sub-tours among customer nodes.",
+    "problem_type": "integer_programming",
+    "objective": "minimize",
+    "objective_description": "Total travel distance of the complete tour starting and ending at the depot",
+    "constraints": [
+      {
+        "description": "Each city is departed exactly once: for each city c, sum over all j of x[c,j] = 1"
+      },
+      {
+        "description": "Each city is entered exactly once: for each city c, sum over all i of x[i,c] = 1"
+      },
+      {
+        "description": "MTZ subtour elimination: for customer pairs (c1,c2) with c1 != c2, u[c1] - u[c2] + n*x[c1,c2] <= n-1 where n = |Cities|"
+      }
+    ],
+    "decision_variables": [
+      "x[c1, c2]: binary arc variable, 1 if the salesman travels directly from city c1 to city c2 (exclude diagonal: no self-loops)",
+      "u[c]: integer position variable for non-depot customers, used in MTZ subtour elimination (lb=1, ub=|Customers|)"
+    ],
+    "parameters": [
+      "distance[c1, c2]: travel distance from city c1 to city c2 (symmetric, stored as directed arcs, no diagonal)"
+    ],
+    "additional_notes": "Key patterns: (1) Use filter_column='node_type', filter_value='customer' to create Customers subset from cities.csv; Cities set includes all nodes. (2) x variable uses exclude_diagonal=true. (3) MTZ domain is [Customers, Customers] with diagonal guard (compiler skips c1==c2 automatically). (4) set_size expression used as big-M in MTZ constraint and RHS. (5) u variable domain is [Customers] only — depot position is unconstrained. (6) distances.csv stores all directed pairs (both directions for symmetric matrix).",
+    "csv_file_paths": {
+      "all_cities": "all_cities.csv",
+      "cities": "cities.csv",
+      "distances": "distances.csv"
+    }
+  },
+  "csv_schemas": {
+    "all_cities": {
+      "columns": {
+        "city_id": "str"
+      },
+      "sample": {
+        "city_id": "1"
+      },
+      "optional": false,
+      "distinct_values": {
+        "city_id": [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5",
+          "6",
+          "7"
+        ]
+      }
+    },
+    "cities": {
+      "columns": {
+        "city_id": "str",
+        "node_type": "str"
+      },
+      "sample": {
+        "city_id": "1",
+        "node_type": "depot"
+      },
+      "optional": false,
+      "distinct_values": {
+        "city_id": [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5",
+          "6",
+          "7"
+        ],
+        "node_type": [
+          "depot",
+          "customer"
+        ]
+      }
+    },
+    "distances": {
+      "columns": {
+        "from_id": "str",
+        "to_id": "str",
+        "distance": "float"
+      },
+      "sample": {
+        "from_id": "1",
+        "to_id": "2",
+        "distance": 86.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "from_id": [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5",
+          "6",
+          "7"
+        ],
+        "to_id": [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5",
+          "6",
+          "7"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "TravelingSalesmanProblem",
+    "model_type": "Integer Program",
+    "sense": "minimize",
+    "sets": {
+      "Cities": {
+        "size": null,
+        "index_symbol": "c",
+        "source": "all_cities.csv",
+        "column": "city_id",
+        "ordered": false
+      },
+      "Customers": {
+        "size": null,
+        "index_symbol": "c",
+        "source": "cities.csv",
+        "column": "city_id",
+        "filter_column": "node_type",
+        "filter_value": "customer",
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "dist": {
+        "domain": [
+          "Cities",
+          "Cities"
+        ],
+        "type": "float",
+        "source": "distances.csv",
+        "column": "distance",
+        "index_columns": [
+          "from_id",
+          "to_id"
+        ],
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "x": {
+        "description": "Binary arc variable: 1 if salesman travels from city c1 to city c2",
+        "label": "arc_selection",
+        "domain": [
+          "Cities",
+          "Cities"
+        ],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": true
+      },
+      "u": {
+        "description": "Integer position of customer c in the tour (MTZ subtour elimination)",
+        "label": "visit_position",
+        "domain": [
+          "Customers"
+        ],
+        "type": "integer",
+        "lower_bound": 1,
+        "upper_bound": null,
+        "upper_bound_set": "Customers",
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "out_flow": {
+        "domain": [
+          "Cities"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Cities:c2"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "x",
+            "indices": [
+              "c",
+              "c2"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 1
+        }
+      },
+      "in_flow": {
+        "domain": [
+          "Cities"
+        ],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Cities:c1"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "x",
+            "indices": [
+              "c1",
+              "c"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 1
+        }
+      },
+      "mtz": {
+        "domain": [
+          "Customers",
+          "Customers"
+        ],
+        "expression": {
+          "operation": "sum",
+          "left": {
+            "operation": "subtract",
+            "left": {
+              "type": "variable",
+              "name": "u",
+              "indices": [
+                "c1"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "u",
+              "indices": [
+                "c2"
+              ]
+            }
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "set_size",
+              "set": "Cities"
+            },
+            "right": {
+              "type": "variable",
+              "name": "x",
+              "indices": [
+                "c1",
+                "c2"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "operation": "subtract",
+          "left": {
+            "type": "set_size",
+            "set": "Cities"
+          },
+          "right": {
+            "type": "constant",
+            "value": 1
+          }
+        }
+      }
+    },
+    "objective": {
+      "sense": "minimize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Cities:c1",
+          "Cities:c2"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "type": "parameter",
+            "name": "dist",
+            "indices": [
+              "c1",
+              "c2"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "x",
+            "indices": [
+              "c1",
+              "c2"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "modeling_patterns": [
+    "MTZ subtour elimination",
+    "binary variable",
+    "duplicate set",
+    "exclude diagonal",
+    "filter_column subset",
+    "set size expression"
+  ]
+}

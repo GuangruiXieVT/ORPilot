@@ -1,0 +1,277 @@
+{
+  "problem": {
+    "title": "Golf Toy Production LP",
+    "description": "A toy company produces three types of golf toys: high-end, mid-range, and low-end. Each type requires labor and inspection hours. The company has 1000 labor-hours and 500 inspection-hours available per week. Each type also has a maximum demand limit. Maximize total profit.",
+    "problem_type": "linear_programming",
+    "objective": "maximize",
+    "objective_description": "Total weekly profit from all golf toy types produced",
+    "constraints": [
+      {
+        "description": "Total labor hours across all toy types cannot exceed 1000 hours"
+      },
+      {
+        "description": "Total inspection hours across all toy types cannot exceed 500 hours"
+      },
+      {
+        "description": "Production of each toy type cannot exceed its maximum demand"
+      }
+    ],
+    "decision_variables": [
+      "produce[t]: number of golf toy type t to produce per week (continuous, non-negative)"
+    ],
+    "parameters": [
+      "profit[t]: profit per unit of golf toy type t",
+      "labor_hours[t]: labor hours required per unit of toy type t",
+      "inspect_hours[t]: inspection hours required per unit of toy type t",
+      "max_demand[t]: maximum demand per week for toy type t"
+    ],
+    "additional_notes": "Optimal: produce[high]=0, produce[mid]=80, produce[low]=90. Check: labor=10*80+2*90=980<=1000, inspect=4*80+2*90=500<=500, demand[mid]=80<=80, demand[low]=90<=150. Objective = 200*80+100*90 = 16000+9000 = 25000.",
+    "csv_file_paths": {
+      "toys": "toys.csv"
+    }
+  },
+  "csv_schemas": {
+    "toys": {
+      "columns": {
+        "toy_id": "str",
+        "profit": "float",
+        "labor_hours": "float",
+        "inspect_hours": "float",
+        "max_demand": "float"
+      },
+      "sample": {
+        "toy_id": "high",
+        "profit": 300.0,
+        "labor_hours": 17.0,
+        "inspect_hours": 8.0,
+        "max_demand": 50.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "toy_id": [
+          "high",
+          "mid",
+          "low"
+        ],
+        "profit": [
+          "100",
+          "200",
+          "300"
+        ],
+        "labor_hours": [
+          "2",
+          "10",
+          "17"
+        ],
+        "inspect_hours": [
+          "2",
+          "4",
+          "8"
+        ],
+        "max_demand": [
+          "50",
+          "80",
+          "150"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "GolfToyProductionLP",
+    "model_type": "Linear Program",
+    "sense": "maximize",
+    "sets": {
+      "ToyTypes": {
+        "size": null,
+        "index_symbol": "t",
+        "source": "toys.csv",
+        "column": "toy_id",
+        "filter_column": null,
+        "filter_value": null,
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "profit": {
+        "domain": [
+          "ToyTypes"
+        ],
+        "type": "float",
+        "source": "toys.csv",
+        "column": "profit",
+        "index_columns": [
+          "toy_id"
+        ],
+        "missing_default": "zero"
+      },
+      "labor_hours": {
+        "domain": [
+          "ToyTypes"
+        ],
+        "type": "float",
+        "source": "toys.csv",
+        "column": "labor_hours",
+        "index_columns": [
+          "toy_id"
+        ],
+        "missing_default": "zero"
+      },
+      "inspect_hours": {
+        "domain": [
+          "ToyTypes"
+        ],
+        "type": "float",
+        "source": "toys.csv",
+        "column": "inspect_hours",
+        "index_columns": [
+          "toy_id"
+        ],
+        "missing_default": "zero"
+      },
+      "max_demand": {
+        "domain": [
+          "ToyTypes"
+        ],
+        "type": "float",
+        "source": "toys.csv",
+        "column": "max_demand",
+        "index_columns": [
+          "toy_id"
+        ],
+        "missing_default": "inf"
+      }
+    },
+    "variables": {
+      "produce": {
+        "description": "Number of golf toy type t to produce per week",
+        "label": "produce",
+        "domain": [
+          "ToyTypes"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "labor_limit": {
+        "domain": [],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "ToyTypes:t"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "labor_hours",
+              "indices": [
+                "t"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "produce",
+              "indices": [
+                "t"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 1000
+        }
+      },
+      "inspect_limit": {
+        "domain": [],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "ToyTypes:t"
+          ],
+          "body": {
+            "operation": "multiply",
+            "left": {
+              "type": "parameter",
+              "name": "inspect_hours",
+              "indices": [
+                "t"
+              ]
+            },
+            "right": {
+              "type": "variable",
+              "name": "produce",
+              "indices": [
+                "t"
+              ]
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 500
+        }
+      },
+      "demand_limit": {
+        "domain": [
+          "ToyTypes"
+        ],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "produce",
+            "indices": [
+              "t"
+            ]
+          },
+          "right": {
+            "type": "parameter",
+            "name": "max_demand",
+            "indices": [
+              "t"
+            ]
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "maximize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "ToyTypes:t"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "type": "parameter",
+            "name": "profit",
+            "indices": [
+              "t"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "produce",
+            "indices": [
+              "t"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "modeling_patterns": []
+}

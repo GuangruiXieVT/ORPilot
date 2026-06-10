@@ -1,0 +1,192 @@
+{
+  "problem": {
+    "title": "3-Year Investment LP: Maximize Wealth with Two Investment Options",
+    "description": "An investor has 100,000 yuan. Option 1: 1-year term, returns 1.7x (profit 0.7 per yuan). Option 2: 2-year term (must be multiples of 2 years), returns 3x (profit 2 per yuan). Maximize total wealth at end of year 3 by choosing when and how much to invest each year.",
+    "problem_type": "linear_programming",
+    "objective": "maximize",
+    "objective_description": "Final wealth = 1.7 * opt1_yr3, where opt1_yr3 is the year-3 option-1 investment amount",
+    "constraints": [
+      {
+        "description": "Year 1 budget: opt1_yr1 + opt2_yr1 = 100000"
+      },
+      {
+        "description": "Year 2 budget: opt1_yr2 = 1.7 * opt1_yr1 (reinvest all year-1 option-1 returns)"
+      },
+      {
+        "description": "Year 3 budget: opt1_yr3 = 3 * opt2_yr1 + 1.7 * opt1_yr2 (reinvest all year-2 returns)"
+      }
+    ],
+    "decision_variables": [
+      "opt1_yr1: yuan invested in option 1 at year 1 (continuous, >=0)",
+      "opt2_yr1: yuan invested in option 2 at year 1 (continuous, >=0)",
+      "opt1_yr2: yuan invested in option 1 at year 2 (continuous, >=0)",
+      "opt1_yr3: yuan invested in option 1 at year 3 (continuous, >=0)"
+    ],
+    "parameters": [],
+    "additional_notes": "All scalar variables, no CSV data. Optimal: invest all 100000 in option2 at year1 (returns 300000 at year3 start), then all 300000 in option1 at year3 (returns 510000). Budget constraints are equalities: all cash is reinvested. Maximize 1.7*opt1_yr3."
+  },
+  "csv_schemas": {},
+  "ir": {
+    "problem_class": "InvestmentLP3Year",
+    "model_type": "Linear Program",
+    "sense": "maximize",
+    "sets": {},
+    "parameters": {},
+    "variables": {
+      "opt1_yr1": {
+        "description": "Yuan invested in option 1 at year 1",
+        "label": "opt1_yr1",
+        "domain": [],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "opt2_yr1": {
+        "description": "Yuan invested in option 2 at year 1",
+        "label": "opt2_yr1",
+        "domain": [],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "opt1_yr2": {
+        "description": "Yuan invested in option 1 at year 2",
+        "label": "opt1_yr2",
+        "domain": [],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "opt1_yr3": {
+        "description": "Yuan invested in option 1 at year 3",
+        "label": "opt1_yr3",
+        "domain": [],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "budget_yr1": {
+        "domain": [],
+        "expression": {
+          "operation": "sum",
+          "left": {
+            "type": "variable",
+            "name": "opt1_yr1",
+            "indices": []
+          },
+          "right": {
+            "type": "variable",
+            "name": "opt2_yr1",
+            "indices": []
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 100000
+        }
+      },
+      "budget_yr2": {
+        "domain": [],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "opt1_yr2",
+            "indices": []
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "constant",
+              "value": 1.7
+            },
+            "right": {
+              "type": "variable",
+              "name": "opt1_yr1",
+              "indices": []
+            }
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "budget_yr3": {
+        "domain": [],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "opt1_yr3",
+            "indices": []
+          },
+          "right": {
+            "operation": "sum",
+            "left": {
+              "operation": "multiply",
+              "left": {
+                "type": "constant",
+                "value": 3.0
+              },
+              "right": {
+                "type": "variable",
+                "name": "opt2_yr1",
+                "indices": []
+              }
+            },
+            "right": {
+              "operation": "multiply",
+              "left": {
+                "type": "constant",
+                "value": 1.7
+              },
+              "right": {
+                "type": "variable",
+                "name": "opt1_yr2",
+                "indices": []
+              }
+            }
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "maximize",
+      "expression": {
+        "operation": "multiply",
+        "left": {
+          "type": "constant",
+          "value": 1.7
+        },
+        "right": {
+          "type": "variable",
+          "name": "opt1_yr3",
+          "indices": []
+        }
+      }
+    }
+  },
+  "modeling_patterns": [
+    "balance constraint",
+    "no sets",
+    "temporal lag"
+  ]
+}

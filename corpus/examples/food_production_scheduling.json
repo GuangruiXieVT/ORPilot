@@ -39,14 +39,6 @@
       "prod_costs": "prod_costs.csv"
     }
   },
-  "ir_patterns": [
-    "ordered set",
-    "temporal lag",
-    "init constraint",
-    "3D variable",
-    "BOM constraint",
-    "ingredient supply"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -546,5 +538,10 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "BOM parameter",
+    "init constraint",
+    "temporal lag"
+  ]
 }

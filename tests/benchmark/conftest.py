@@ -135,6 +135,31 @@ def save_dir(request) -> Path | None:
 
 
 @pytest.fixture(scope="session")
+def embed_api_key() -> str | None:
+    """Return the OpenAI embedding API key from orpilot.toml or env, or None if absent.
+
+    Used by the IR builder RAG retrieval step.  When None, RAG is silently skipped.
+    """
+    from orpilot.config import load_project_config
+
+    cfg = load_project_config()
+    return (
+        cfg.get("embed_api_key")
+        or os.getenv("ORPILOT_EMBED_API_KEY")
+        or os.getenv("OPENAI_API_KEY")
+    )
+
+
+@pytest.fixture(scope="session")
+def embed_model() -> str | None:
+    """Return the embedding model name from orpilot.toml, or None to use the default."""
+    from orpilot.config import load_project_config
+
+    cfg = load_project_config()
+    return cfg.get("embed_model")
+
+
+@pytest.fixture(scope="session")
 def llm_fixture(temperature):
     """Return an LLM instance configured from orpilot.toml / env vars, else skip."""
     from orpilot.config import load_project_config

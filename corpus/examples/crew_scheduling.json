@@ -26,11 +26,6 @@
       "assignment_cost": "assignment_cost.csv"
     }
   },
-  "ir_patterns": [
-    "binary variable",
-    "domain filter",
-    "sparse assignment"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -285,5 +280,10 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "binary variable",
+    "domain filter",
+    "sparse filter"
+  ]
 }

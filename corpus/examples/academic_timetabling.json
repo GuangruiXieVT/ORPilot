@@ -26,12 +26,6 @@
       "slot_pref": "slot_pref.csv"
     }
   },
-  "ir_patterns": [
-    "binary variable",
-    "domain filter",
-    "3D variable",
-    "preference maximization"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -293,5 +287,9 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "binary variable",
+    "domain filter"
+  ]
 }

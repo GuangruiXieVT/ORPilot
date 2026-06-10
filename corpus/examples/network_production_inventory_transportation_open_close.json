@@ -95,16 +95,6 @@
       "arc_caps_wr": "arc_caps_wr.csv"
     }
   },
-  "ir_patterns": [
-    "binary variable",
-    "domain filter",
-    "sparse filter",
-    "ordered set",
-    "temporal lag",
-    "init constraint",
-    "big-M linking",
-    "step cost"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -1715,5 +1705,14 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "big-M linking",
+    "binary variable",
+    "domain filter",
+    "init constraint",
+    "sparse filter",
+    "step cost",
+    "temporal lag"
+  ]
 }

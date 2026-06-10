@@ -61,17 +61,6 @@
       "vehicle_params": "vehicle_params.csv"
     }
   },
-  "ir_patterns": [
-    "binary variable",
-    "integer variable",
-    "exclude diagonal",
-    "upper bound set",
-    "init constraint",
-    "set size expression",
-    "duplicate set",
-    "scalar parameter",
-    "big-M linking"
-  ],
   "csv_schemas": {
     "sets": {
       "columns": {
@@ -912,5 +901,16 @@
         }
       }
     }
-  }
+  },
+  "modeling_patterns": [
+    "MTZ subtour elimination",
+    "big-M linking",
+    "binary variable",
+    "duplicate set",
+    "exclude diagonal",
+    "init constraint",
+    "integer variable",
+    "set size expression",
+    "upper bound set"
+  ]
 }

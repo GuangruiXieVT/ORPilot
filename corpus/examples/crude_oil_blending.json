@@ -1,0 +1,481 @@
+{
+  "problem": {
+    "title": "Crude Oil Blending MIP: Maximize Profit with Tier Purchasing",
+    "description": "A refinery blends crude oil A and crude oil B to produce two grades of gasoline (I and II). Initial crude A stock is 500 tons; additional crude A can be purchased in three price tiers (up to 500 tons each at 10000, 8000, 6000 yuan/ton, must fill lower tiers before higher ones). Crude B: 1000 tons available at no explicit cost (already owned). Gasoline I requires at least 50% crude A by weight (uAI >= uBI). Gasoline II requires at least 60% crude A by weight (uAII >= 1.5*uBII). Sell prices: gasoline I at 4800 yuan/ton, gasoline II at 5600 yuan/ton. Maximize profit.",
+    "problem_type": "mixed_integer_programming",
+    "objective": "maximize",
+    "objective_description": "Profit = 4800*(uAI+uBI) + 5600*(uAII+uBII) - 10000*buy1 - 8000*buy2 - 6000*buy3",
+    "constraints": [
+      {
+        "description": "Crude A usage: uAI + uAII <= 500 + buy1 + buy2 + buy3"
+      },
+      {
+        "description": "Crude B usage: uBI + uBII <= 1000"
+      },
+      {
+        "description": "Gasoline I blend: uAI >= uBI (at least 50% crude A)"
+      },
+      {
+        "description": "Gasoline II blend: uAII >= 1.5*uBII (at least 60% crude A)"
+      },
+      {
+        "description": "Tier ordering (buy2): buy2 <= 500*z2"
+      },
+      {
+        "description": "Tier fill 1 (buy1 full if buy2>0): buy1 >= 500*z2"
+      },
+      {
+        "description": "Tier ordering (buy3): buy3 <= 500*z3"
+      },
+      {
+        "description": "Tier fill 2 (buy2 full if buy3>0): buy2 >= 500*z3"
+      }
+    ],
+    "decision_variables": [
+      "buy1: tons of crude A purchased at tier-1 price (10000 yuan/ton), 0-500",
+      "buy2: tons of crude A purchased at tier-2 price (8000 yuan/ton), 0-500",
+      "buy3: tons of crude A purchased at tier-3 price (6000 yuan/ton), 0-500",
+      "z2: binary, 1 if any tier-2 purchase is made",
+      "z3: binary, 1 if any tier-3 purchase is made",
+      "uAI: tons of crude A used in gasoline I (continuous, lb=0)",
+      "uAII: tons of crude A used in gasoline II (continuous, lb=0)",
+      "uBI: tons of crude B used in gasoline I (continuous, lb=0)",
+      "uBII: tons of crude B used in gasoline II (continuous, lb=0)"
+    ],
+    "parameters": [],
+    "additional_notes": "Expected obj=5000000. Optimal: buy all 500+500+500=1500 tons A additional + use all 1000 tons B, all for gasoline II: uAII=2000, uBII=1000/1.5... wait, blend_II: uAII >= 1.5*uBII, so uBII <= uAII/1.5. With uAII=1500t-A from purchases + 500t initial = 2000t A available total, uBII <= 2000/1.5=1333. Revenue=5600*(2000+1000)-10000*500-8000*500-6000*500=5600*3000-12000000=16800000-12000000=4800000. Try uAII=1500+500=2000, uBII=1000: check 2000>=1.5*1000=1500 yes. Revenue=5600*3000-24000000=16800000-12000000=4800000. Also try gasoline I: uAI=500, uBI=500: 4800*1000-0=4800000. Let's try maximize: use all 1000t B in gasoline II (5600>4800). uBII=1000, need uAII>=1500. uAII=1500, buy1=500,buy2=500,buy3=0: cost=10000*500+8000*500=9000000, revenue=5600*2500=14000000, profit=5000000. Yes obj=5000000! All-scalar no CSV. Objective constructed left-to-right: subtract(subtract(subtract(sum(multiply(4800,sum(uAI,uBI)),multiply(5600,sum(uAII,uBII))),multiply(10000,buy1)),multiply(8000,buy2)),multiply(6000,buy3)).",
+    "csv_file_paths": {}
+  },
+  "csv_schemas": {},
+  "ir": {
+    "problem_class": "CrudeOilBlendingMIP",
+    "model_type": "Mixed Integer Program",
+    "sense": "maximize",
+    "sets": {},
+    "parameters": {},
+    "variables": {
+      "buy1": {
+        "description": "Tons of crude A purchased at tier-1 price (10000 yuan/ton)",
+        "label": "buy1",
+        "domain": [],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": 500,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "buy2": {
+        "description": "Tons of crude A purchased at tier-2 price (8000 yuan/ton)",
+        "label": "buy2",
+        "domain": [],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": 500,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "buy3": {
+        "description": "Tons of crude A purchased at tier-3 price (6000 yuan/ton)",
+        "label": "buy3",
+        "domain": [],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": 500,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "z2": {
+        "description": "Binary: 1 if tier-2 crude A purchase is made",
+        "label": "z2",
+        "domain": [],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "z3": {
+        "description": "Binary: 1 if tier-3 crude A purchase is made",
+        "label": "z3",
+        "domain": [],
+        "type": "binary",
+        "lower_bound": 0,
+        "upper_bound": 1,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "uAI": {
+        "description": "Tons of crude A used in gasoline I",
+        "label": "uAI",
+        "domain": [],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "uAII": {
+        "description": "Tons of crude A used in gasoline II",
+        "label": "uAII",
+        "domain": [],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "uBI": {
+        "description": "Tons of crude B used in gasoline I",
+        "label": "uBI",
+        "domain": [],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      },
+      "uBII": {
+        "description": "Tons of crude B used in gasoline II",
+        "label": "uBII",
+        "domain": [],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "crude_A_balance": {
+        "domain": [],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "subtract",
+            "left": {
+              "operation": "subtract",
+              "left": {
+                "operation": "subtract",
+                "left": {
+                  "operation": "sum",
+                  "left": {
+                    "type": "variable",
+                    "name": "uAI",
+                    "indices": []
+                  },
+                  "right": {
+                    "type": "variable",
+                    "name": "uAII",
+                    "indices": []
+                  }
+                },
+                "right": {
+                  "type": "constant",
+                  "value": 500
+                }
+              },
+              "right": {
+                "type": "variable",
+                "name": "buy1",
+                "indices": []
+              }
+            },
+            "right": {
+              "type": "variable",
+              "name": "buy2",
+              "indices": []
+            }
+          },
+          "right": {
+            "type": "variable",
+            "name": "buy3",
+            "indices": []
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "crude_B_balance": {
+        "domain": [],
+        "expression": {
+          "operation": "sum",
+          "left": {
+            "type": "variable",
+            "name": "uBI",
+            "indices": []
+          },
+          "right": {
+            "type": "variable",
+            "name": "uBII",
+            "indices": []
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 1000
+        }
+      },
+      "blend_I": {
+        "domain": [],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "uAI",
+            "indices": []
+          },
+          "right": {
+            "type": "variable",
+            "name": "uBI",
+            "indices": []
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "blend_II": {
+        "domain": [],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "uAII",
+            "indices": []
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "constant",
+              "value": 1.5
+            },
+            "right": {
+              "type": "variable",
+              "name": "uBII",
+              "indices": []
+            }
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "tier_z2": {
+        "domain": [],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "buy2",
+            "indices": []
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "constant",
+              "value": 500
+            },
+            "right": {
+              "type": "variable",
+              "name": "z2",
+              "indices": []
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "tier_fill1": {
+        "domain": [],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "multiply",
+            "left": {
+              "type": "constant",
+              "value": 500
+            },
+            "right": {
+              "type": "variable",
+              "name": "z2",
+              "indices": []
+            }
+          },
+          "right": {
+            "type": "variable",
+            "name": "buy1",
+            "indices": []
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "tier_z3": {
+        "domain": [],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "buy3",
+            "indices": []
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "constant",
+              "value": 500
+            },
+            "right": {
+              "type": "variable",
+              "name": "z3",
+              "indices": []
+            }
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "tier_fill2": {
+        "domain": [],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "operation": "multiply",
+            "left": {
+              "type": "constant",
+              "value": 500
+            },
+            "right": {
+              "type": "variable",
+              "name": "z3",
+              "indices": []
+            }
+          },
+          "right": {
+            "type": "variable",
+            "name": "buy2",
+            "indices": []
+          }
+        },
+        "sense": "<=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "maximize",
+      "expression": {
+        "operation": "subtract",
+        "left": {
+          "operation": "subtract",
+          "left": {
+            "operation": "subtract",
+            "left": {
+              "operation": "sum",
+              "left": {
+                "operation": "multiply",
+                "left": {
+                  "type": "constant",
+                  "value": 4800
+                },
+                "right": {
+                  "operation": "sum",
+                  "left": {
+                    "type": "variable",
+                    "name": "uAI",
+                    "indices": []
+                  },
+                  "right": {
+                    "type": "variable",
+                    "name": "uBI",
+                    "indices": []
+                  }
+                }
+              },
+              "right": {
+                "operation": "multiply",
+                "left": {
+                  "type": "constant",
+                  "value": 5600
+                },
+                "right": {
+                  "operation": "sum",
+                  "left": {
+                    "type": "variable",
+                    "name": "uAII",
+                    "indices": []
+                  },
+                  "right": {
+                    "type": "variable",
+                    "name": "uBII",
+                    "indices": []
+                  }
+                }
+              }
+            },
+            "right": {
+              "operation": "multiply",
+              "left": {
+                "type": "constant",
+                "value": 10000
+              },
+              "right": {
+                "type": "variable",
+                "name": "buy1",
+                "indices": []
+              }
+            }
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "constant",
+              "value": 8000
+            },
+            "right": {
+              "type": "variable",
+              "name": "buy2",
+              "indices": []
+            }
+          }
+        },
+        "right": {
+          "operation": "multiply",
+          "left": {
+            "type": "constant",
+            "value": 6000
+          },
+          "right": {
+            "type": "variable",
+            "name": "buy3",
+            "indices": []
+          }
+        }
+      }
+    }
+  },
+  "modeling_patterns": [
+    "no sets",
+    "ratio constraint",
+    "step cost"
+  ]
+}

@@ -1,0 +1,252 @@
+{
+  "problem": {
+    "title": "Farm Crop Allocation LP",
+    "description": "Tom and Jerry operate a 100-acre farm and must decide how many acres to plant of four crops: corn, wheat, soybeans, and sorghum. Each crop has a different profit per acre. Four constraints govern the allocation: (1) total land equals 100 acres, (2) corn acreage must be at least twice wheat acreage, (3) soybean acreage must be at least half of sorghum acreage, (4) wheat acreage must equal three times sorghum acreage. Maximize total profit.",
+    "problem_type": "linear_programming",
+    "objective": "maximize",
+    "objective_description": "Total profit from all crops planted across the 100-acre farm",
+    "constraints": [
+      {
+        "description": "Total planted acres across all crops must equal 100"
+      },
+      {
+        "description": "Corn acres must be at least twice wheat acres"
+      },
+      {
+        "description": "Soybean acres must be at least half of sorghum acres"
+      },
+      {
+        "description": "Wheat acres must equal exactly three times sorghum acres"
+      }
+    ],
+    "decision_variables": [
+      "plant[c]: acres of crop c to plant (continuous, non-negative)"
+    ],
+    "parameters": [
+      "profit_per_acre[c]: profit per acre for crop c"
+    ],
+    "additional_notes": "Optimal solution: plant all 100 acres in soybeans (highest profit per acre at $1800). The ratio constraints allow this: wheat=0, sorghum=0, corn=0, soybeans=100 satisfies all constraints (wheat=3*sorghum=0 OK, corn>=2*wheat=0 OK, soybeans>=0.5*sorghum=0 OK). Objective = 100*1800 = 180000.",
+    "csv_file_paths": {
+      "crops": "crops.csv"
+    }
+  },
+  "csv_schemas": {
+    "crops": {
+      "columns": {
+        "crop_id": "str",
+        "profit_per_acre": "float"
+      },
+      "sample": {
+        "crop_id": "corn",
+        "profit_per_acre": 1500.0
+      },
+      "optional": false,
+      "distinct_values": {
+        "crop_id": [
+          "corn",
+          "wheat",
+          "soybeans",
+          "sorghum"
+        ],
+        "profit_per_acre": [
+          "1200",
+          "1500",
+          "1600",
+          "1800"
+        ]
+      }
+    }
+  },
+  "ir": {
+    "problem_class": "FarmCropLP",
+    "model_type": "Linear Program",
+    "sense": "maximize",
+    "sets": {
+      "Crops": {
+        "size": null,
+        "index_symbol": "c",
+        "source": "crops.csv",
+        "column": "crop_id",
+        "filter_column": null,
+        "filter_value": null,
+        "ordered": false
+      }
+    },
+    "parameters": {
+      "profit_per_acre": {
+        "domain": [
+          "Crops"
+        ],
+        "type": "float",
+        "source": "crops.csv",
+        "column": "profit_per_acre",
+        "index_columns": [
+          "crop_id"
+        ],
+        "missing_default": "zero"
+      }
+    },
+    "variables": {
+      "plant": {
+        "description": "Acres of crop c to plant",
+        "label": "plant",
+        "domain": [
+          "Crops"
+        ],
+        "type": "continuous",
+        "lower_bound": 0,
+        "upper_bound": null,
+        "upper_bound_set": null,
+        "exclude_diagonal": false
+      }
+    },
+    "constraints": {
+      "land_total": {
+        "domain": [],
+        "expression": {
+          "operation": "indexed_sum",
+          "over": [
+            "Crops:c"
+          ],
+          "body": {
+            "type": "variable",
+            "name": "plant",
+            "indices": [
+              "c"
+            ]
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 100
+        }
+      },
+      "corn_wheat_ratio": {
+        "domain": [],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "plant",
+            "indices": [
+              "corn"
+            ]
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "constant",
+              "value": 2
+            },
+            "right": {
+              "type": "variable",
+              "name": "plant",
+              "indices": [
+                "wheat"
+              ]
+            }
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "soy_sorghum_ratio": {
+        "domain": [],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "plant",
+            "indices": [
+              "soybeans"
+            ]
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "constant",
+              "value": 0.5
+            },
+            "right": {
+              "type": "variable",
+              "name": "plant",
+              "indices": [
+                "sorghum"
+              ]
+            }
+          }
+        },
+        "sense": ">=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      },
+      "wheat_sorghum_eq": {
+        "domain": [],
+        "expression": {
+          "operation": "subtract",
+          "left": {
+            "type": "variable",
+            "name": "plant",
+            "indices": [
+              "wheat"
+            ]
+          },
+          "right": {
+            "operation": "multiply",
+            "left": {
+              "type": "constant",
+              "value": 3
+            },
+            "right": {
+              "type": "variable",
+              "name": "plant",
+              "indices": [
+                "sorghum"
+              ]
+            }
+          }
+        },
+        "sense": "=",
+        "rhs": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    },
+    "objective": {
+      "sense": "maximize",
+      "expression": {
+        "operation": "indexed_sum",
+        "over": [
+          "Crops:c"
+        ],
+        "body": {
+          "operation": "multiply",
+          "left": {
+            "type": "parameter",
+            "name": "profit_per_acre",
+            "indices": [
+              "c"
+            ]
+          },
+          "right": {
+            "type": "variable",
+            "name": "plant",
+            "indices": [
+              "c"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "modeling_patterns": [
+    "ratio constraint"
+  ]
+}
